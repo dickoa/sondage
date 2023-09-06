@@ -1,0 +1,18 @@
+Package: sondage
+Title: PPS Sampling Support in 'base'
+Version: 0.0.0.9000
+Authors@R: c(person(given = "Ahmadou",
+                    family = "Dicko",
+                    role = c("aut", "cre"),
+		    email = "mail@ahmadoudicko.com"),
+	     person(given = "Thomas",
+                    family = "Lumley",
+                    role = "aut",
+                    email = "t.lumley@auckland.ac.nz"))
+Maintainer: Ahmadou Dicko <mail@ahmadoudicko.com>
+Description: Dummy packages to showcase and test unequal probability sampling algorithms to potentially integrate into base::sample.int.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Depends: R (>= 3.6.0)
