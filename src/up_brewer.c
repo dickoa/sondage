@@ -2,6 +2,7 @@
 #include <Rinternals.h>
 #include <Rmath.h>
 #include <string.h>
+#include <stdlib.h>
 
 SEXP up_brewer(SEXP pik, SEXP eps) {
     // Extract data from SEXP arguments
@@ -32,7 +33,7 @@ SEXP up_brewer(SEXP pik, SEXP eps) {
 
     double *filtered_pik = malloc(count * sizeof(double));
     int *original_idx = malloc(count * sizeof(int));
-    int *sb = malloc(count * sizeof(int));
+    int *sb = calloc(count, sizeof(int));
     double *p = malloc(count * sizeof(double));
     int filtered_idx = 0;
 
@@ -53,16 +54,13 @@ SEXP up_brewer(SEXP pik, SEXP eps) {
     }
 
     int n = fround(size, 0);
-    for (int i = 0; i < count; i++) {
-        sb[i] = 0;
-    }
 
     /* Main loop  */
     for (int i = 1; i <= n; i++) {
         double p_sum = 0.0;
-
-        /* Calculate a  */
         a = 0.0;
+	double n_minus_i_plus_1 = n - i + 1;
+
         for (int k = 0; k < count; k++) {
             a += filtered_pik[k] * sb[k];
         }
@@ -72,7 +70,7 @@ SEXP up_brewer(SEXP pik, SEXP eps) {
 
         /* Calculate p */
         for (int k = 0; k < count; k++) {
-            p[k] = ((1 - sb[k]) * filtered_pik[k] * (n_minus_a - filtered_pik[k])) / (n_minus_a - filtered_pik[k] * (n - i + 1));
+            p[k] = ((1 - sb[k]) * filtered_pik[k] * (n_minus_a - filtered_pik[k])) / (n_minus_a - filtered_pik[k] * n_minus_i_plus_1);
             p_sum += p[k];
         }
 
