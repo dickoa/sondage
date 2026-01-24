@@ -48,10 +48,7 @@ excellent and comprehensive. sondage focuses on a narrower goal:
 
 ```r
 # Install from source
-install.packages("sondage", repos = NULL, type = "source")
-
-# Or using devtools
-devtools::install()
+remotes::install_gitlab("dickoa/sondage")
 ```
 
 ## Quick Start
