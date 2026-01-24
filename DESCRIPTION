@@ -1,0 +1,25 @@
+Package: sondage
+Type: Package
+Title: Survey Sampling Algorithms
+Version: 0.1.0
+Authors@R: person(given = "Ahmadou",
+                  family = "Dicko",
+	          email = "mail@ahmadoudicko.com",
+                  role = c("aut", "cre"))
+Description: Fast implementations of survey sampling algorithms for drawing
+    samples from finite populations. Provides both equal probability methods
+    (simple random sampling, systematic, Bernoulli) and unequal probability
+    methods (Brewer, maximum entropy/conditional Poisson, systematic PPS).
+    All functions return indices for easy subsetting. Based on algorithms from
+    Tille (2006) "Sampling Algorithms" <doi:10.1007/0-387-34240-0>.
+License: MIT + file LICENSE
+Encoding: UTF-8
+URL: https://dickoa.gitlab.io/sondage, https://gitlab.com/dickoa/sondage
+BugReports: https://gitlab.com/dickoa/sondage/-/issues
+VignetteBuilder: knitr
+Roxygen: list(markdown = TRUE)
+LazyData: true
+RoxygenNote: 7.3.3
+NeedsCompilation: yes
+Suggests: testthat (>= 3.0.0)
+Config/testthat/edition: 3

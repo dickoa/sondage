@@ -1,0 +1,117 @@
+#include <R.h>
+#include <Rinternals.h>
+#include <math.h>
+
+/*
+ * Convert measure of size to inclusion probabilities
+ *
+ * Algorithm:
+ * 1. pik = n * a / sum(a)
+ * 2. If any pik >= 1, set to 1 and redistribute remaining n to others
+ * 3. Iterate until no pik >= 1 (typically 1-2 iterations)
+ *
+ * Optimizations:
+ * - Single pass for sum + negative check
+ * - Fused normalization and count
+ * - Early exit when no adjustment needed
+ * - Never modifies input
+ */
+SEXP C_inclusion_prob(SEXP a, SEXP n) {
+    const int len = length(a);
+    const double n_val = asReal(n);
+    const double *a_ptr = REAL(a);
+
+    /* Input validation */
+    if (len == 0) {
+        return allocVector(REALSXP, 0);
+    }
+    if (ISNA(n_val) || ISNAN(n_val)) {
+        error("n must not be NA or NaN");
+    }
+    if (n_val < 0) {
+        error("n must be non-negative");
+    }
+
+    /* Allocate output */
+    SEXP pik = PROTECT(allocVector(REALSXP, len));
+    double *pik_ptr = REAL(pik);
+
+    /* Pass 1: Sum positive values, copy to output (treating negative as 0) */
+    double sum_a = 0.0;
+    for (int i = 0; i < len; i++) {
+        double val = a_ptr[i];
+        if (ISNA(val) || ISNAN(val)) {
+            /* Propagate NA */
+            pik_ptr[i] = NA_REAL;
+        } else if (val <= 0.0) {
+            pik_ptr[i] = 0.0;
+        } else {
+            pik_ptr[i] = val;  /* Store positive value temporarily */
+            sum_a += val;
+        }
+    }
+
+    /* Handle edge case: all zeros or all NA */
+    if (sum_a == 0.0) {
+        /* Return zeros (or NA where input was NA) */
+        for (int i = 0; i < len; i++) {
+            if (!ISNA(pik_ptr[i])) {
+                pik_ptr[i] = 0.0;
+            }
+        }
+        UNPROTECT(1);
+        return pik;
+    }
+
+    /* Pass 2: Normalize to inclusion probabilities */
+    const double scale = n_val / sum_a;
+    int n_capped = 0;
+    double sum_uncapped = 0.0;
+
+    for (int i = 0; i < len; i++) {
+        if (!ISNA(pik_ptr[i])) {
+            double pi = pik_ptr[i] * scale;
+            if (pi >= 1.0) {
+                pik_ptr[i] = 1.0;
+                n_capped++;
+            } else {
+                pik_ptr[i] = pi;
+                sum_uncapped += pi;
+            }
+        }
+    }
+
+    /* Iterative adjustment if needed (typically 0-2 iterations) */
+    while (n_capped > 0 && sum_uncapped > 0.0) {
+        /* Redistribute: remaining n to uncapped units */
+        double remaining_n = n_val - (double)n_capped;
+        double rescale = remaining_n / sum_uncapped;
+
+        int new_capped = 0;
+        double new_sum_uncapped = 0.0;
+
+        for (int i = 0; i < len; i++) {
+            if (!ISNA(pik_ptr[i]) && pik_ptr[i] < 1.0) {
+                double pi = pik_ptr[i] * rescale;
+                if (pi >= 1.0) {
+                    pik_ptr[i] = 1.0;
+                    new_capped++;
+                } else {
+                    pik_ptr[i] = pi;
+                    new_sum_uncapped += pi;
+                }
+            }
+        }
+
+        /* Check convergence */
+        if (new_capped == 0) {
+            break;  /* No new units capped, done */
+        }
+
+        n_capped += new_capped;
+        sum_uncapped = new_sum_uncapped;
+    }
+
+    UNPROTECT(1);
+    return pik;
+}

@@ -1,0 +1,35 @@
+(undo-tree-save-format-version . 1)
+"c090f0ee19a88278cf324675cb770c7e72a0dfe2"
+[nil nil nil nil (26996 36725 407705 484000) 0 nil]
+([nil nil ((1056 . 1057) (t 26974 40437 0 0)) nil (26996 36725 407704 944000) 0 nil])
+([nil nil (("
+" . 1057) (undo-tree-id0 . -1) (undo-tree-id1 . -1)) nil (26996 36725 407702 984000) 0 nil])
+([nil nil ((1 . 3) (t 26996 36725 408388 283000)) nil (26996 39067 347296 749000) 0 nil])
+([nil nil ((1 . 44)) nil (26996 39067 347296 579000) 0 nil])
+([nil nil (("3" . -10) (undo-tree-id8 . -1) 11) nil (26996 39067 347296 339000) 0 nil])
+([nil nil ((10 . 11)) nil (26996 39067 347295 499000) 0 nil])
+([nil current (("
+
+MIT License
+
+Copyright (c) 2024
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the \"Software\"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+" . -44) (undo-tree-id2 . -1058) (undo-tree-id3 . -1058) (undo-tree-id4 . -970) (undo-tree-id5 . -970) (undo-tree-id6 . -1058) (undo-tree-id7 . -1058) 1102) nil (26996 39067 347292 929000) 0 nil])
+nil
