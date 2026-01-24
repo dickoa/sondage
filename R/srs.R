@@ -45,16 +45,19 @@
 #' @export
 srs <- function(n, N, replace = FALSE) {
   if (!is.numeric(n) || length(n) != 1 || n < 0) {
-    stop("n must be a non-negative integer")
+    stop("n must be a non-negative integer",
+         call. = FALSE)
   }
   if (!is.numeric(N) || length(N) != 1 || N < 1) {
-    stop("N must be a positive integer")
+    stop("N must be a positive integer",
+         call. = FALSE)
   }
   n <- as.integer(n)
   N <- as.integer(N)
 
   if (!replace && n > N) {
-    stop("n cannot exceed N when replace = FALSE")
+    stop("n cannot exceed N when replace = FALSE",
+         call. = FALSE)
   }
 
   if (n == 0) {
@@ -173,10 +176,12 @@ systematic <- function(n, N) {
 #' @export
 bernoulli <- function(p, N) {
   if (!is.numeric(p) || length(p) != 1 || p < 0 || p > 1) {
-    stop("p must be a probability between 0 and 1")
+    stop("p must be a probability between 0 and 1",
+         call. = FALSE)
   }
   if (!is.numeric(N) || length(N) != 1 || N < 1) {
-    stop("N must be a positive integer")
+    stop("N must be a positive integer",
+         call. = FALSE)
   }
   N <- as.integer(N)
   selected <- as.logical(rbinom(N, 1, p))

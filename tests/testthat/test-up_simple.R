@@ -20,7 +20,7 @@ test_that("up_poisson achieves correct inclusion probabilities", {
     pik <- c(0.1, 0.3, 0.5, 0.7, 0.9)
     N <- length(pik)
     n_sim <- 5000
-    
+
     set.seed(42)
     counts <- integer(N)
     for (i in 1:n_sim) {
@@ -28,7 +28,7 @@ test_that("up_poisson achieves correct inclusion probabilities", {
         counts[idx] <- counts[idx] + 1
     }
     pi_hat <- counts / n_sim
-    
+
     expect_equal(pi_hat, pik, tolerance = 0.03)
 })
 
@@ -36,7 +36,7 @@ test_that("up_poisson handles boundary cases", {
     # All 0 - select nothing
     idx <- up_poisson(c(0, 0, 0))
     expect_length(idx, 0)
-    
+
     # All 1 - select everything
     idx <- up_poisson(c(1, 1, 1))
     expect_equal(sort(idx), 1:3)
@@ -44,12 +44,12 @@ test_that("up_poisson handles boundary cases", {
 
 test_that("up_poisson is reproducible with set.seed", {
     pik <- c(0.2, 0.5, 0.8)
-    
+
     set.seed(123)
     idx1 <- up_poisson(pik)
     set.seed(123)
     idx2 <- up_poisson(pik)
-    
+
     expect_identical(idx1, idx2)
 })
 
@@ -64,59 +64,59 @@ test_that("up_poisson rejects invalid input", {
 # ============================================================
 
 test_that("up_multinomial returns correct number of indices", {
-    pik <- c(1, 2, 3, 4)
-    idx <- up_multinomial(pik, n = 10)
-    expect_length(idx, 10)
+    pik <- c(0.2, 0.4, 0.6, 0.8)  # sum = 2
+    idx <- up_multinomial(pik)
+    expect_length(idx, 2)
 })
 
 test_that("up_multinomial indices are in valid range", {
-    pik <- c(1, 2, 3, 4)
-    idx <- up_multinomial(pik, n = 10)
+    pik <- c(1, 2, 3, 4)  # sum = 10
+    idx <- up_multinomial(pik)
     expect_true(all(idx >= 1 & idx <= 4))
 })
 
 test_that("up_multinomial can have duplicates", {
     set.seed(42)
-    pik <- c(1, 2, 3, 4)
-    idx <- up_multinomial(pik, n = 100)
-    # With 100 draws from 4 units, we expect duplicates
-    expect_true(length(unique(idx)) < 100)
+    pik <- c(1, 2, 3, 4)  # sum = 10 draws
+    idx <- up_multinomial(pik)
+    # With 10 draws from 4 units, we expect duplicates
+    expect_true(length(unique(idx)) < 10)
 })
 
 test_that("up_multinomial achieves correct proportions", {
     pik <- c(1, 2, 3, 4)  # Should get 10%, 20%, 30%, 40%
     n_sim <- 5000
-    n_draws <- 100
+    n_draws <- round(sum(pik))  # 10
     N <- length(pik)
-    
+
     set.seed(42)
     counts <- integer(N)
     for (i in 1:n_sim) {
-        idx <- up_multinomial(pik, n = n_draws)
+        idx <- up_multinomial(pik)
         tab <- tabulate(idx, nbins = N)
         counts <- counts + tab
     }
     proportions <- counts / (n_sim * n_draws)
     expected <- pik / sum(pik)
-    
+
     expect_equal(proportions, expected, tolerance = 0.02)
 })
 
 test_that("up_multinomial is reproducible with set.seed", {
     pik <- c(1, 2, 3, 4)
-    
+
     set.seed(123)
-    idx1 <- up_multinomial(pik, n = 10)
+    idx1 <- up_multinomial(pik)
     set.seed(123)
-    idx2 <- up_multinomial(pik, n = 10)
-    
+    idx2 <- up_multinomial(pik)
+
     expect_identical(idx1, idx2)
 })
 
 test_that("up_multinomial rejects invalid input", {
-    expect_error(up_multinomial(c(1, NA, 2), n = 5), "missing values")
-    expect_error(up_multinomial(c(1, -1, 2), n = 5), "non-negative")
-    expect_error(up_multinomial(c(1, 2, 3), n = 0), "at least 1")
+    expect_error(up_multinomial(c(1, NA, 2)), "missing values")
+    expect_error(up_multinomial(c(1, -1, 2)), "non-negative")
+    expect_error(up_multinomial(c(0, 0, 0)), "sum of pik must be positive")
 })
 
 # ============================================================
@@ -145,7 +145,7 @@ test_that("up_systematic achieves correct inclusion probabilities", {
     pik <- c(0.1, 0.2, 0.3, 0.4, 0.5, 0.5)  # n = 2
     N <- length(pik)
     n_sim <- 10000
-    
+
     set.seed(42)
     counts <- integer(N)
     for (i in 1:n_sim) {
@@ -153,7 +153,7 @@ test_that("up_systematic achieves correct inclusion probabilities", {
         counts[idx] <- counts[idx] + 1
     }
     pi_hat <- counts / n_sim
-    
+
     expect_equal(pi_hat, pik, tolerance = 0.02)
 })
 
@@ -169,12 +169,12 @@ test_that("up_systematic handles certainty selections", {
 
 test_that("up_systematic is reproducible with set.seed", {
     pik <- c(0.2, 0.3, 0.5, 0.4, 0.6)
-    
+
     set.seed(123)
     idx1 <- up_systematic(pik)
     set.seed(123)
     idx2 <- up_systematic(pik)
-    
+
     expect_identical(idx1, idx2)
 })
 
@@ -184,9 +184,9 @@ test_that("up_systematic works with larger populations", {
     n <- 100
     pik <- runif(N)
     pik <- pik / sum(pik) * n
-    
+
     idx <- up_systematic(pik)
-    
+
     expect_length(idx, n)
     expect_true(all(idx >= 1 & idx <= N))
 })

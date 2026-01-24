@@ -35,15 +35,15 @@
 #'
 #' @export
 up_poisson <- function(pik) {
-    if (any(is.na(pik))) {
-        stop("there are missing values in the pik vector")
-    }
-    if (any(pik < 0 | pik > 1)) {
-        stop("pik values must be in [0, 1]")
-    }
+  if (any(is.na(pik))) {
+    stop("there are missing values in the pik vector")
+  }
+  if (any(pik < 0 | pik > 1)) {
+    stop("pik values must be in [0, 1]")
+  }
 
-    selected <- as.logical(rbinom(length(pik), 1, pik))
-    which(selected)
+  selected <- as.logical(rbinom(length(pik), 1, pik))
+  which(selected)
 }
 
 #' Multinomial Sampling (PPS with Replacement)
@@ -51,20 +51,23 @@ up_poisson <- function(pik) {
 #' Draws n units with replacement, with selection probability proportional
 #' to the inclusion probabilities. A unit can be selected multiple times.
 #'
-#' @param pik A numeric vector of positive selection weights (will be normalized).
-#' @param n Number of draws.
+#' @param pik A numeric vector of inclusion probabilities. The sum determines
+#'   the number of draws: `n = round(sum(pik))`.
 #'
-#' @return An integer vector of n selected indices.
+#' @return An integer vector of n selected indices (1 to `length(pik)`).
 #'   May contain repeated values.
 #'
 #' @details
-#' Multinomial sampling (PPS with replacement) makes n independent
-#' draws, each with probability proportional to pik.
+#' Multinomial sampling (PPS with replacement) makes n independent draws,
+#' each with probability proportional to pik. This is equivalent to
+#' [sampling::UPmultinomial()] but returns indices instead of counts.
 #'
 #' Properties:
-#' - Fixed number of draws n
-#' - Units can be selected multiple times
-#' - Inclusion probability: 1 - (1 - p_k)^n where p_k = pik_k/sum(pik)
+#' \itemize{
+#'   \item Fixed number of draws n = `round(sum(pik))`
+#'   \item Units can be selected multiple times
+#'   \item Selection probability per draw: \eqn{p_k = \pi_k / \sum \pi_k}
+#' }
 #'
 #' Useful for Hansen-Hurwitz estimation and bootstrap procedures.
 #'
@@ -72,36 +75,42 @@ up_poisson <- function(pik) {
 #'   [srs()] with `replace = TRUE` for equal probability
 #'
 #' @examples
-#' pik <- c(1, 2, 3, 4)  # Weights (will be normalized)
+#' pik <- c(0.2, 0.4, 0.6, 0.8)  # sum = 2, so 2 draws
 #'
 #' set.seed(42)
-#' idx <- up_multinomial(pik, n = 10)
-#' idx  # Unit 4 likely appears most often
-#' table(idx)
+#' idx <- up_multinomial(pik)
+#' idx  # 2 indices, may repeat
+#'
+#' # Larger example
+#' pik <- c(1, 2, 3, 4)  # sum = 10, so 10 draws
+#' set.seed(42)
+#' idx <- up_multinomial(pik)
+#' table(idx)  # Unit 4 likely appears most often
 #'
 #' # Use for selection
 #' df <- data.frame(id = 1:4, x = c(10, 20, 30, 40))
 #' df[idx, ]  # 10 rows, some repeated
 #'
 #' @export
-up_multinomial <- function(pik, n) {
-    if (any(is.na(pik))) {
-        stop("there are missing values in the pik vector")
-    }
-    if (any(pik < 0)) {
-        stop("pik values must be non-negative")
-    }
-    if (sum(pik) == 0) {
-        stop("sum of pik must be positive")
-    }
-    if (n < 1) {
-        stop("n must be at least 1")
-    }
+up_multinomial <- function(pik) {
+  if (any(is.na(pik))) {
+    stop("there are missing values in the pik vector")
+  }
+  if (any(pik < 0)) {
+    stop("pik values must be non-negative")
+  }
+  if (sum(pik) == 0) {
+    stop("sum of pik must be positive")
+  }
 
-    n <- as.integer(n)
+  n <- round(sum(pik))
 
-    # Draw n indices with probability proportional to pik
-    sample.int(length(pik), n, replace = TRUE, prob = pik)
+  if (n == 0) {
+    return(integer(0))
+  }
+
+  # Draw n indices with probability proportional to pik
+  sample.int(length(pik), n, replace = TRUE, prob = pik)
 }
 
 #' Systematic Sampling with Unequal Probabilities
@@ -153,33 +162,33 @@ up_multinomial <- function(pik, n) {
 #'
 #' @export
 up_systematic <- function(pik, eps = 1e-06) {
-    if (any(is.na(pik))) {
-        stop("there are missing values in the pik vector")
-    }
-    if (!is.numeric(pik)) {
-        stop("pik must be a numeric vector")
-    }
-    N <- length(pik)
-    if (N == 0) {
-        stop("pik vector is empty")
-    }
+  if (any(is.na(pik))) {
+    stop("there are missing values in the pik vector")
+  }
+  if (!is.numeric(pik)) {
+    stop("pik must be a numeric vector")
+  }
+  N <- length(pik)
+  if (N == 0) {
+    stop("pik vector is empty")
+  }
 
-    # Identify certainty selections and valid units
-    certain <- which(pik >= 1 - eps)
-    zero <- which(pik <= eps)
-    valid <- which(pik > eps & pik < 1 - eps)
+  # Identify certainty selections and valid units
+  certain <- which(pik >= 1 - eps)
+  zero <- which(pik <= eps)
+  valid <- which(pik > eps & pik < 1 - eps)
 
-    pik_valid <- pik[valid]
-    n_valid <- length(pik_valid)
+  pik_valid <- pik[valid]
+  n_valid <- length(pik_valid)
 
-    if (n_valid == 0) {
-        return(certain)
-    }
+  if (n_valid == 0) {
+    return(certain)
+  }
 
-    # Tillé's vectorized algorithm
-    a <- (c(0, cumsum(pik_valid)) - runif(1)) %% 1
-    selected_valid <- valid[a[1:n_valid] > a[2:(n_valid + 1)]]
+  # Tillé's vectorized algorithm
+  a <- (c(0, cumsum(pik_valid)) - runif(1)) %% 1
+  selected_valid <- valid[a[1:n_valid] > a[2:(n_valid + 1)]]
 
-    # Combine with certainty selections
-    sort(c(certain, selected_valid))
+  # Combine with certainty selections
+  sort(c(certain, selected_valid))
 }

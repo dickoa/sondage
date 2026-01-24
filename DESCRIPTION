@@ -16,7 +16,6 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 URL: https://dickoa.gitlab.io/sondage, https://gitlab.com/dickoa/sondage
 BugReports: https://gitlab.com/dickoa/sondage/-/issues
-VignetteBuilder: knitr
 Roxygen: list(markdown = TRUE)
 LazyData: true
 RoxygenNote: 7.3.3

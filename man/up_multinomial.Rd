@@ -4,15 +4,14 @@
 \alias{up_multinomial}
 \title{Multinomial Sampling (PPS with Replacement)}
 \usage{
-up_multinomial(pik, n)
+up_multinomial(pik)
 }
 \arguments{
-\item{pik}{A numeric vector of positive selection weights (will be normalized).}
-
-\item{n}{Number of draws.}
+\item{pik}{A numeric vector of inclusion probabilities. The sum determines
+the number of draws: \code{n = round(sum(pik))}.}
 }
 \value{
-An integer vector of n selected indices.
+An integer vector of n selected indices (1 to \code{length(pik)}).
 May contain repeated values.
 }
 \description{
@@ -20,25 +19,31 @@ Draws n units with replacement, with selection probability proportional
 to the inclusion probabilities. A unit can be selected multiple times.
 }
 \details{
-Multinomial sampling (PPS with replacement) makes n independent
-draws, each with probability proportional to pik.
+Multinomial sampling (PPS with replacement) makes n independent draws,
+each with probability proportional to pik. This is equivalent to
+\code{\link[sampling:UPmultinomial]{sampling::UPmultinomial()}} but returns indices instead of counts.
 
 Properties:
 \itemize{
-\item Fixed number of draws n
+\item Fixed number of draws n = \code{round(sum(pik))}
 \item Units can be selected multiple times
-\item Inclusion probability: 1 - (1 - p_k)^n where p_k = pik_k/sum(pik)
+\item Selection probability per draw: \eqn{p_k = \pi_k / \sum \pi_k}
 }
 
 Useful for Hansen-Hurwitz estimation and bootstrap procedures.
 }
 \examples{
-pik <- c(1, 2, 3, 4)  # Weights (will be normalized)
+pik <- c(0.2, 0.4, 0.6, 0.8)  # sum = 2, so 2 draws
 
 set.seed(42)
-idx <- up_multinomial(pik, n = 10)
-idx  # Unit 4 likely appears most often
-table(idx)
+idx <- up_multinomial(pik)
+idx  # 2 indices, may repeat
+
+# Larger example
+pik <- c(1, 2, 3, 4)  # sum = 10, so 10 draws
+set.seed(42)
+idx <- up_multinomial(pik)
+table(idx)  # Unit 4 likely appears most often
 
 # Use for selection
 df <- data.frame(id = 1:4, x = c(10, 20, 30, 40))

@@ -56,13 +56,16 @@
 #' @export
 up_brewer <- function(pik, eps = 1e-06) {
     if (any(is.na(pik))) {
-        stop("there are missing values in the pik vector")
+      stop("there are missing values in the pik vector",
+           call. = FALSE)
     }
     if (!is.numeric(pik)) {
-        stop("pik must be a numeric vector")
+      stop("pik must be a numeric vector",
+           call. = FALSE)
     }
     if (length(pik) == 0) {
-        stop("pik vector is empty")
+      stop("pik vector is empty",
+           call. = FALSE)
     }
     .Call(C_up_brewer, as.double(pik), as.double(eps[1]))
 }
