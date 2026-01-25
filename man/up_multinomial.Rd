@@ -21,7 +21,7 @@ to the inclusion probabilities. A unit can be selected multiple times.
 \details{
 Multinomial sampling (PPS with replacement) makes n independent draws,
 each with probability proportional to pik. This is equivalent to
-\code{\link[sampling:UPmultinomial]{sampling::UPmultinomial()}} but returns indices instead of counts.
+\code{sampling::UPmultinomial()} but returns indices instead of counts.
 
 Properties:
 \itemize{

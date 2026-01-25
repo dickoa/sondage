@@ -14,10 +14,8 @@ from finite populations. All functions return indices for easy subsetting.
 \itemize{
 \item \code{\link[=srs]{srs()}} - Simple random sampling (with/without replacement)
 \item \code{\link[=systematic]{systematic()}} - Systematic sampling
-\item [bernoulli())] - Bernoulli sampling (random size)
+\item \code{\link[=bernoulli]{bernoulli()}} - Bernoulli sampling (random size)
 }
-
-[bernoulli())]: R:bernoulli())
 }
 
 \section{Unequal Probability Sampling}{
@@ -51,6 +49,6 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Ahmadou Dicko \email{mail@ahmadoudicko.com}
+\strong{Maintainer}: Ahmadou Dicko \email{mail@ahmadoudicko.com} (\href{https://orcid.org/0000-0002-9654-7582}{ORCID})
 
 }

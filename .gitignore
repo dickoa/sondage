@@ -12,3 +12,4 @@ reference/
 *.o
 *.so
 *~
+..Rcheck/

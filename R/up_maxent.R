@@ -59,34 +59,25 @@
 #'
 #' @export
 up_maxent <- function(pik, nrep = 1L, eps = 1e-06) {
-    # Input validation
-    if (any(is.na(pik))) {
-      stop("there are missing values in the pik vector",
-           call. = FALSE)
-    }
-    if (!is.numeric(pik)) {
-      stop("pik must be a numeric vector",
-           call. = FALSE)
-    }
-    if (length(pik) == 0) {
-      stop("pik vector is empty",
-           call. = FALSE)
-    }
-    if (!is.numeric(nrep) || length(nrep) != 1 || nrep < 1) {
-      stop("nrep must be a positive integer",
-           call. = FALSE)
-    }
+  # Input validation
+  if (any(is.na(pik))) {
+    stop("there are missing values in the pik vector", call. = FALSE)
+  }
+  if (!is.numeric(pik)) {
+    stop("pik must be a numeric vector", call. = FALSE)
+  }
+  if (length(pik) == 0) {
+    stop("pik vector is empty", call. = FALSE)
+  }
+  if (!is.numeric(nrep) || length(nrep) != 1 || nrep < 1) {
+    stop("nrep must be a positive integer", call. = FALSE)
+  }
+  nrep <- as.integer(nrep)
 
-    nrep <- as.integer(nrep)
-
-    # Create design object (precomputes lambda parameters)
-    design <- .Call(C_maxent_design_create, as.double(pik), as.double(eps))
-
-    if (nrep == 1L) {
-        # Single sample - return integer vector
-        .Call(C_maxent_sample, design, as.integer(10000L))
-    } else {
-        # Multiple samples - return integer matrix
-        .Call(C_maxent_sample_batch, design, nrep, as.integer(10000L))
-    }
+  design <- .Call(C_maxent_design_create, as.double(pik), as.double(eps))
+  if (nrep == 1L) {
+    .Call(C_maxent_sample, design, as.integer(10000L))
+  } else {
+    .Call(C_maxent_sample_batch, design, nrep, as.integer(10000L))
+  }
 }

@@ -7,7 +7,7 @@
 #' \itemize{
 #'   \item [srs()] - Simple random sampling (with/without replacement)
 #'   \item [systematic()] - Systematic sampling
-#'   \item [bernoulli())] - Bernoulli sampling (random size)
+#'   \item [bernoulli()] - Bernoulli sampling (random size)
 #' }
 #'
 #' @section Unequal Probability Sampling:

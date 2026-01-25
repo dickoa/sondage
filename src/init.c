@@ -3,18 +3,12 @@
 #include <R_ext/Rdynload.h>
 #include <stdlib.h>
 
-/* Brewer's method */
 extern SEXP C_up_brewer(SEXP pik, SEXP eps);
-
-/* Inclusion probability computation */
 extern SEXP C_inclusion_prob(SEXP a, SEXP n);
-
-/* Maximum entropy sampling */
 extern SEXP C_maxent_design_create(SEXP pik, SEXP eps);
 extern SEXP C_maxent_sample(SEXP design, SEXP max_attempts);
 extern SEXP C_maxent_sample_batch(SEXP design, SEXP n_samples, SEXP max_attempts);
 
-/* Registration table */
 static const R_CallMethodDef CallEntries[] = {
     {"C_up_brewer",            (DL_FUNC) &C_up_brewer,            2},
     {"C_inclusion_prob",       (DL_FUNC) &C_inclusion_prob,       2},

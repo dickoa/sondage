@@ -60,7 +60,7 @@ up_poisson <- function(pik) {
 #' @details
 #' Multinomial sampling (PPS with replacement) makes n independent draws,
 #' each with probability proportional to pik. This is equivalent to
-#' [sampling::UPmultinomial()] but returns indices instead of counts.
+#' `sampling::UPmultinomial()` but returns indices instead of counts.
 #'
 #' Properties:
 #' \itemize{
@@ -94,22 +94,22 @@ up_poisson <- function(pik) {
 #' @export
 up_multinomial <- function(pik) {
   if (any(is.na(pik))) {
-    stop("there are missing values in the pik vector")
+    stop("there are missing values in the pik vector",
+         call. = FALSE)
   }
   if (any(pik < 0)) {
-    stop("pik values must be non-negative")
+    stop("pik values must be non-negative",
+         call. = FALSE)
   }
   if (sum(pik) == 0) {
-    stop("sum of pik must be positive")
+    stop("sum of pik must be positive",
+         call. = FALSE)
   }
-
   n <- round(sum(pik))
 
   if (n == 0) {
     return(integer(0))
   }
-
-  # Draw n indices with probability proportional to pik
   sample.int(length(pik), n, replace = TRUE, prob = pik)
 }
 
@@ -163,17 +163,19 @@ up_multinomial <- function(pik) {
 #' @export
 up_systematic <- function(pik, eps = 1e-06) {
   if (any(is.na(pik))) {
-    stop("there are missing values in the pik vector")
+    stop("there are missing values in the pik vector",
+         call. = FALSE)
   }
   if (!is.numeric(pik)) {
-    stop("pik must be a numeric vector")
+    stop("pik must be a numeric vector",
+         call. = FALSE)
   }
   N <- length(pik)
   if (N == 0) {
-    stop("pik vector is empty")
+    stop("pik vector is empty",
+         call. = FALSE)
   }
 
-  # Identify certainty selections and valid units
   certain <- which(pik >= 1 - eps)
   zero <- which(pik <= eps)
   valid <- which(pik > eps & pik < 1 - eps)
@@ -185,10 +187,8 @@ up_systematic <- function(pik, eps = 1e-06) {
     return(certain)
   }
 
-  # Tillé's vectorized algorithm
+  ## Tillé's vectorized algorithm (sampling::UPsystematic)
   a <- (c(0, cumsum(pik_valid)) - runif(1)) %% 1
   selected_valid <- valid[a[1:n_valid] > a[2:(n_valid + 1)]]
-
-  # Combine with certainty selections
   sort(c(certain, selected_valid))
 }

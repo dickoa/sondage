@@ -62,6 +62,7 @@ Brewer, K.R.W. (1963). A model of systematic sampling with unequal
 probabilities. \emph{Australian Journal of Statistics}, 5, 5-13.
 }
 \seealso{
-\code{\link[=up_maxent]{up_maxent()}} for maximum entropy sampling,
-\code{\link[=up_systematic]{up_systematic()}} for systematic PPS sampling
+\code{\link[=up_maxent]{up_maxent()}} for maximum entropy/conditional poisson sampling,
+\code{\link[=up_systematic]{up_systematic()}} for systematic PPS sampling,
+\code{\link[=inclusion_prob]{inclusion_prob()}} for computing inclusion probabilities from size measures
 }

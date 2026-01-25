@@ -3,7 +3,6 @@
 # ============================================================
 # up_poisson tests
 # ============================================================
-
 test_that("up_poisson returns indices in valid range", {
     pik <- c(0.2, 0.5, 0.8)
     idx <- up_poisson(pik)
@@ -62,7 +61,6 @@ test_that("up_poisson rejects invalid input", {
 # ============================================================
 # up_multinomial tests
 # ============================================================
-
 test_that("up_multinomial returns correct number of indices", {
     pik <- c(0.2, 0.4, 0.6, 0.8)  # sum = 2
     idx <- up_multinomial(pik)
@@ -122,7 +120,6 @@ test_that("up_multinomial rejects invalid input", {
 # ============================================================
 # up_systematic tests
 # ============================================================
-
 test_that("up_systematic returns correct number of indices", {
     pik <- c(0.2, 0.3, 0.5, 0.4, 0.6)  # n = 2
     idx <- up_systematic(pik)
