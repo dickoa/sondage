@@ -9,8 +9,8 @@
 #' @param nrep Number of sample replicates to draw. Default is 1.
 #' @param eps A small threshold value for boundary cases. Default is 1e-06.
 #'
-#' @return If `nrep = 1`, an integer vector of selected indices.
-#'   If `nrep > 1`, an integer matrix with n rows and `nrep` columns,
+#' @return If \code{nrep = 1}, an integer vector of selected indices.
+#'   If \code{nrep > 1}, an integer matrix with n rows and \code{nrep} columns,
 #'   where each column contains the indices for one replicate.
 #'
 #' @details

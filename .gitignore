@@ -13,3 +13,5 @@ reference/
 *.so
 *~
 ..Rcheck/
+.~undo-tree~
+*~undo-tree~

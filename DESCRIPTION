@@ -7,13 +7,15 @@ Authors@R: person(given = "Ahmadou",
 	          email = "mail@ahmadoudicko.com",
 		  comment = c(ORCID ="0000-0002-9654-7582"),
                   role = c("aut", "cre"))
-Description: Fast implementations of survey sampling algorithms for drawing
-    samples from finite populations. Provides both equal probability methods
-    (simple random sampling, systematic, Bernoulli) and unequal probability
-    methods (Brewer, maximum entropy/conditional Poisson, systematic PPS).
-    All functions return indices for easy subsetting. Based on algorithms from
-    Tille (2006) "Sampling Algorithms" <doi:10.1007/0-387-34240-0>.
-License: MIT + file LICENSE
+Description:  Fast implementations of survey sampling algorithms for drawing
+    samples from finite populations. Provides equal probability methods
+    (simple random sampling, systematic, Bernoulli), unequal probability
+    methods (Brewer, maximum entropy/conditional Poisson, systematic PPS),
+    and balanced sampling (cube method). All functions return indices for
+    easy subsetting. Based on algorithms from Tille (2006) "Sampling
+    Algorithms" <doi:10.1007/0-387-34240-0>. Cube method implementation
+    derived from 'BalancedSampling' by Wilmer Prentius.
+License: GPL (>= 2)
 Encoding: UTF-8
 URL: https://dickoa.gitlab.io/sondage,
         https://gitlab.com/dickoa/sondage

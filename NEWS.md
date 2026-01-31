@@ -3,7 +3,6 @@
 Initial CRAN release.
 
 ## Sampling methods
-
 * `srs()` - Simple random sampling with or without replacement
 * `systematic()` - Systematic sampling with random start
 * `bernoulli()` - Bernoulli sampling (random sample size)
@@ -12,13 +11,12 @@ Initial CRAN release.
 * `up_systematic()` - Systematic sampling with unequal probabilities
 * `up_poisson()` - Poisson sampling (random sample size)
 * `up_multinomial()` - Unequal probability sampling with replacement
+* `cube()` - Balanced sampling (supports stratification via `strata` argument)
 
 ## Utilities
-
 * `inclusion_prob()` - Compute inclusion probabilities from measure of size
 
 ## Features
-
 * All functions return indices for direct use with `df[idx, ]`
-* Batch sampling via `up_maxent(pik, nrep = 1000)` for simulations
+* Batch sampling via `nrep` argument for simulations
 * C implementations for performance-critical algorithms
