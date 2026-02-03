@@ -14,24 +14,21 @@ remotes::install_gitlab("dickoa/sondage")
 ```r
 library(sondage)
 
-# Simple random sample
-idx <- srs(50, 1000)
-sample_df <- df[idx, ]
+# Use built-in US state data
+data(state)
+states <- as.data.frame(state.x77)
 
-# Unequal probability sampling
-pik <- inclusion_prob(df$size, n = 50)
+# Simple random sample: 10 states
+idx <- srs(10, nrow(states))
+states[idx, ]
+
+# Unequal probability sampling: probability proportional to population
+pik <- inclusion_prob(states$Population, n = 10)
 idx <- up_maxent(pik)
-sample_df <- df[idx, ]
+states[idx, ]
 
-# Balanced sampling (cube method)
-pik <- inclusion_prob(df$size, n = 50)
-x <- cbind(pik, df$region, df$income)  # balancing variables
-idx <- cube(pik, x)
-sample_df <- df[idx, ]
-
-# Batch sampling for simulations
-samples <- up_maxent(pik, nrep = 10000)  # n × 10000 matrix
-samples <- cube(pik, x, nrep = 10000)    # n × 10000 matrix
+# Batch sampling for simulations (returns n × nrep matrix)
+sim_cps <- up_maxent(pik, nrep = 10000)
 ```
 
 ## Functions
@@ -50,9 +47,12 @@ samples <- cube(pik, x, nrep = 10000)    # n × 10000 matrix
 - `up_poisson()` - Poisson sampling
 - `up_multinomial()` - PPS with replacement
 
-**Balanced sampling:**
+**Joint inclusion probabilities :**
 
-- `cube()` - Cube method (Deville & Tillé)
+- `up_maxent_joint()` - Exact CPS joint probabilities (Aires' formula)
+- `up_brewer_joint()` - Brewer's approximation (equation 18)
+- `up_systematic_joint()` - Exact systematic joint probabilities
+- `up_poisson_joint()` - Independent selections (π_i × π_j)
 
 **Utilities:**
 
@@ -60,17 +60,16 @@ samples <- cube(pik, x, nrep = 10000)    # n × 10000 matrix
 
 ## Method comparison
 
-| Method          | Fixed n | Exact π | All π_kl > 0 | Balanced |
-|-----------------|---------|---------|--------------|----------|
-| `up_maxent`     | ✓       | ✓       | ✓            | ✗        |
-| `up_brewer`     | ✓       | ✓       | ✓            | ✗        |
-| `up_systematic` | ✓       | ✓       | ✗            | ✗        |
-| `cube`          | ✓*      | ✓       | ✓            | ✓        |
-
-\* Fixed n when inclusion probabilities are included as a balancing variable.
+| Method           | Fixed n | Exact π | All π_kl > 0         |
+|------------------|---------|---------|----------------------|
+| `up_maxent`      | ✓       | ✓       | ✓                    |
+| `up_brewer`      | ✓       | ✓       | ✓                    |
+| `up_systematic`  | ✓       | ✓       | ✗                    |
+| `up_poisson`     | ✗       | ✓       | ✓                    |
+| `up_multinomial` | ✓       | —       | ✓ (with replacement) |
 
 ## References
 
-Deville, J.C. and Tillé, Y. (2004). Efficient balanced sampling: the cube method. *Biometrika*, 91(4), 893-912.
+Brewer, K.R.W. and Donadio, M.E. (2003). The High Entropy Variance of the Horvitz-Thompson Estimator. *Survey Methodology*, 29(2), 189-196.
 
 Tillé, Y. (2006). *Sampling Algorithms*. Springer.

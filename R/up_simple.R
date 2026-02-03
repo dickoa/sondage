@@ -27,7 +27,7 @@
 #' pik <- c(0.2, 0.5, 0.8, 0.3)
 #'
 #' # Sample size varies
-#' set.seed(42)
+#' set.seed(1)
 #' replicate(5, length(up_poisson(pik)))
 #'
 #' # Expected size = sum(pik) = 1.8
@@ -35,13 +35,7 @@
 #'
 #' @export
 up_poisson <- function(pik) {
-  if (any(is.na(pik))) {
-    stop("there are missing values in the pik vector")
-  }
-  if (any(pik < 0 | pik > 1)) {
-    stop("pik values must be in [0, 1]")
-  }
-
+  check_pik(pik)
   selected <- as.logical(rbinom(length(pik), 1, pik))
   which(selected)
 }
@@ -49,12 +43,13 @@ up_poisson <- function(pik) {
 #' Multinomial Sampling (PPS with Replacement)
 #'
 #' Draws n units with replacement, with selection probability proportional
-#' to the inclusion probabilities. A unit can be selected multiple times.
+#' to a size measure. A unit can be selected multiple times.
 #'
-#' @param pik A numeric vector of inclusion probabilities. The sum determines
-#'   the number of draws: `n = round(sum(pik))`.
+#' @param x A numeric vector of positive size measures (e.g., population,
+#'   revenue, area). Must be non-negative.
+#' @param n The number of draws (sample size).
 #'
-#' @return An integer vector of n selected indices (1 to `length(pik)`).
+#' @return An integer vector of n selected indices (1 to `length(x)`).
 #'   May contain repeated values.
 #'
 #' @details
@@ -75,42 +70,50 @@ up_poisson <- function(pik) {
 #'   [srs()] with `replace = TRUE` for equal probability
 #'
 #' @examples
-#' pik <- c(0.2, 0.4, 0.6, 0.8)  # sum = 2, so 2 draws
+#' # Size measures
+#' x <- c(10, 20, 30, 40)
 #'
-#' set.seed(42)
-#' idx <- up_multinomial(pik)
-#' idx  # 2 indices, may repeat
+#' set.seed(1234)
+#' idx <- up_multinomial(x, n = 5)
+#' idx  # 5 indices, may repeat
 #'
-#' # Larger example
-#' pik <- c(1, 2, 3, 4)  # sum = 10, so 10 draws
-#' set.seed(42)
-#' idx <- up_multinomial(pik)
 #' table(idx)  # Unit 4 likely appears most often
 #'
-#' # Use for selection
-#' df <- data.frame(id = 1:4, x = c(10, 20, 30, 40))
-#' df[idx, ]  # 10 rows, some repeated
+#' # Use for selection from data frame
+#' df <- data.frame(id = 1:4, size = x)
+#' df[idx, ]  # 5 rows, some repeated
 #'
 #' @export
-up_multinomial <- function(pik) {
-  if (any(is.na(pik))) {
-    stop("there are missing values in the pik vector",
-         call. = FALSE)
+up_multinomial <- function(x, n) {
+  if (!is.numeric(x)) {
+    stop("x must be a numeric vector", call. = FALSE)
   }
-  if (any(pik < 0)) {
-    stop("pik values must be non-negative",
-         call. = FALSE)
+  if (length(x) == 0L) {
+    stop("x vector is empty", call. = FALSE)
   }
-  if (sum(pik) == 0) {
-    stop("sum of pik must be positive",
-         call. = FALSE)
+  if (anyNA(x)) {
+    stop("there are missing values in x", call. = FALSE)
   }
-  n <- round(sum(pik))
+  if (any(x < 0)) {
+    stop("x values must be non-negative", call. = FALSE)
+  }
+  if (sum(x) == 0) {
+    stop("sum of x must be positive", call. = FALSE)
+  }
 
-  if (n == 0) {
-    return(integer(0))
+  if (!is.numeric(n) || length(n) != 1L) {
+    stop("n must be a single numeric value", call. = FALSE)
   }
-  sample.int(length(pik), n, replace = TRUE, prob = pik)
+  if (is.na(n) || n < 0) {
+    stop("n must be non-negative and not NA", call. = FALSE)
+  }
+
+  n <- as.integer(n)
+  if (n == 0L) {
+    return(integer(0L))
+  }
+
+  sample.int(length(x), n, replace = TRUE, prob = x)
 }
 
 #' Systematic Sampling with Unequal Probabilities
@@ -150,31 +153,24 @@ up_multinomial <- function(pik) {
 #' @examples
 #' pik <- c(0.2, 0.3, 0.5, 0.4, 0.6)  # sum = 2
 #'
-#' set.seed(42)
+#' set.seed(2)
 #' idx <- up_systematic(pik)
 #' idx
 #'
-#' # Verify inclusion probabilities
-#' samples <- replicate(10000, up_systematic(pik))
-#' # Convert to indicator and compute means
-#' indicators <- sapply(samples, function(s) 1:5 %in% s)
-#' rowMeans(indicators)  # Should be close to pik
+#' set.seed(123)
+#' n_sim <- 10000
+#' counts <- integer(5)
+#' for (i in 1:n_sim) {
+#'  idx <- up_systematic(pik)
+#'  counts[idx] <- counts[idx] + 1
+#' }
+#'
+#' counts / n_sim
+#'
 #'
 #' @export
 up_systematic <- function(pik, eps = 1e-06) {
-  if (any(is.na(pik))) {
-    stop("there are missing values in the pik vector",
-         call. = FALSE)
-  }
-  if (!is.numeric(pik)) {
-    stop("pik must be a numeric vector",
-         call. = FALSE)
-  }
-  N <- length(pik)
-  if (N == 0) {
-    stop("pik vector is empty",
-         call. = FALSE)
-  }
+  check_pik(pik)
 
   certain <- which(pik >= 1 - eps)
   zero <- which(pik <= eps)
@@ -187,8 +183,7 @@ up_systematic <- function(pik, eps = 1e-06) {
     return(certain)
   }
 
-  ## Tillé's vectorized algorithm (sampling::UPsystematic)
-  a <- (c(0, cumsum(pik_valid)) - runif(1)) %% 1
-  selected_valid <- valid[a[1:n_valid] > a[2:(n_valid + 1)]]
+  x <- (c(0, cumsum(pik_valid)) - runif(1)) %% 1
+  selected_valid <- valid[x[1:n_valid] > x[2:(n_valid + 1)]]
   sort(c(certain, selected_valid))
 }

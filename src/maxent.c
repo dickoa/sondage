@@ -1,13 +1,9 @@
 /*
- * maxent.c - Maximum entropy sampling for sondage package
- *
- * Implements conditional Poisson sampling (maximum entropy design)
- * with rejection sampling to achieve exact sample size.
+ * Maximum Entropy sampling / Conditional Poisson sampling
  *
  * References:
+ * - Chen, S.X., Dempster, A.P., Liu, J.S. (1994)
  * - Tillé, Y. (2006). Sampling Algorithms. Springer.
- * - Chen, S.X., Dempster, A.P., Liu, J.S. (1994). Weighted finite
- *   population sampling to maximize entropy. Biometrika.
  */
 
 #include <R.h>
@@ -15,125 +11,226 @@
 #include <Rmath.h>
 #include <string.h>
 
-/* =========================================================================
- * Design list indices
- * ========================================================================= */
+static void compute_expa(const double *w, int N, int n, double *expa) {
+    memset(expa, 0, (size_t)N * n * sizeof(double));
 
-enum {
-    DESIGN_PIK_VALID = 0,
-    DESIGN_LAMBDA,
-    DESIGN_EXP_LAMBDA,
-    DESIGN_PI_POISSON,
-    DESIGN_N,
-    DESIGN_N_SAMPLE,
-    DESIGN_IDX,
-    DESIGN_N_FULL,
-    DESIGN_NEWTON_ITERS,
-    DESIGN_N_CERTAIN,
-    DESIGN_CERTAIN_IDX,
-    DESIGN_LENGTH
-};
+    double cumsum = 0.0;
+    for (int i = N - 1; i >= 0; i--) {
+        cumsum += w[i];
+        expa[i * n + 0] = cumsum;
+    }
 
-/* =========================================================================
- * Internal types
- * ========================================================================= */
-
-typedef struct {
-    const double *pi_poisson;
-    const int *idx;
-    const int *certain_idx;
-    int N;
-    int n;
-    int N_certain;
-    int n_total;
-} MaxentDesign;
-
-/* =========================================================================
- * Newton iteration for computing lambda parameters
- * ========================================================================= */
-
-static void compute_pi_from_lambda(const double *exp_lambda, int N, int n,
-                                   double *pi_out, double *pi_prev) {
-    memset(pi_prev, 0, N * sizeof(double));
-
-    for (int j = 1; j <= n; j++) {
-        double denom = 0.0;
-        for (int k = 0; k < N; k++) {
-            denom += exp_lambda[k] * (1.0 - pi_prev[k]);
+    double logprod = 0.0;
+    for (int i = N - 1; i >= N - n && i >= 0; i--) {
+        logprod += log(w[i]);
+        int z = N - i - 1;
+        if (z < n) {
+            expa[i * n + z] = exp(logprod);
         }
+    }
 
-        const double scale = (double)j / denom;
-        for (int k = 0; k < N; k++) {
-            pi_out[k] = exp_lambda[k] * (1.0 - pi_prev[k]) * scale;
-        }
-
-        if (j < n) {
-            memcpy(pi_prev, pi_out, N * sizeof(double));
+    for (int i = N - 3; i >= 0; i--) {
+        int max_z = N - i - 1;
+        if (max_z > n - 1) max_z = n - 1;
+        for (int z = 1; z <= max_z; z++) {
+            expa[i * n + z] = w[i] * expa[(i + 1) * n + (z - 1)] +
+                              expa[(i + 1) * n + z];
         }
     }
 }
 
-static int compute_lambda_newton(const double *pi_target, int N, int n,
-                                 double *lambda, double *exp_lambda,
-                                 double tol, int max_iter) {
-    double *pi_current = (double *) R_alloc(N, sizeof(double));
-    double *pi_work = (double *) R_alloc(N, sizeof(double));
-    double *logit_target = (double *) R_alloc(N, sizeof(double));
-
-    for (int k = 0; k < N; k++) {
-        double p = pi_target[k];
-        if (p < 1e-10) p = 1e-10;
-        if (p > 1.0 - 1e-10) p = 1.0 - 1e-10;
-        logit_target[k] = log(p / (1.0 - p));
-        lambda[k] = logit_target[k];
+static inline double compute_q(const double *w, const double *expa,
+                                int N, int n, int i, int z) {
+    if (z == 0) {
+        double denom = expa[i * n + 0];
+        return (denom > 0) ? w[i] / denom : 0.0;
     }
 
-    for (int iter = 0; iter < max_iter; iter++) {
-        for (int k = 0; k < N; k++) {
-            exp_lambda[k] = exp(lambda[k]);
+    if (z >= N - i - 1) {
+        return 1.0;
+    }
+
+    double denom = expa[i * n + z];
+    if (denom <= 0) return 0.0;
+
+    double numer = w[i] * expa[(i + 1) * n + (z - 1)];
+    return numer / denom;
+}
+
+static void compute_pik_from_expa(const double *w, const double *expa,
+                                   int N, int n, double *pik) {
+    double *pro = (double *) R_alloc((size_t)N * n, sizeof(double));
+    memset(pro, 0, (size_t)N * n * sizeof(double));
+
+    pro[0 * n + (n - 1)] = 1.0;
+
+    pik[0] = 0.0;
+    for (int z = 0; z < n; z++) {
+        double q_0z = compute_q(w, expa, N, n, 0, z);
+        pik[0] += pro[0 * n + z] * q_0z;
+    }
+
+    for (int i = 1; i < N; i++) {
+        for (int z = n - 1; z >= 0; z--) {
+            double q_prev = compute_q(w, expa, N, n, i - 1, z);
+
+            pro[i * n + z] += pro[(i - 1) * n + z] * (1.0 - q_prev);
+
+            if (z + 1 < n) {
+                double q_prev_zp1 = compute_q(w, expa, N, n, i - 1, z + 1);
+                pro[i * n + z] += pro[(i - 1) * n + (z + 1)] * q_prev_zp1;
+            }
         }
 
-        compute_pi_from_lambda(exp_lambda, N, n, pi_current, pi_work);
+        pik[i] = 0.0;
+        for (int z = 0; z < n; z++) {
+            double q_iz = compute_q(w, expa, N, n, i, z);
+            pik[i] += pro[i * n + z] * q_iz;
+        }
+    }
+}
 
-        double max_diff = 0.0;
-        for (int k = 0; k < N; k++) {
-            double p = pi_current[k];
+static int calibrate_piktilde(const double *pik_target, int N, int n,
+                               double *piktilde, double *w, double *expa,
+                               double eps, int max_iter) {
+    double *pik_implied = (double *) R_alloc(N, sizeof(double));
+
+    memcpy(piktilde, pik_target, N * sizeof(double));
+
+    for (int iter = 0; iter < max_iter; iter++) {
+        for (int i = 0; i < N; i++) {
+            double p = piktilde[i];
             if (p < 1e-10) p = 1e-10;
             if (p > 1.0 - 1e-10) p = 1.0 - 1e-10;
+            w[i] = p / (1.0 - p);
+        }
 
-            double diff = logit_target[k] - log(p / (1.0 - p));
-            lambda[k] += diff;
+        compute_expa(w, N, n, expa);
+
+        compute_pik_from_expa(w, expa, N, n, pik_implied);
+
+        double max_diff = 0.0;
+        for (int i = 0; i < N; i++) {
+            double diff = pik_target[i] - pik_implied[i];
+            piktilde[i] += diff;
+
+            if (piktilde[i] < 1e-10) piktilde[i] = 1e-10;
+            if (piktilde[i] > 1.0 - 1e-10) piktilde[i] = 1.0 - 1e-10;
 
             if (fabs(diff) > max_diff) max_diff = fabs(diff);
         }
 
-        if (max_diff < tol) {
-            for (int k = 0; k < N; k++) {
-                exp_lambda[k] = exp(lambda[k]);
+        if (max_diff < eps) {
+            for (int i = 0; i < N; i++) {
+                double p = piktilde[i];
+                if (p < 1e-10) p = 1e-10;
+                if (p > 1.0 - 1e-10) p = 1.0 - 1e-10;
+                w[i] = p / (1.0 - p);
             }
+            compute_expa(w, N, n, expa);
             return iter + 1;
         }
-    }
-
-    for (int k = 0; k < N; k++) {
-        exp_lambda[k] = exp(lambda[k]);
     }
 
     return max_iter;
 }
 
+static void sample_sequential(const double *w, const double *expa,
+                               int N, int n, int *sample_idx) {
+    int remaining = n;
+    int count = 0;
 
-SEXP C_maxent_design_create(SEXP pik, SEXP eps) {
-    const double *pik_ptr = REAL(pik);
-    const double epsilon = REAL(eps)[0];
-    const int N_full = LENGTH(pik);
+    for (int k = 0; k < N && remaining > 0; k++) {
+        double q = compute_q(w, expa, N, n, k, remaining - 1);
+        if (unif_rand() < q) {
+            sample_idx[count++] = k;
+            remaining--;
+        }
+    }
+}
+
+SEXP C_maxent_single(SEXP pik_sexp, SEXP eps_sexp) {
+    const double *pik_full = REAL(pik_sexp);
+    const double epsilon = REAL(eps_sexp)[0];
+    const int N_full = LENGTH(pik_sexp);
 
     int N = 0;
     int N_certain = 0;
     double n_sum = 0.0;
 
     for (int k = 0; k < N_full; k++) {
-        double pk = pik_ptr[k];
+        double pk = pik_full[k];
+        if (pk >= 1.0 - epsilon) {
+            N_certain++;
+        } else if (pk > epsilon) {
+            N++;
+            n_sum += pk;
+        }
+    }
+
+    const int n = (int)(n_sum + 0.5);
+    const int n_total = n + N_certain;
+
+    SEXP result = PROTECT(allocVector(INTSXP, n_total));
+    int *out = INTEGER(result);
+    int out_idx = 0;
+
+    double *pik_valid = NULL;
+    int *idx_map = NULL;
+
+    if (N > 0) {
+        pik_valid = (double *) R_alloc(N, sizeof(double));
+        idx_map = (int *) R_alloc(N, sizeof(int));
+    }
+
+    int j = 0;
+    for (int k = 0; k < N_full; k++) {
+        double pk = pik_full[k];
+        if (pk >= 1.0 - epsilon) {
+            out[out_idx++] = k + 1;
+        } else if (pk > epsilon) {
+            pik_valid[j] = pk;
+            idx_map[j] = k;
+            j++;
+        }
+    }
+
+    if (N == 0 || n == 0) {
+        UNPROTECT(1);
+        return result;
+    }
+
+    double *piktilde = (double *) R_alloc(N, sizeof(double));
+    double *w = (double *) R_alloc(N, sizeof(double));
+    double *expa = (double *) R_alloc((size_t)N * n, sizeof(double));
+
+    calibrate_piktilde(pik_valid, N, n, piktilde, w, expa, 1e-9, 100);
+
+    int *sample_idx = (int *) R_alloc(n, sizeof(int));
+
+    GetRNGstate();
+    sample_sequential(w, expa, N, n, sample_idx);
+    PutRNGstate();
+
+    for (int i = 0; i < n; i++) {
+        out[out_idx++] = idx_map[sample_idx[i]] + 1;
+    }
+
+    UNPROTECT(1);
+    return result;
+}
+
+SEXP C_maxent_design(SEXP pik_sexp, SEXP eps_sexp) {
+    const double *pik_full = REAL(pik_sexp);
+    const double epsilon = REAL(eps_sexp)[0];
+    const int N_full = LENGTH(pik_sexp);
+
+    int N = 0;
+    int N_certain = 0;
+    double n_sum = 0.0;
+
+    for (int k = 0; k < N_full; k++) {
+        double pk = pik_full[k];
         if (pk >= 1.0 - epsilon) {
             N_certain++;
         } else if (pk > epsilon) {
@@ -144,205 +241,168 @@ SEXP C_maxent_design_create(SEXP pik, SEXP eps) {
 
     const int n = (int)(n_sum + 0.5);
 
-    double *pikb = NULL;
-    int *idx_arr = NULL;
-    int *certain_arr = NULL;
+    /* Allocate and fill arrays */
+    double *pik_valid = NULL;
+    int *idx_map = NULL;
+    int *certain_idx = NULL;
 
     if (N > 0) {
-        pikb = (double *) R_alloc(N, sizeof(double));
-        idx_arr = (int *) R_alloc(N, sizeof(int));
+        pik_valid = (double *) R_alloc(N, sizeof(double));
+        idx_map = (int *) R_alloc(N, sizeof(int));
     }
     if (N_certain > 0) {
-        certain_arr = (int *) R_alloc(N_certain, sizeof(int));
+        certain_idx = (int *) R_alloc(N_certain, sizeof(int));
     }
 
     int j = 0, c = 0;
     for (int k = 0; k < N_full; k++) {
-        double pk = pik_ptr[k];
+        double pk = pik_full[k];
         if (pk >= 1.0 - epsilon) {
-            certain_arr[c++] = k;
+            certain_idx[c++] = k;
         } else if (pk > epsilon) {
-            pikb[j] = pk;
-            idx_arr[j] = k;
+            pik_valid[j] = pk;
+            idx_map[j] = k;
             j++;
         }
     }
 
-    double *lambda = NULL;
-    double *exp_lambda_arr = NULL;
-    int newton_iters = 0;
+    double *piktilde = NULL;
+    double *w_arr = NULL;
+    double *expa_arr = NULL;
 
     if (N > 0 && n > 0) {
-        lambda = (double *) R_alloc(N, sizeof(double));
-        exp_lambda_arr = (double *) R_alloc(N, sizeof(double));
-        newton_iters = compute_lambda_newton(pikb, N, n, lambda, exp_lambda_arr, 1e-10, 100);
+        piktilde = (double *) R_alloc(N, sizeof(double));
+        w_arr = (double *) R_alloc(N, sizeof(double));
+        expa_arr = (double *) R_alloc((size_t)N * n, sizeof(double));
 
-        if (newton_iters >= 100) {
-            warning("Newton method did not converge in 100 iterations");
-        }
+        calibrate_piktilde(pik_valid, N, n, piktilde, w_arr, expa_arr, 1e-9, 100);
     }
 
-    SEXP result = PROTECT(allocVector(VECSXP, DESIGN_LENGTH));
-    SEXP names = PROTECT(allocVector(STRSXP, DESIGN_LENGTH));
+    SEXP result = PROTECT(allocVector(VECSXP, 8));
+    SEXP names = PROTECT(allocVector(STRSXP, 8));
 
-    SEXP pik_valid_sexp = PROTECT(allocVector(REALSXP, N));
-    if (N > 0) memcpy(REAL(pik_valid_sexp), pikb, N * sizeof(double));
-    SET_VECTOR_ELT(result, DESIGN_PIK_VALID, pik_valid_sexp);
-    SET_STRING_ELT(names, DESIGN_PIK_VALID, mkChar("pik_valid"));
+    SET_VECTOR_ELT(result, 0, ScalarInteger(N));
+    SET_STRING_ELT(names, 0, mkChar("N"));
 
-    SEXP lambda_sexp = PROTECT(allocVector(REALSXP, N));
-    if (N > 0) memcpy(REAL(lambda_sexp), lambda, N * sizeof(double));
-    SET_VECTOR_ELT(result, DESIGN_LAMBDA, lambda_sexp);
-    SET_STRING_ELT(names, DESIGN_LAMBDA, mkChar("lambda"));
+    SET_VECTOR_ELT(result, 1, ScalarInteger(n));
+    SET_STRING_ELT(names, 1, mkChar("n"));
 
-    SEXP exp_lambda_sexp = PROTECT(allocVector(REALSXP, N));
-    if (N > 0) memcpy(REAL(exp_lambda_sexp), exp_lambda_arr, N * sizeof(double));
-    SET_VECTOR_ELT(result, DESIGN_EXP_LAMBDA, exp_lambda_sexp);
-    SET_STRING_ELT(names, DESIGN_EXP_LAMBDA, mkChar("exp_lambda"));
-
-    SEXP pi_poisson_sexp = PROTECT(allocVector(REALSXP, N));
-    double *pi_poisson_ptr = REAL(pi_poisson_sexp);
-    for (int k = 0; k < N; k++) {
-        pi_poisson_ptr[k] = exp_lambda_arr[k] / (1.0 + exp_lambda_arr[k]);
-    }
-    SET_VECTOR_ELT(result, DESIGN_PI_POISSON, pi_poisson_sexp);
-    SET_STRING_ELT(names, DESIGN_PI_POISSON, mkChar("pi_poisson"));
-
-    SET_VECTOR_ELT(result, DESIGN_N, ScalarInteger(N));
-    SET_STRING_ELT(names, DESIGN_N, mkChar("N"));
-
-    SET_VECTOR_ELT(result, DESIGN_N_SAMPLE, ScalarInteger(n));
-    SET_STRING_ELT(names, DESIGN_N_SAMPLE, mkChar("n"));
+    SET_VECTOR_ELT(result, 2, ScalarInteger(N_full));
+    SET_STRING_ELT(names, 2, mkChar("N_full"));
 
     SEXP idx_sexp = PROTECT(allocVector(INTSXP, N));
-    int *idx_ptr = INTEGER(idx_sexp);
-    for (int k = 0; k < N; k++) {
-        idx_ptr[k] = idx_arr[k] + 1;
+    for (int i = 0; i < N; i++) {
+        INTEGER(idx_sexp)[i] = idx_map[i] + 1;
     }
-    SET_VECTOR_ELT(result, DESIGN_IDX, idx_sexp);
-    SET_STRING_ELT(names, DESIGN_IDX, mkChar("idx"));
+    SET_VECTOR_ELT(result, 3, idx_sexp);
+    SET_STRING_ELT(names, 3, mkChar("idx"));
 
-    SET_VECTOR_ELT(result, DESIGN_N_FULL, ScalarInteger(N_full));
-    SET_STRING_ELT(names, DESIGN_N_FULL, mkChar("N_full"));
-
-    SET_VECTOR_ELT(result, DESIGN_NEWTON_ITERS, ScalarInteger(newton_iters));
-    SET_STRING_ELT(names, DESIGN_NEWTON_ITERS, mkChar("newton_iters"));
-
-    SET_VECTOR_ELT(result, DESIGN_N_CERTAIN, ScalarInteger(N_certain));
-    SET_STRING_ELT(names, DESIGN_N_CERTAIN, mkChar("N_certain"));
+    SET_VECTOR_ELT(result, 4, ScalarInteger(N_certain));
+    SET_STRING_ELT(names, 4, mkChar("N_certain"));
 
     SEXP certain_sexp = PROTECT(allocVector(INTSXP, N_certain));
-    int *certain_ptr = INTEGER(certain_sexp);
-    for (int k = 0; k < N_certain; k++) {
-        certain_ptr[k] = certain_arr[k] + 1;
+    for (int i = 0; i < N_certain; i++) {
+        INTEGER(certain_sexp)[i] = certain_idx[i] + 1;
     }
-    SET_VECTOR_ELT(result, DESIGN_CERTAIN_IDX, certain_sexp);
-    SET_STRING_ELT(names, DESIGN_CERTAIN_IDX, mkChar("certain_idx"));
+    SET_VECTOR_ELT(result, 5, certain_sexp);
+    SET_STRING_ELT(names, 5, mkChar("certain_idx"));
+
+    SEXP w_sexp = PROTECT(allocVector(REALSXP, N));
+    if (N > 0) {
+        memcpy(REAL(w_sexp), w_arr, N * sizeof(double));
+    }
+    SET_VECTOR_ELT(result, 6, w_sexp);
+    SET_STRING_ELT(names, 6, mkChar("w"));
+
+    SEXP expa_sexp = PROTECT(allocMatrix(REALSXP, N, (n > 0) ? n : 1));
+    if (N > 0 && n > 0) {
+        memcpy(REAL(expa_sexp), expa_arr, (size_t)N * n * sizeof(double));
+    }
+    SET_VECTOR_ELT(result, 7, expa_sexp);
+    SET_STRING_ELT(names, 7, mkChar("expa"));
 
     setAttrib(result, R_NamesSymbol, names);
-    setAttrib(result, R_ClassSymbol, mkString("maxent_design"));
+    setAttrib(result, R_ClassSymbol, mkString("maxent_design_v2"));
 
-    UNPROTECT(8);
+    UNPROTECT(6);
     return result;
 }
 
-static void extract_design(SEXP design, MaxentDesign *d) {
-    d->pi_poisson = REAL(VECTOR_ELT(design, DESIGN_PI_POISSON));
-    d->idx = INTEGER(VECTOR_ELT(design, DESIGN_IDX));
-    d->N = INTEGER(VECTOR_ELT(design, DESIGN_N))[0];
-    d->n = INTEGER(VECTOR_ELT(design, DESIGN_N_SAMPLE))[0];
-    d->N_certain = INTEGER(VECTOR_ELT(design, DESIGN_N_CERTAIN))[0];
-    d->certain_idx = (d->N_certain > 0) ?
-        INTEGER(VECTOR_ELT(design, DESIGN_CERTAIN_IDX)) : NULL;
-    d->n_total = d->n + d->N_certain;
-}
+SEXP C_maxent_draw(SEXP design) {
+    int N = INTEGER(VECTOR_ELT(design, 0))[0];
+    int n = INTEGER(VECTOR_ELT(design, 1))[0];
+    int N_certain = INTEGER(VECTOR_ELT(design, 4))[0];
+    const int *idx_map = INTEGER(VECTOR_ELT(design, 3));
+    const int *certain_idx = INTEGER(VECTOR_ELT(design, 5));
+    const double *w = REAL(VECTOR_ELT(design, 6));
+    const double *expa = REAL(VECTOR_ELT(design, 7));
 
-static int draw_poisson_sample(const MaxentDesign *d, int *out) {
-    int count = 0;
-    for (int k = 0; k < d->N; k++) {
-        if (unif_rand() < d->pi_poisson[k]) {
-            if (count < d->n) {
-                out[count] = d->idx[k];
-            }
-            count++;
-        }
-    }
-    return count;
-}
+    int n_total = n + N_certain;
 
-SEXP C_maxent_sample(SEXP design, SEXP max_attempts_sexp) {
-    MaxentDesign d;
-    extract_design(design, &d);
-    const int max_attempts = INTEGER(max_attempts_sexp)[0];
-
-    SEXP result = PROTECT(allocVector(INTSXP, d.n_total));
+    SEXP result = PROTECT(allocVector(INTSXP, n_total));
     int *out = INTEGER(result);
     int out_idx = 0;
 
-    for (int k = 0; k < d.N_certain; k++) {
-        out[out_idx++] = d.certain_idx[k];
+    for (int k = 0; k < N_certain; k++) {
+        out[out_idx++] = certain_idx[k];
     }
 
-    if (d.N == 0 || d.n == 0) {
+    if (N == 0 || n == 0) {
         UNPROTECT(1);
         return result;
     }
 
-    int *temp = (int *) R_alloc(d.n, sizeof(int));
+    int *sample_idx = (int *) R_alloc(n, sizeof(int));
 
     GetRNGstate();
-
-    int attempts;
-    for (attempts = 0; attempts < max_attempts; attempts++) {
-        if (draw_poisson_sample(&d, temp) == d.n) {
-            break;
-        }
-    }
-
-    if (attempts == max_attempts) {
-        warning("Maximum entropy sampling: no valid sample after %d attempts", max_attempts);
-        draw_poisson_sample(&d, temp);
-    }
-
-    for (int i = 0; i < d.n; i++) {
-        out[out_idx++] = temp[i];
-    }
-
+    sample_sequential(w, expa, N, n, sample_idx);
     PutRNGstate();
+
+    for (int i = 0; i < n; i++) {
+        out[out_idx++] = idx_map[sample_idx[i]];
+    }
+
     UNPROTECT(1);
     return result;
 }
 
-SEXP C_maxent_sample_batch(SEXP design, SEXP n_samples_sexp, SEXP max_attempts_sexp) {
-    MaxentDesign d;
-    extract_design(design, &d);
+SEXP C_maxent_draw_batch(SEXP design, SEXP n_samples_sexp) {
+    int N = INTEGER(VECTOR_ELT(design, 0))[0];
+    int n = INTEGER(VECTOR_ELT(design, 1))[0];
+    int N_certain = INTEGER(VECTOR_ELT(design, 4))[0];
+    const int *idx_map = INTEGER(VECTOR_ELT(design, 3));
+    const int *certain_idx = INTEGER(VECTOR_ELT(design, 5));
+    const double *w = REAL(VECTOR_ELT(design, 6));
+    const double *expa = REAL(VECTOR_ELT(design, 7));
     const int n_samples = INTEGER(n_samples_sexp)[0];
-    const int max_attempts = INTEGER(max_attempts_sexp)[0];
 
-    SEXP result = PROTECT(allocMatrix(INTSXP, d.n_total, n_samples));
+    int n_total = n + N_certain;
+
+    SEXP result = PROTECT(allocMatrix(INTSXP, n_total, n_samples));
     int *result_ptr = INTEGER(result);
 
     for (int s = 0; s < n_samples; s++) {
-        int *col = result_ptr + s * d.n_total;
-        for (int k = 0; k < d.N_certain; k++) {
-            col[k] = d.certain_idx[k];
+        int *col = result_ptr + s * n_total;
+        for (int k = 0; k < N_certain; k++) {
+            col[k] = certain_idx[k];
         }
     }
 
-    if (d.N == 0 || d.n == 0) {
+    if (N == 0 || n == 0) {
         UNPROTECT(1);
         return result;
     }
 
+    int *sample_idx = (int *) R_alloc(n, sizeof(int));
+
     GetRNGstate();
 
     for (int s = 0; s < n_samples; s++) {
-        int *col = result_ptr + s * d.n_total + d.N_certain;
+        sample_sequential(w, expa, N, n, sample_idx);
 
-        for (int attempts = 0; attempts < max_attempts; attempts++) {
-            if (draw_poisson_sample(&d, col) == d.n) {
-                break;
-            }
+        int *col = result_ptr + s * n_total + N_certain;
+        for (int i = 0; i < n; i++) {
+            col[i] = idx_map[sample_idx[i]];
         }
     }
 

@@ -49,6 +49,15 @@ idx
 df <- data.frame(id = 1:4, x = c(10, 20, 30, 40))
 df[idx, ]
 
+set.seed(12)
+n_sim <- 10000
+counts <- integer(4)
+for (i in 1:n_sim) {
+ idx <- up_brewer(pik)
+ counts[idx] <- counts[idx] + 1
+}
+counts / n_sim
+
 # Verify inclusion probabilities
 samples <- replicate(5000, up_brewer(pik))
 indicators <- sapply(samples, function(s) 1:4 \%in\% s)

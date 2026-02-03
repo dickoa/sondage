@@ -33,40 +33,38 @@ Maximum entropy sampling has several desirable properties:
 \item Maximum entropy among all designs with fixed \eqn{\pi_k}
 }
 
-For repeated sampling (simulations), use the \code{nrep} parameter instead
-of a loop for much better performance. The design is computed once
-and reused for all replicates.
+The implementation uses the sequential algorithm of Chen, Dempster, and Liu
+(1994) as described in Tillé (2006). The q-values are computed on-the-fly
+to reduce memory usage from O(N*n) for the full q-matrix to O(N) working
+arrays.
+
+For repeated sampling (simulations), use the \code{nrep} parameter instead of
+a loop for much better performance. The design is computed once and reused
+for all replicates.
 }
 \examples{
 pik <- c(0.2, 0.4, 0.6, 0.8)  # sum = 2
 
 # Single sample
-set.seed(42)
+set.seed(123)
 idx <- up_maxent(pik)
 idx
 
-# Select from data frame
-df <- data.frame(id = 1:4, x = c(10, 20, 30, 40))
-df[idx, ]
-
 # Multiple replicates for simulation
-set.seed(42)
 samples <- up_maxent(pik, nrep = 1000)
-dim(samples)  # 2 x 1000 (n rows, nrep columns)
+dim(samples)  # 2 x 1000
 
 # Verify inclusion probabilities
-indicators <- apply(samples, 2, function(s) 1:4 \%in\% s)
-rowMeans(indicators)  # Should be close to pik
+rowMeans(apply(samples, 2, function(s) 1:4 \%in\% s))  # close to pik
 
 }
 \references{
-Tille, Y. (2006). \emph{Sampling Algorithms}. Springer Series in Statistics.
-
 Chen, S. X., Dempster, A. P., & Liu, J. S. (1994). Weighted finite population
 sampling to maximize entropy. \emph{Biometrika}, 81(3), 457-469.
+
+Tillé, Y. (2006). \emph{Sampling Algorithms}. Springer Series in Statistics.
+Chapter 6.
 }
 \seealso{
-\code{\link[=up_brewer]{up_brewer()}} for Brewer's method (also has positive joint probs),
-\code{\link[=up_systematic]{up_systematic()}} for systematic PPS (fastest, but some joint probs = 0),
-\code{\link[=inclusion_prob]{inclusion_prob()}} for computing inclusion probabilities from size measures
+\code{\link[=up_brewer]{up_brewer()}} for Brewer's method, \code{\link[=up_systematic]{up_systematic()}} for systematic PPS
 }

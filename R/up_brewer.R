@@ -49,6 +49,15 @@
 #' df <- data.frame(id = 1:4, x = c(10, 20, 30, 40))
 #' df[idx, ]
 #'
+#' set.seed(12)
+#' n_sim <- 10000
+#' counts <- integer(4)
+#' for (i in 1:n_sim) {
+#'  idx <- up_brewer(pik)
+#'  counts[idx] <- counts[idx] + 1
+#' }
+#' counts / n_sim
+#'
 #' # Verify inclusion probabilities
 #' samples <- replicate(5000, up_brewer(pik))
 #' indicators <- sapply(samples, function(s) 1:4 %in% s)
@@ -56,17 +65,19 @@
 #'
 #' @export
 up_brewer <- function(pik, eps = 1e-06) {
-    if (any(is.na(pik))) {
-      stop("there are missing values in the pik vector",
-           call. = FALSE)
-    }
-    if (!is.numeric(pik)) {
-      stop("pik must be a numeric vector",
-           call. = FALSE)
-    }
-    if (length(pik) == 0) {
-      stop("pik vector is empty",
-           call. = FALSE)
-    }
-    .Call(C_up_brewer, as.double(pik), as.double(eps[1]))
+  if (any(is.na(pik))) {
+    stop("there are missing values in the pik vector", call. = FALSE)
+  }
+  if (!is.numeric(pik)) {
+    stop("pik must be a numeric vector", call. = FALSE)
+  }
+  if (length(pik) == 0) {
+    stop("pik vector is empty", call. = FALSE)
+  }
+
+  if (any(pik < 0 | pik > 1)) {
+    stop("inclusion probabilities must be between 0 and 1", call. = FALSE)
+  }
+
+  .Call(C_up_brewer, as.double(pik), as.double(eps[1]))
 }

@@ -49,69 +49,83 @@ test_that("up_poisson is reproducible with set.seed", {
 
 test_that("up_poisson rejects invalid input", {
   expect_error(up_poisson(c(0.5, NA)), "missing values")
-  expect_error(up_poisson(c(-0.1, 0.5)), "must be in")
-  expect_error(up_poisson(c(0.5, 1.1)), "must be in")
+  expect_error(up_poisson(c(-0.1, 0.5)), "between 0 and 1")
+  expect_error(up_poisson(c(0.5, 1.1)), "between 0 and 1")
 })
 
 test_that("up_multinomial returns correct number of indices", {
-  pik <- c(0.2, 0.4, 0.6, 0.8) # sum = 2
-  idx <- up_multinomial(pik)
-  expect_length(idx, 2)
+  x <- c(10, 20, 30, 40)
+  idx <- up_multinomial(x, n = 5)
+  expect_length(idx, 5)
+
+  idx <- up_multinomial(x, n = 1)
+  expect_length(idx, 1)
+
+  idx <- up_multinomial(x, n = 0)
+  expect_length(idx, 0)
 })
 
 test_that("up_multinomial indices are in valid range", {
-  pik <- c(1, 2, 3, 4) # sum = 10
-  idx <- up_multinomial(pik)
+  x <- c(1, 2, 3, 4)
+  idx <- up_multinomial(x, n = 10)
   expect_true(all(idx >= 1 & idx <= 4))
 })
 
 test_that("up_multinomial can have duplicates", {
   set.seed(42)
-  pik <- c(1, 2, 3, 4) # sum = 10 draws
-  idx <- up_multinomial(pik)
+  x <- c(1, 2, 3, 4)
+  idx <- up_multinomial(x, n = 10)
   # With 10 draws from 4 units, we expect duplicates
   expect_true(length(unique(idx)) < 10)
 })
 
 test_that("up_multinomial achieves correct proportions", {
-  pik <- c(1, 2, 3, 4) # Should get 10%, 20%, 30%, 40%
+  x <- c(1, 2, 3, 4) # Should get 10%, 20%, 30%, 40%
   n_sim <- 5000
-  n_draws <- round(sum(pik)) # 10
-  N <- length(pik)
+  n_draws <- 10
+  N <- length(x)
 
   set.seed(42)
   counts <- integer(N)
   for (i in 1:n_sim) {
-    idx <- up_multinomial(pik)
+    idx <- up_multinomial(x, n = n_draws)
     tab <- tabulate(idx, nbins = N)
     counts <- counts + tab
   }
-  proportions <- counts / (n_sim * n_draws)
-  expected <- pik / sum(pik)
 
+  proportions <- counts / (n_sim * n_draws)
+  expected <- x / sum(x)
   expect_equal(proportions, expected, tolerance = 0.02)
 })
 
 test_that("up_multinomial is reproducible with set.seed", {
-  pik <- c(1, 2, 3, 4)
+  x <- c(1, 2, 3, 4)
 
   set.seed(123)
-  idx1 <- up_multinomial(pik)
+  idx1 <- up_multinomial(x, n = 10)
+
   set.seed(123)
-  idx2 <- up_multinomial(pik)
+  idx2 <- up_multinomial(x, n = 10)
 
   expect_identical(idx1, idx2)
 })
 
-test_that("up_multinomial rejects invalid input", {
-  expect_error(up_multinomial(c(1, NA, 2)), "missing values")
-  expect_error(up_multinomial(c(1, -1, 2)), "non-negative")
-  expect_error(up_multinomial(c(0, 0, 0)), "sum of pik must be positive")
+test_that("up_multinomial rejects invalid x", {
+  expect_error(up_multinomial(c(1, NA, 2), n = 5), "missing values")
+  expect_error(up_multinomial(c(1, -1, 2), n = 5), "non-negative")
+  expect_error(up_multinomial(c(0, 0, 0), n = 5), "sum of x must be positive")
+  expect_error(up_multinomial(integer(0), n = 5), "empty")
+  expect_error(up_multinomial("abc", n = 5), "numeric vector")
 })
 
-# ============================================================
-# up_systematic tests
-# ============================================================
+test_that("up_multinomial rejects invalid n", {
+  x <- c(1, 2, 3, 4)
+  expect_error(up_multinomial(x, n = NA), "single numeric value")
+  expect_error(up_multinomial(x, n = -1), "non-negative")
+  expect_error(up_multinomial(x, n = c(1, 2)), "single numeric value")
+  expect_error(up_multinomial(x, n = "5"), "single numeric value")
+})
+
 test_that("up_systematic returns correct number of indices", {
   pik <- c(0.2, 0.3, 0.5, 0.4, 0.6) # n = 2
   idx <- up_systematic(pik)

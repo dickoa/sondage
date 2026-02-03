@@ -37,7 +37,7 @@ With replacement (\code{replace = TRUE}):
 }
 \examples{
 # Without replacement
-set.seed(42)
+set.seed(1)
 idx <- srs(3, 10)
 idx
 
@@ -46,7 +46,7 @@ df <- data.frame(id = 1:10, x = rnorm(10))
 df[idx, ]
 
 # With replacement (can have repeats)
-set.seed(42)
+set.seed(2)
 idx <- srs(5, 10, replace = TRUE)
 idx
 df[idx, ]  # Some rows may appear twice

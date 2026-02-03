@@ -5,22 +5,32 @@
 
 extern SEXP C_up_brewer(SEXP pik, SEXP eps);
 extern SEXP C_inclusion_prob(SEXP a, SEXP n);
-extern SEXP C_maxent_design_create(SEXP pik, SEXP eps);
-extern SEXP C_maxent_sample(SEXP design, SEXP max_attempts);
-extern SEXP C_maxent_sample_batch(SEXP design, SEXP n_samples, SEXP max_attempts);
-extern SEXP C_cube(SEXP prob, SEXP X, SEXP eps);
-extern SEXP C_cube_batch(SEXP prob, SEXP X, SEXP eps, SEXP n_samples);
-extern SEXP C_cube_stratified(SEXP prob, SEXP X, SEXP strata, SEXP eps);
+/* Maximum entropy (sequential algorithm) */
+extern SEXP C_maxent_single(SEXP pik, SEXP eps);
+extern SEXP C_maxent_design(SEXP pik, SEXP eps);
+extern SEXP C_maxent_draw(SEXP design);
+extern SEXP C_maxent_draw_batch(SEXP design, SEXP n_samples);
+/* Chromy sequential sampling */
+extern SEXP C_up_chromy(SEXP x, SEXP n);
+/* Joint inclusion probabilities */
+extern SEXP C_up_maxent_joint(SEXP pik, SEXP eps);
+extern SEXP C_up_systematic_joint(SEXP pik, SEXP eps);
+extern SEXP C_up_brewer_joint(SEXP pik);
 
 static const R_CallMethodDef CallEntries[] = {
-    {"C_up_brewer",            (DL_FUNC) &C_up_brewer,            2},
-    {"C_inclusion_prob",       (DL_FUNC) &C_inclusion_prob,       2},
-    {"C_maxent_design_create", (DL_FUNC) &C_maxent_design_create, 2},
-    {"C_maxent_sample",        (DL_FUNC) &C_maxent_sample,        2},
-    {"C_maxent_sample_batch",  (DL_FUNC) &C_maxent_sample_batch,  3},
-    {"C_cube",                 (DL_FUNC) &C_cube,                 3},
-    {"C_cube_batch",           (DL_FUNC) &C_cube_batch,           4},
-    {"C_cube_stratified",      (DL_FUNC) &C_cube_stratified,      4},
+    {"C_up_brewer",               (DL_FUNC) &C_up_brewer,               2},
+    {"C_inclusion_prob",          (DL_FUNC) &C_inclusion_prob,          2},
+    /* Maximum entropy */
+    {"C_maxent_single",           (DL_FUNC) &C_maxent_single,           2},
+    {"C_maxent_design",           (DL_FUNC) &C_maxent_design,           2},
+    {"C_maxent_draw",             (DL_FUNC) &C_maxent_draw,             1},
+    {"C_maxent_draw_batch",       (DL_FUNC) &C_maxent_draw_batch,       2},
+    /* Chromy sequential */
+    {"C_up_chromy",               (DL_FUNC) &C_up_chromy,               2},
+    /* Joint prob */
+    {"C_up_maxent_joint",         (DL_FUNC) &C_up_maxent_joint,         2},
+    {"C_up_systematic_joint",     (DL_FUNC) &C_up_systematic_joint,     2},
+    {"C_up_brewer_joint",         (DL_FUNC) &C_up_brewer_joint,         1},
     {NULL, NULL, 0}
 };
 

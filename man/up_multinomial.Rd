@@ -4,19 +4,21 @@
 \alias{up_multinomial}
 \title{Multinomial Sampling (PPS with Replacement)}
 \usage{
-up_multinomial(pik)
+up_multinomial(x, n)
 }
 \arguments{
-\item{pik}{A numeric vector of inclusion probabilities. The sum determines
-the number of draws: \code{n = round(sum(pik))}.}
+\item{x}{A numeric vector of positive size measures (e.g., population,
+revenue, area). Must be non-negative.}
+
+\item{n}{The number of draws (sample size).}
 }
 \value{
-An integer vector of n selected indices (1 to \code{length(pik)}).
+An integer vector of n selected indices (1 to \code{length(x)}).
 May contain repeated values.
 }
 \description{
 Draws n units with replacement, with selection probability proportional
-to the inclusion probabilities. A unit can be selected multiple times.
+to a size measure. A unit can be selected multiple times.
 }
 \details{
 Multinomial sampling (PPS with replacement) makes n independent draws,
@@ -33,21 +35,18 @@ Properties:
 Useful for Hansen-Hurwitz estimation and bootstrap procedures.
 }
 \examples{
-pik <- c(0.2, 0.4, 0.6, 0.8)  # sum = 2, so 2 draws
+# Size measures
+x <- c(10, 20, 30, 40)
 
-set.seed(42)
-idx <- up_multinomial(pik)
-idx  # 2 indices, may repeat
+set.seed(1234)
+idx <- up_multinomial(x, n = 5)
+idx  # 5 indices, may repeat
 
-# Larger example
-pik <- c(1, 2, 3, 4)  # sum = 10, so 10 draws
-set.seed(42)
-idx <- up_multinomial(pik)
 table(idx)  # Unit 4 likely appears most often
 
-# Use for selection
-df <- data.frame(id = 1:4, x = c(10, 20, 30, 40))
-df[idx, ]  # 10 rows, some repeated
+# Use for selection from data frame
+df <- data.frame(id = 1:4, size = x)
+df[idx, ]  # 5 rows, some repeated
 
 }
 \seealso{

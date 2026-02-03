@@ -3,7 +3,7 @@
 #' Converts a measure of size (MOS) into first-order inclusion probabilities
 #' that sum to the desired sample size n.
 #'
-#' @param a A numeric vector of positive size measures (e.g., population,
+#' @param x A numeric vector of positive size measures (e.g., population,
 #'   revenue, area). Negative values are treated as zero (with a warning).
 #' @param n The desired sample size (sum of inclusion probabilities).
 #'
@@ -14,7 +14,7 @@
 #' @details
 #' The algorithm:
 #' \enumerate{
-#'   \item Compute initial probabilities: \eqn{\pi_k = n \cdot a_k / \sum a_k}
+#'   \item Compute initial probabilities: \eqn{\pi_k = n \cdot x_k / \sum x_k}
 #'   \item If any \eqn{\pi_k \geq 1}, set to 1 and redistribute remaining
 #'     sample size to other units
 #'   \item Iterate until all \eqn{\pi_k} are in the valid range
@@ -46,26 +46,23 @@
 #' idx  # Selected indices
 #'
 #' @export
-inclusion_prob <- function(a, n) {
+inclusion_prob <- function(x, n) {
   if (is.na(n) || n < 0) {
-    stop("'n' must be non-negative and not NA",
-         call. = FALSE)
+    stop("'n' must be non-negative and not NA", call. = FALSE)
   }
 
-  if (!is.numeric(n) || length(n) != 1) {
-    stop("'n' must be a single numeric value",
-         call. = FALSE)
+  if (!is.numeric(x) || length(n) != 1) {
+    stop("'n' must be a single numeric value", call. = FALSE)
   }
 
-  if (n > length(a)) {
-    stop("'n' cannot exceed length of 'a'",
-         call. = FALSE)
+  if (n > length(x)) {
+    stop("'n' cannot exceed length of 'x'", call. = FALSE)
   }
 
-  storage.mode(a) <- "double"
-  neg <- a < 0 & !is.na(a)
+  storage.mode(x) <- "double"
+  neg <- x < 0 & !is.na(x)
   if (any(neg)) {
     warning("there are ", sum(neg), " negative value(s) shifted to zero")
   }
-  .Call(C_inclusion_prob, a, as.double(n))
+  .Call(C_inclusion_prob, x, as.double(n))
 }

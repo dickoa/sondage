@@ -33,7 +33,7 @@ Properties:
 pik <- c(0.2, 0.5, 0.8, 0.3)
 
 # Sample size varies
-set.seed(42)
+set.seed(1)
 replicate(5, length(up_poisson(pik)))
 
 # Expected size = sum(pik) = 1.8

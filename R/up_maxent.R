@@ -22,44 +22,41 @@
 #'   \item Maximum entropy among all designs with fixed \eqn{\pi_k}
 #' }
 #'
-#' For repeated sampling (simulations), use the `nrep` parameter instead
-#' of a loop for much better performance. The design is computed once
-#' and reused for all replicates.
+#' The implementation uses the sequential algorithm of Chen, Dempster, and Liu
+#' (1994) as described in Tillé (2006). The q-values are computed on-the-fly
+#' to reduce memory usage from O(N*n) for the full q-matrix to O(N) working
+#' arrays.
+#'
+#' For repeated sampling (simulations), use the `nrep` parameter instead of
+#' a loop for much better performance. The design is computed once and reused
+#' for all replicates.
 #'
 #' @references
-#' Tille, Y. (2006). \emph{Sampling Algorithms}. Springer Series in Statistics.
-#'
 #' Chen, S. X., Dempster, A. P., & Liu, J. S. (1994). Weighted finite population
 #'   sampling to maximize entropy. \emph{Biometrika}, 81(3), 457-469.
 #'
-#' @seealso [up_brewer()] for Brewer's method (also has positive joint probs),
-#'   [up_systematic()] for systematic PPS (fastest, but some joint probs = 0),
-#'   [inclusion_prob()] for computing inclusion probabilities from size measures
+#' Tillé, Y. (2006). \emph{Sampling Algorithms}. Springer Series in Statistics.
+#'   Chapter 6.
+#'
+#' @seealso [up_brewer()] for Brewer's method, [up_systematic()] for systematic PPS
 #'
 #' @examples
 #' pik <- c(0.2, 0.4, 0.6, 0.8)  # sum = 2
 #'
 #' # Single sample
-#' set.seed(42)
+#' set.seed(123)
 #' idx <- up_maxent(pik)
 #' idx
 #'
-#' # Select from data frame
-#' df <- data.frame(id = 1:4, x = c(10, 20, 30, 40))
-#' df[idx, ]
-#'
 #' # Multiple replicates for simulation
-#' set.seed(42)
 #' samples <- up_maxent(pik, nrep = 1000)
-#' dim(samples)  # 2 x 1000 (n rows, nrep columns)
+#' dim(samples)  # 2 x 1000
 #'
 #' # Verify inclusion probabilities
-#' indicators <- apply(samples, 2, function(s) 1:4 %in% s)
-#' rowMeans(indicators)  # Should be close to pik
+#' rowMeans(apply(samples, 2, function(s) 1:4 %in% s))  # close to pik
 #'
 #' @export
 up_maxent <- function(pik, nrep = 1L, eps = 1e-06) {
-  # Input validation
   if (any(is.na(pik))) {
     stop("there are missing values in the pik vector", call. = FALSE)
   }
@@ -72,12 +69,17 @@ up_maxent <- function(pik, nrep = 1L, eps = 1e-06) {
   if (!is.numeric(nrep) || length(nrep) != 1 || nrep < 1) {
     stop("nrep must be a positive integer", call. = FALSE)
   }
+
+  if (any(pik < 0 | pik > 1)) {
+    stop("inclusion probabilities must be between 0 and 1", call. = FALSE)
+  }
+
   nrep <- as.integer(nrep)
 
-  design <- .Call(C_maxent_design_create, as.double(pik), as.double(eps))
   if (nrep == 1L) {
-    .Call(C_maxent_sample, design, as.integer(10000L))
+    .Call(C_maxent_single, as.double(pik), as.double(eps))
   } else {
-    .Call(C_maxent_sample_batch, design, nrep, as.integer(10000L))
+    design <- .Call(C_maxent_design, as.double(pik), as.double(eps))
+    .Call(C_maxent_draw_batch, design, nrep)
   }
 }

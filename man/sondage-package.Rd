@@ -26,6 +26,7 @@ from finite populations. All functions return indices for easy subsetting.
 \item \code{\link[=up_systematic]{up_systematic()}} - Systematic PPS
 \item \code{\link[=up_poisson]{up_poisson()}} - Poisson sampling (random size)
 \item \code{\link[=up_multinomial]{up_multinomial()}} - PPS with replacement
+\item \code{\link[=up_chromy]{up_chromy()}} - PPS with minimum replacement
 }
 }
 

@@ -17,6 +17,7 @@
 #'   \item [up_systematic()] - Systematic PPS
 #'   \item [up_poisson()] - Poisson sampling (random size)
 #'   \item [up_multinomial()] - PPS with replacement
+#'   \item [up_chromy()] - PPS with minimum replacement
 #' }
 #'
 #' @section Utilities:

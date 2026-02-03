@@ -4,10 +4,10 @@
 \alias{inclusion_prob}
 \title{Compute Inclusion Probabilities from Measure of Size}
 \usage{
-inclusion_prob(a, n)
+inclusion_prob(x, n)
 }
 \arguments{
-\item{a}{A numeric vector of positive size measures (e.g., population,
+\item{x}{A numeric vector of positive size measures (e.g., population,
 revenue, area). Negative values are treated as zero (with a warning).}
 
 \item{n}{The desired sample size (sum of inclusion probabilities).}
@@ -24,7 +24,7 @@ that sum to the desired sample size n.
 \details{
 The algorithm:
 \enumerate{
-\item Compute initial probabilities: \eqn{\pi_k = n \cdot a_k / \sum a_k}
+\item Compute initial probabilities: \eqn{\pi_k = n \cdot x_k / \sum x_k}
 \item If any \eqn{\pi_k \geq 1}, set to 1 and redistribute remaining
 sample size to other units
 \item Iterate until all \eqn{\pi_k} are in the valid range

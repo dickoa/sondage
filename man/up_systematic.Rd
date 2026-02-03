@@ -38,15 +38,20 @@ variable first (creates implicit stratification).
 \examples{
 pik <- c(0.2, 0.3, 0.5, 0.4, 0.6)  # sum = 2
 
-set.seed(42)
+set.seed(2)
 idx <- up_systematic(pik)
 idx
 
-# Verify inclusion probabilities
-samples <- replicate(10000, up_systematic(pik))
-# Convert to indicator and compute means
-indicators <- sapply(samples, function(s) 1:5 \%in\% s)
-rowMeans(indicators)  # Should be close to pik
+set.seed(123)
+n_sim <- 10000
+counts <- integer(5)
+for (i in 1:n_sim) {
+ idx <- up_systematic(pik)
+ counts[idx] <- counts[idx] + 1
+}
+
+counts / n_sim
+
 
 }
 \references{
