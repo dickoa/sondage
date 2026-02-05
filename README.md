@@ -46,6 +46,7 @@ sim_cps <- up_maxent(pik, nrep = 10000)
 - `up_systematic()` - Systematic PPS
 - `up_poisson()` - Poisson sampling
 - `up_multinomial()` - PPS with replacement
+- `up_chromy()` - PPS with minimum replacement
 
 **Joint inclusion probabilities :**
 
@@ -67,6 +68,7 @@ sim_cps <- up_maxent(pik, nrep = 10000)
 | `up_systematic`  | ✓       | ✓       | ✗                    |
 | `up_poisson`     | ✗       | ✓       | ✓                    |
 | `up_multinomial` | ✓       | —       | ✓ (with replacement) |
+| `up_chromy`      | ✓       | ✓       | ✓                    |
 
 ## References
 

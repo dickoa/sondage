@@ -22,3 +22,4 @@
 ^Meta$
 ^air\.toml$
 ^.*\.~undo-tree~$
+^src/.*~$

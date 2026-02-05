@@ -31,3 +31,32 @@ check_pik <- function(pik, allow_zero = TRUE, allow_one = TRUE) {
   }
   invisible(TRUE)
 }
+
+#' Validate size measure vector
+#'
+#' Checks that x is a valid vector of non-negative size measures.
+#'
+#' @param x Vector to validate.
+#'
+#' @return Invisibly returns TRUE if valid, otherwise stops with error.
+#'
+#' @keywords internal
+#' @noRd
+check_mos <- function(x) {
+  if (!is.numeric(x)) {
+    stop("x must be a numeric vector", call. = FALSE)
+  }
+  if (length(x) == 0L) {
+    stop("x vector is empty", call. = FALSE)
+  }
+  if (anyNA(x)) {
+    stop("there are missing values in x", call. = FALSE)
+  }
+  if (any(x < 0)) {
+    stop("x values must be non-negative", call. = FALSE)
+  }
+  if (sum(x) == 0) {
+    stop("sum of x must be positive", call. = FALSE)
+  }
+  invisible(TRUE)
+}

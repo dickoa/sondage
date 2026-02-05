@@ -59,9 +59,9 @@ up_poisson <- function(pik) {
 #'
 #' Properties:
 #' \itemize{
-#'   \item Fixed number of draws n = `round(sum(pik))`
+#'   \item Fixed number of draws n
 #'   \item Units can be selected multiple times
-#'   \item Selection probability per draw: \eqn{p_k = \pi_k / \sum \pi_k}
+#'   \item Selection probability per draw: \eqn{p_k = x_k / \sum x_k}
 #' }
 #'
 #' Useful for Hansen-Hurwitz estimation and bootstrap procedures.
@@ -85,21 +85,7 @@ up_poisson <- function(pik) {
 #'
 #' @export
 up_multinomial <- function(x, n) {
-  if (!is.numeric(x)) {
-    stop("x must be a numeric vector", call. = FALSE)
-  }
-  if (length(x) == 0L) {
-    stop("x vector is empty", call. = FALSE)
-  }
-  if (anyNA(x)) {
-    stop("there are missing values in x", call. = FALSE)
-  }
-  if (any(x < 0)) {
-    stop("x values must be non-negative", call. = FALSE)
-  }
-  if (sum(x) == 0) {
-    stop("sum of x must be positive", call. = FALSE)
-  }
+  check_mos(x)
 
   if (!is.numeric(n) || length(n) != 1L) {
     stop("n must be a single numeric value", call. = FALSE)

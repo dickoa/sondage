@@ -20,20 +20,41 @@ from finite populations. All functions return indices for easy subsetting.
 
 \section{Unequal Probability Sampling}{
 
+Functions prefixed with \code{up_} take either inclusion probabilities (\code{pik},
+values in [0,1] summing to n) or raw size measures (\code{x}, non-negative
+values):
+
+\strong{pik interface} (inclusion probabilities):
 \itemize{
 \item \code{\link[=up_maxent]{up_maxent()}} - Maximum entropy / Conditional Poisson Sampling
 \item \code{\link[=up_brewer]{up_brewer()}} - Brewer's method
 \item \code{\link[=up_systematic]{up_systematic()}} - Systematic PPS
 \item \code{\link[=up_poisson]{up_poisson()}} - Poisson sampling (random size)
+}
+
+\strong{x interface} (raw size measures):
+\itemize{
 \item \code{\link[=up_multinomial]{up_multinomial()}} - PPS with replacement
 \item \code{\link[=up_chromy]{up_chromy()}} - PPS with minimum replacement
 }
+
+Use \code{\link[=inclusion_prob]{inclusion_prob()}} to convert size measures to inclusion probabilities.
 }
 
 \section{Utilities}{
 
 \itemize{
 \item \code{\link[=inclusion_prob]{inclusion_prob()}} - Compute inclusion probabilities from size measure
+}
+}
+
+\section{Joint Inclusion Probabilities}{
+
+\itemize{
+\item \code{\link[=up_maxent_joint]{up_maxent_joint()}} - Exact CPS joint probabilities
+\item \code{\link[=up_brewer_joint]{up_brewer_joint()}} - Brewer & Donadio approximation
+\item \code{\link[=up_systematic_joint]{up_systematic_joint()}} - Exact systematic joint probabilities
+\item \code{\link[=up_poisson_joint]{up_poisson_joint()}} - Independent selections
 }
 }
 

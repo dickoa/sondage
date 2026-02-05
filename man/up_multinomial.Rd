@@ -27,9 +27,9 @@ each with probability proportional to pik. This is equivalent to
 
 Properties:
 \itemize{
-\item Fixed number of draws n = \code{round(sum(pik))}
+\item Fixed number of draws n
 \item Units can be selected multiple times
-\item Selection probability per draw: \eqn{p_k = \pi_k / \sum \pi_k}
+\item Selection probability per draw: \eqn{p_k = x_k / \sum x_k}
 }
 
 Useful for Hansen-Hurwitz estimation and bootstrap procedures.

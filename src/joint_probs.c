@@ -7,133 +7,18 @@
  * - C_up_brewer_joint: Brewer approximation (equation 18, Brewer & Donadio 2003)
  *
  * References:
- * - Aires (1999). Algorithms to Find Exact Inclusion Probabilities for Conditional Poisson Sampling and Pareto πps Sampling Design
+ * - Aires (1999). Algorithms to Find Exact Inclusion Probabilities for
+ *   Conditional Poisson Sampling and Pareto pips Sampling Design
  * - Tillé (2006). Sampling Algorithms. Springer.
  * - Brewer & Donadio (2003). The High Entropy Variance of the HT Estimator.
  */
 
-#include <R.h>
-#include <Rinternals.h>
-#include <Rmath.h>
-#include <string.h>
+#include "cps_core.h"
 #include <float.h>
 
 static int compare_double(const void *a, const void *b) {
     double diff = *(const double *)a - *(const double *)b;
     return (diff > 0) - (diff < 0);
-}
-
-static void compute_expa_joint(const double *w, int N, int n, double *expa) {
-    memset(expa, 0, (size_t)N * n * sizeof(double));
-
-    double cumsum = 0.0;
-    for (int i = N - 1; i >= 0; i--) {
-        cumsum += w[i];
-        expa[i * n + 0] = cumsum;
-    }
-
-    double logprod = 0.0;
-    for (int i = N - 1; i >= N - n && i >= 0; i--) {
-        logprod += log(w[i]);
-        int z = N - i - 1;
-        if (z < n) {
-            expa[i * n + z] = exp(logprod);
-        }
-    }
-
-    for (int i = N - 3; i >= 0; i--) {
-        int max_z = N - i - 1;
-        if (max_z > n - 1) max_z = n - 1;
-        for (int z = 1; z <= max_z; z++) {
-            expa[i * n + z] = w[i] * expa[(i + 1) * n + (z - 1)] +
-                              expa[(i + 1) * n + z];
-        }
-    }
-}
-
-static inline double compute_q_joint(const double *w, const double *expa,
-                                      int N, int n, int i, int z) {
-    if (z == 0) {
-        double denom = expa[i * n + 0];
-        return (denom > 0) ? w[i] / denom : 0.0;
-    }
-    if (z >= N - i - 1) return 1.0;
-
-    double denom = expa[i * n + z];
-    if (denom <= 0) return 0.0;
-
-    return w[i] * expa[(i + 1) * n + (z - 1)] / denom;
-}
-
-static void compute_pik_from_w(const double *w, const double *expa,
-                                int N, int n, double *pik) {
-    double *pro = (double *) R_alloc((size_t)N * n, sizeof(double));
-    memset(pro, 0, (size_t)N * n * sizeof(double));
-
-    pro[0 * n + (n - 1)] = 1.0;
-
-    pik[0] = 0.0;
-    for (int z = 0; z < n; z++) {
-        double q_0z = compute_q_joint(w, expa, N, n, 0, z);
-        pik[0] += pro[0 * n + z] * q_0z;
-    }
-
-    for (int i = 1; i < N; i++) {
-        for (int z = n - 1; z >= 0; z--) {
-            double q_prev = compute_q_joint(w, expa, N, n, i - 1, z);
-            pro[i * n + z] += pro[(i - 1) * n + z] * (1.0 - q_prev);
-
-            if (z + 1 < n) {
-                double q_prev_zp1 = compute_q_joint(w, expa, N, n, i - 1, z + 1);
-                pro[i * n + z] += pro[(i - 1) * n + (z + 1)] * q_prev_zp1;
-            }
-        }
-
-        pik[i] = 0.0;
-        for (int z = 0; z < n; z++) {
-            double q_iz = compute_q_joint(w, expa, N, n, i, z);
-            pik[i] += pro[i * n + z] * q_iz;
-        }
-    }
-}
-
-static void calibrate_w_from_pik(const double *pik_target, int N, int n,
-                                  double *w, double eps, int max_iter) {
-    double *piktilde = (double *) R_alloc(N, sizeof(double));
-    double *pik_implied = (double *) R_alloc(N, sizeof(double));
-    double *expa = (double *) R_alloc((size_t)N * n, sizeof(double));
-
-    memcpy(piktilde, pik_target, N * sizeof(double));
-
-    for (int iter = 0; iter < max_iter; iter++) {
-        for (int i = 0; i < N; i++) {
-            double p = piktilde[i];
-            if (p < 1e-10) p = 1e-10;
-            if (p > 1.0 - 1e-10) p = 1.0 - 1e-10;
-            w[i] = p / (1.0 - p);
-        }
-
-        compute_expa_joint(w, N, n, expa);
-        compute_pik_from_w(w, expa, N, n, pik_implied);
-
-        double max_diff = 0.0;
-        for (int i = 0; i < N; i++) {
-            double diff = pik_target[i] - pik_implied[i];
-            piktilde[i] += diff;
-            if (piktilde[i] < 1e-10) piktilde[i] = 1e-10;
-            if (piktilde[i] > 1.0 - 1e-10) piktilde[i] = 1.0 - 1e-10;
-            if (fabs(diff) > max_diff) max_diff = fabs(diff);
-        }
-
-        if (max_diff < eps) break;
-    }
-
-    for (int i = 0; i < N; i++) {
-        double p = piktilde[i];
-        if (p < 1e-10) p = 1e-10;
-        if (p > 1.0 - 1e-10) p = 1.0 - 1e-10;
-        w[i] = p / (1.0 - p);
-    }
 }
 
 SEXP C_up_maxent_joint(SEXP pik_sexp, SEXP eps_sexp) {
@@ -203,7 +88,8 @@ SEXP C_up_maxent_joint(SEXP pik_sexp, SEXP eps_sexp) {
     }
 
     double *w = (double *) R_alloc(N_valid, sizeof(double));
-    calibrate_w_from_pik(pik_valid, N_valid, n_valid, w, eps, 100);
+    double *expa = (double *) R_alloc((size_t)N_valid * n_valid, sizeof(double));
+    cps_calibrate(pik_valid, N_valid, n_valid, w, expa, eps, 100);
 
     for (int i = 0; i < N_valid; i++) {
         for (int jj = i + 1; jj < N_valid; jj++) {
@@ -308,7 +194,7 @@ SEXP C_up_systematic_joint(SEXP pik_sexp, SEXP eps_sexp) {
         p[i] = r[i + 1] - r[i];
     }
 
-    int *M = (int *) R_alloc(N * N, sizeof(int));
+    int *M = (int *) R_alloc((size_t)N * N, sizeof(int));
 
     for (int i = 0; i < N; i++) {
         for (int jj = 0; jj < N; jj++) {

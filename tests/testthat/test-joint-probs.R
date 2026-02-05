@@ -12,11 +12,6 @@ tille_expected <- matrix(c(
   0.0559, 0.1377, 0.3452, 0.5351, 0.7461, 0.91
 ), nrow = 6, byrow = TRUE)
 
-
-# ===========================================================================
-# up_maxent_joint tests
-# ===========================================================================
-
 test_that("up_maxent_joint returns correct dimensions", {
   pik <- c(0.2, 0.3, 0.5)
   pikl <- up_maxent_joint(pik)
@@ -40,7 +35,6 @@ test_that("up_maxent_joint has correct diagonal", {
 })
 
 test_that("up_maxent_joint satisfies marginal constraint", {
-  # sum_{l≠k} π_kl = (n-1) * π_k
   pik <- tille_pik
   pikl <- up_maxent_joint(pik)
   n <- sum(pik)
@@ -103,10 +97,6 @@ test_that("up_maxent_joint rejects invalid input", {
   expect_error(up_maxent_joint("abc"), "numeric vector")
 })
 
-# ===========================================================================
-# up_systematic_joint tests
-# ===========================================================================
-
 test_that("up_systematic_joint returns correct dimensions", {
   pik <- c(0.2, 0.3, 0.5)
   pikl <- up_systematic_joint(pik)
@@ -167,10 +157,6 @@ test_that("up_systematic_joint rejects invalid input", {
   expect_error(up_systematic_joint(integer(0)), "empty")
 })
 
-# ===========================================================================
-# up_brewer_joint tests
-# ===========================================================================
-
 test_that("up_brewer_joint returns correct dimensions", {
   pik <- c(0.2, 0.3, 0.5)
   pikl <- up_brewer_joint(pik)
@@ -202,8 +188,6 @@ test_that("up_brewer_joint produces valid probabilities", {
 })
 
 test_that("up_brewer_joint approximates exact CPS reasonably", {
-  # Brewer approximation should be in the same ballpark as exact CPS
-  # but it's an approximation, not exact match
   pik <- tille_pik
   pikl_brewer <- up_brewer_joint(pik)
   pikl_exact <- up_maxent_joint(pik)
@@ -235,9 +219,19 @@ test_that("up_brewer_joint rejects invalid input", {
   expect_error(up_brewer_joint(integer(0)), "empty")
 })
 
-# ===========================================================================
-# Comparison tests
-# ===========================================================================
+
+test_that("up_chromy_joint returns valid matrix", {
+  x <- c(10, 20, 15, 25, 30)
+  joint <- up_chromy_joint(x, n = 3, nsim = 5000)
+
+  expect_equal(dim(joint), c(5, 5))
+  expect_equal(joint, t(joint)) # symmetric
+  expect_true(all(joint > 0)) # all positive (randomized)
+
+  # Diagonal ≈ first-order probabilities
+  pik <- 3 * x / sum(x)
+  expect_equal(diag(joint), pik, tolerance = 0.05)
+})
 
 test_that("all joint methods agree on diagonal", {
   pik <- c(0.2, 0.3, 0.5)
@@ -245,10 +239,12 @@ test_that("all joint methods agree on diagonal", {
   pikl_maxent <- up_maxent_joint(pik)
   pikl_sys <- up_systematic_joint(pik)
   pikl_brewer <- up_brewer_joint(pik)
+  pikl_chromy <- up_chromy_joint(pik, round(sum(pik)), nsim = 1e6)
 
   expect_equal(diag(pikl_maxent), pik)
   expect_equal(diag(pikl_sys), pik)
   expect_equal(diag(pikl_brewer), pik)
+  expect_equal(diag(pikl_chromy), pik, tolerance = 0.01)
 })
 
 test_that("all joint methods produce symmetric matrices", {
@@ -257,14 +253,16 @@ test_that("all joint methods produce symmetric matrices", {
   pikl_maxent <- up_maxent_joint(pik)
   pikl_sys <- up_systematic_joint(pik)
   pikl_brewer <- up_brewer_joint(pik)
+  pikl_chromy <- up_chromy_joint(pik, round(sum(pik)))
 
   expect_equal(pikl_maxent, t(pikl_maxent))
   expect_equal(pikl_sys, t(pikl_sys))
   expect_equal(pikl_brewer, t(pikl_brewer))
+  expect_equal(pikl_chromy, t(pikl_chromy))
 })
 
 test_that("joint probabilities work with larger populations", {
-  set.seed(42)
+  set.seed(1)
   N <- 50
   n <- 10
   x <- runif(N)
@@ -273,13 +271,16 @@ test_that("joint probabilities work with larger populations", {
   pikl_maxent <- up_maxent_joint(pik)
   pikl_brewer <- up_brewer_joint(pik)
   pikl_sys <- up_systematic_joint(pik)
+  pikl_chromy <- up_chromy_joint(x, n)
 
   # All should be N x N symmetric matrices
   expect_equal(dim(pikl_maxent), c(N, N))
   expect_equal(dim(pikl_brewer), c(N, N))
   expect_equal(dim(pikl_sys), c(N, N))
+  expect_equal(dim(pikl_chromy), c(N, N))
 
   expect_equal(pikl_maxent, t(pikl_maxent))
   expect_equal(pikl_brewer, t(pikl_brewer))
   expect_equal(pikl_sys, t(pikl_sys))
+  expect_equal(pikl_chromy, t(pikl_chromy))
 })

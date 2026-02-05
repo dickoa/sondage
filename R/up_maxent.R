@@ -57,21 +57,10 @@
 #'
 #' @export
 up_maxent <- function(pik, nrep = 1L, eps = 1e-06) {
-  if (any(is.na(pik))) {
-    stop("there are missing values in the pik vector", call. = FALSE)
-  }
-  if (!is.numeric(pik)) {
-    stop("pik must be a numeric vector", call. = FALSE)
-  }
-  if (length(pik) == 0) {
-    stop("pik vector is empty", call. = FALSE)
-  }
+  check_pik(pik)
+
   if (!is.numeric(nrep) || length(nrep) != 1 || nrep < 1) {
     stop("nrep must be a positive integer", call. = FALSE)
-  }
-
-  if (any(pik < 0 | pik > 1)) {
-    stop("inclusion probabilities must be between 0 and 1", call. = FALSE)
   }
 
   nrep <- as.integer(nrep)

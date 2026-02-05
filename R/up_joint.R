@@ -110,3 +110,52 @@ up_brewer_joint <- function(pik) {
   check_pik(pik)
   .Call(C_up_brewer_joint, as.double(pik))
 }
+
+#' Joint Inclusion Probabilities for Chromy Sampling
+#'
+#' Estimates joint inclusion probabilities for Chromy's sequential PPS
+#' sampling via Monte Carlo simulation.
+#'
+#' @param x Numeric vector of positive size measures.
+#' @param n Sample size.
+#' @param nsim Number of simulations (default 10000).
+#'
+#' @return A symmetric N×N matrix of joint inclusion probabilities.
+#'   Diagonal entries are first-order probabilities π_k.
+#'
+#' @details
+#' Chromy's method with randomization has all π_kl > 0, enabling unbiased
+#' variance estimation. Chauvet (2019) derived exact formulas requiring
+#' O(N³) computation; this function uses simulation instead.
+#'
+#' Standard error of estimated π_kl ≈ sqrt(π_kl(1-π_kl)/nsim).
+#' With nsim=10000, SE ≈ 0.005 for π_kl ≈ 0.5.
+#'
+#' @references
+#' Chauvet, G. (2019). Properties of Chromy's sampling procedure.
+#' \emph{arXiv:1912.10896}.
+#'
+#' @seealso [up_chromy()] for sampling, [up_brewer_joint()] for an
+#'   analytical approximation suitable for high-entropy designs.
+#'
+#' @examples
+#' x <- c(10, 20, 15, 25, 30)
+#' joint <- up_chromy_joint(x, n = 3, nsim = 5000)
+#'
+#' # Diagonal ≈ first-order probabilities
+#' pik <- 3 * x / sum(x)
+#' diag(joint)  # Should be close to pik
+#'
+#' @export
+up_chromy_joint <- function(x, n, nsim = 10000L) {
+  check_mos(x)
+
+  if (!is.numeric(n) || length(n) != 1L || is.na(n) || n < 1) {
+    stop("n must be a positive integer", call. = FALSE)
+  }
+  if (!is.numeric(nsim) || length(nsim) != 1L || is.na(nsim) || nsim < 1) {
+    stop("nsim must be a positive integer", call. = FALSE)
+  }
+
+  .Call(C_up_chromy_joint, as.double(x), as.integer(n), as.integer(nsim))
+}

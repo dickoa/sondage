@@ -11,12 +11,18 @@ Initial CRAN release.
 * `up_systematic()` - Systematic sampling with unequal probabilities
 * `up_poisson()` - Poisson sampling (random sample size)
 * `up_multinomial()` - Unequal probability sampling with replacement
-* `cube()` - Balanced sampling (supports stratification via `strata` argument)
+* `up_chromy()` - Chromy's sequential PPS with minimum replacement
+
+## Joint inclusion probabilities
+* `up_maxent_joint()` - Exact CPS joint probabilities (Aires' formula)
+* `up_brewer_joint()` - Brewer & Donadio approximation
+* `up_systematic_joint()` - Exact systematic joint probabilities
+* `up_poisson_joint()` - Independent selections
 
 ## Utilities
 * `inclusion_prob()` - Compute inclusion probabilities from measure of size
 
 ## Features
 * All functions return indices for direct use with `df[idx, ]`
-* Batch sampling via `nrep` argument for simulations
+* Batch sampling via `nrep` argument for simulations (maxent/cps)
 * C implementations for performance-critical algorithms
