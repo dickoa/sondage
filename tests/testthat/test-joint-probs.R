@@ -220,9 +220,9 @@ test_that("up_brewer_jip rejects invalid input", {
 })
 
 
-test_that("up_chromy_jip returns valid matrix", {
+test_that("up_chromy_pairexp returns valid matrix", {
   x <- c(10, 20, 15, 25, 30)
-  joint <- up_chromy_jip(x, n = 3, nsim = 5000)
+  joint <- up_chromy_pairexp(x, n = 3, nsim = 5000)
 
   expect_equal(dim(joint), c(5, 5))
   expect_equal(joint, t(joint)) # symmetric
@@ -239,7 +239,7 @@ test_that("all joint methods agree on diagonal", {
   pikl_maxent <- up_maxent_jip(pik)
   pikl_sys <- up_systematic_jip(pik)
   pikl_brewer <- up_brewer_jip(pik)
-  pikl_chromy <- up_chromy_jip(pik, round(sum(pik)), nsim = 1e6)
+  pikl_chromy <- up_chromy_pairexp(pik, round(sum(pik)), nsim = 1e6)
 
   expect_equal(diag(pikl_maxent), pik)
   expect_equal(diag(pikl_sys), pik)
@@ -253,7 +253,7 @@ test_that("all joint methods produce symmetric matrices", {
   pikl_maxent <- up_maxent_jip(pik)
   pikl_sys <- up_systematic_jip(pik)
   pikl_brewer <- up_brewer_jip(pik)
-  pikl_chromy <- up_chromy_jip(pik, round(sum(pik)))
+  pikl_chromy <- up_chromy_pairexp(pik, round(sum(pik)))
 
   expect_equal(pikl_maxent, t(pikl_maxent))
   expect_equal(pikl_sys, t(pikl_sys))
@@ -271,7 +271,7 @@ test_that("joint probabilities work with larger populations", {
   pikl_maxent <- up_maxent_jip(pik)
   pikl_brewer <- up_brewer_jip(pik)
   pikl_sys <- up_systematic_jip(pik)
-  pikl_chromy <- up_chromy_jip(x, n)
+  pikl_chromy <- up_chromy_pairexp(x, n)
 
   # All should be N x N symmetric matrices
   expect_equal(dim(pikl_maxent), c(N, N))

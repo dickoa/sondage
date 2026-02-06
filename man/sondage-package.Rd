@@ -55,6 +55,8 @@ Use \code{\link[=inclusion_prob]{inclusion_prob()}} to convert size measures to 
 \item \code{\link[=up_brewer_jip]{up_brewer_jip()}} - Brewer & Donadio approximation
 \item \code{\link[=up_systematic_jip]{up_systematic_jip()}} - Exact systematic joint probabilities
 \item \code{\link[=up_poisson_jip]{up_poisson_jip()}} - Independent selections
+\item \code{\link[=up_chromy_pairexp]{up_chromy_pairexp()}} - Pairwise expectations for Probability Minimum Replacement
+
 }
 }
 

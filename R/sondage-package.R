@@ -42,6 +42,8 @@
 #'   \item [up_brewer_jip()] - Brewer & Donadio approximation
 #'   \item [up_systematic_jip()] - Exact systematic joint probabilities
 #'   \item [up_poisson_jip()] - Independent selections
+#'   \item [up_chromy_pairexp()] - Pairwise expectations for Probability Minimum Replacement
+#'
 #' }
 #'
 #' @references

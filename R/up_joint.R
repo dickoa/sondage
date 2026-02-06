@@ -111,43 +111,60 @@ up_brewer_jip <- function(pik) {
   .Call(C_up_brewer_jip, as.double(pik))
 }
 
-#' Joint Inclusion Probabilities for Chromy Sampling
+#' Pairwise Expectations for Chromy Sampling
 #'
-#' Estimates joint inclusion probabilities for Chromy's sequential PPS
-#' sampling via Monte Carlo simulation.
+#' Estimates pairwise hit expectations \eqn{E(n_i n_j)} for Chromy's sequential
+#' PPS sampling via Monte Carlo simulation.
 #'
 #' @param x Numeric vector of positive size measures.
 #' @param n Sample size.
 #' @param nsim Number of simulations (default 10000).
 #'
-#' @return A symmetric N×N matrix of joint inclusion probabilities.
-#'   Diagonal entries are first-order probabilities π_k.
+#' @return A symmetric N x N matrix of pairwise expectations. Entry (i, j)
+#'   is \eqn{E(n_i n_j)}, the expected product of hit counts. Diagonal
+#'   entries are \eqn{E(n_k^2)}.
 #'
 #' @details
-#' Chromy's method with randomization has all π_kl > 0, enabling unbiased
-#' variance estimation. Chauvet (2019) derived exact formulas requiring
-#' O(N³) computation; this function uses simulation instead.
+#' Chromy's method is a minimum replacement (PMR) design where units with
+#' large size measures can be selected multiple times. The appropriate
+#' variance estimator uses pairwise expectations rather than joint inclusion
+#' probabilities.
 #'
-#' Standard error of estimated π_kl ≈ sqrt(π_kl(1-π_kl)/nsim).
-#' With nsim=10000, SE ≈ 0.005 for π_kl ≈ 0.5.
+#' Chromy (2009) gives the generalized Yates-Grundy variance:
+#' \deqn{V(\hat{T}) = \frac{1}{2} \sum_{i \neq j} \{E(n_i)E(n_j) - E(n_i n_j)\}
+#'   \left(\frac{y_i}{E(n_i)} - \frac{y_j}{E(n_j)}\right)^2}
+#'
+#' where \eqn{E(n_k) = n x_k / \sum x} is exact.
+#'
+#' In the without-replacement case (all \eqn{E(n_k) < 1}), this reduces to
+#' the standard Sen-Yates-Grundy formula with \eqn{E(n_i n_j) = \pi_{ij}}.
 #'
 #' @references
+#' Chromy, J.R. (2009). Some Generalizations of the Horvitz-Thompson Estimator.
+#' \emph{Proceedings of the Survey Research Methods Section, ASA}, 216-227.
+#'
 #' Chauvet, G. (2019). Properties of Chromy's sampling procedure.
 #' \emph{arXiv:1912.10896}.
 #'
-#' @seealso [up_chromy()] for sampling, [up_brewer_jip()] for an
-#'   analytical approximation suitable for high-entropy designs.
+#' @seealso [up_chromy()] for sampling, [up_brewer_jip()] for joint
+#'   inclusion probabilities under high-entropy WOR designs.
 #'
 #' @examples
 #' x <- c(10, 20, 15, 25, 30)
-#' joint <- up_chromy_jip(x, n = 3, nsim = 5000)
+#' pairexp <- up_chromy_pairexp(x, n = 3, nsim = 5000)
 #'
-#' # Diagonal ≈ first-order probabilities
-#' pik <- 3 * x / sum(x)
-#' diag(joint)  # Should be close to pik
+#' # Expected hits (exact)
+#' En <- 3 * x / sum(x)
+#'
+#' # In WOR case: diagonal approximates E(n_k)
+#' diag(pairexp)  # Should be close to En
+#'
+#' # Covariance structure for variance estimation
+#' En_outer <- outer(En, En)
+#' Cov_nn <- pairexp - En_outer  # E(n_i n_j) - E(n_i)E(n_j)
 #'
 #' @export
-up_chromy_jip <- function(x, n, nsim = 10000L) {
+up_chromy_pairexp <- function(x, n, nsim = 10000L) {
   check_mos(x)
 
   if (!is.numeric(n) || length(n) != 1L || is.na(n) || n < 1) {
@@ -157,5 +174,5 @@ up_chromy_jip <- function(x, n, nsim = 10000L) {
     stop("nsim must be a positive integer", call. = FALSE)
   }
 
-  .Call(C_up_chromy_jip, as.double(x), as.integer(n), as.integer(nsim))
+  .Call(C_up_chromy_pairexp, as.double(x), as.integer(n), as.integer(nsim))
 }
