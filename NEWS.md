@@ -14,10 +14,10 @@ Initial CRAN release.
 * `up_chromy()` - Chromy's sequential PPS with minimum replacement
 
 ## Joint inclusion probabilities
-* `up_maxent_joint()` - Exact CPS joint probabilities (Aires' formula)
-* `up_brewer_joint()` - Brewer & Donadio approximation
-* `up_systematic_joint()` - Exact systematic joint probabilities
-* `up_poisson_joint()` - Independent selections
+* `up_maxent_jip()` - Exact CPS joint probabilities (Aires' formula)
+* `up_brewer_jip()` - Brewer & Donadio approximation
+* `up_systematic_jip()` - Exact systematic joint probabilities
+* `up_poisson_jip()` - Independent selections
 
 ## Utilities
 * `inclusion_prob()` - Compute inclusion probabilities from measure of size

@@ -50,10 +50,10 @@ sim_cps <- up_maxent(pik, nrep = 10000)
 
 **Joint inclusion probabilities :**
 
-- `up_maxent_joint()` - Exact CPS joint probabilities (Aires' formula)
-- `up_brewer_joint()` - Brewer's approximation (equation 18)
-- `up_systematic_joint()` - Exact systematic joint probabilities
-- `up_poisson_joint()` - Independent selections (π_i × π_j)
+- `up_maxent_jip()` - Exact CPS joint probabilities (Aires' formula)
+- `up_brewer_jip()` - Brewer's approximation (equation 18)
+- `up_systematic_jip()` - Exact systematic joint probabilities
+- `up_poisson_jip()` - Independent selections (π_i × π_j)
 
 **Utilities:**
 

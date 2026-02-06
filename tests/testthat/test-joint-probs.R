@@ -12,31 +12,31 @@ tille_expected <- matrix(c(
   0.0559, 0.1377, 0.3452, 0.5351, 0.7461, 0.91
 ), nrow = 6, byrow = TRUE)
 
-test_that("up_maxent_joint returns correct dimensions", {
+test_that("up_maxent_jip returns correct dimensions", {
   pik <- c(0.2, 0.3, 0.5)
-  pikl <- up_maxent_joint(pik)
+  pikl <- up_maxent_jip(pik)
 
   expect_true(is.matrix(pikl))
   expect_equal(dim(pikl), c(3, 3))
 })
 
-test_that("up_maxent_joint is symmetric", {
+test_that("up_maxent_jip is symmetric", {
   pik <- c(0.2, 0.3, 0.5)
-  pikl <- up_maxent_joint(pik)
+  pikl <- up_maxent_jip(pik)
 
   expect_equal(pikl, t(pikl))
 })
 
-test_that("up_maxent_joint has correct diagonal", {
+test_that("up_maxent_jip has correct diagonal", {
   pik <- c(0.2, 0.3, 0.5)
-  pikl <- up_maxent_joint(pik)
+  pikl <- up_maxent_jip(pik)
 
   expect_equal(diag(pikl), pik)
 })
 
-test_that("up_maxent_joint satisfies marginal constraint", {
+test_that("up_maxent_jip satisfies marginal constraint", {
   pik <- tille_pik
-  pikl <- up_maxent_joint(pik)
+  pikl <- up_maxent_jip(pik)
   n <- sum(pik)
 
   for (k in seq_along(pik)) {
@@ -46,15 +46,15 @@ test_that("up_maxent_joint satisfies marginal constraint", {
   }
 })
 
-test_that("up_maxent_joint matches Tillé Example 10", {
-  pikl <- up_maxent_joint(tille_pik)
+test_that("up_maxent_jip matches Tillé Example 10", {
+  pikl <- up_maxent_jip(tille_pik)
 
   expect_equal(pikl, tille_expected, tolerance = 0.01)
 })
 
-test_that("up_maxent_joint produces valid probabilities", {
+test_that("up_maxent_jip produces valid probabilities", {
   pik <- c(0.2, 0.3, 0.5)
-  pikl <- up_maxent_joint(pik)
+  pikl <- up_maxent_jip(pik)
 
   expect_true(all(pikl >= 0))
   expect_true(all(pikl <= 1))
@@ -69,9 +69,9 @@ test_that("up_maxent_joint produces valid probabilities", {
   }
 })
 
-test_that("up_maxent_joint handles n=1 case", {
+test_that("up_maxent_jip handles n=1 case", {
   pik <- c(0.3, 0.3, 0.4) # n = 1
-  pikl <- up_maxent_joint(pik)
+  pikl <- up_maxent_jip(pik)
 
   # All off-diagonal should be 0 when n=1
   expect_equal(diag(pikl), pik)
@@ -80,57 +80,57 @@ test_that("up_maxent_joint handles n=1 case", {
   expect_equal(sum(off_diag), 0, tolerance = 1e-9)
 })
 
-test_that("up_maxent_joint handles certainty selections", {
+test_that("up_maxent_jip handles certainty selections", {
   pik <- c(0.5, 0.5, 1.0) # Unit 3 always selected
-  pikl <- up_maxent_joint(pik)
+  pikl <- up_maxent_jip(pik)
 
   # Joint with certainty unit = marginal of other unit
   expect_equal(pikl[3, 1], pik[1], tolerance = 1e-6)
   expect_equal(pikl[3, 2], pik[2], tolerance = 1e-6)
 })
 
-test_that("up_maxent_joint rejects invalid input", {
-  expect_error(up_maxent_joint(c(0.2, NA, 0.3)), "missing values")
-  expect_error(up_maxent_joint(c(0.2, -0.1, 0.3)), "between 0 and 1")
-  expect_error(up_maxent_joint(c(0.2, 1.5, 0.3)), "between 0 and 1")
-  expect_error(up_maxent_joint(integer(0)), "empty")
-  expect_error(up_maxent_joint("abc"), "numeric vector")
+test_that("up_maxent_jip rejects invalid input", {
+  expect_error(up_maxent_jip(c(0.2, NA, 0.3)), "missing values")
+  expect_error(up_maxent_jip(c(0.2, -0.1, 0.3)), "between 0 and 1")
+  expect_error(up_maxent_jip(c(0.2, 1.5, 0.3)), "between 0 and 1")
+  expect_error(up_maxent_jip(integer(0)), "empty")
+  expect_error(up_maxent_jip("abc"), "numeric vector")
 })
 
-test_that("up_systematic_joint returns correct dimensions", {
+test_that("up_systematic_jip returns correct dimensions", {
   pik <- c(0.2, 0.3, 0.5)
-  pikl <- up_systematic_joint(pik)
+  pikl <- up_systematic_jip(pik)
 
   expect_true(is.matrix(pikl))
   expect_equal(dim(pikl), c(3, 3))
 })
 
-test_that("up_systematic_joint is symmetric", {
+test_that("up_systematic_jip is symmetric", {
   pik <- c(0.2, 0.3, 0.5)
-  pikl <- up_systematic_joint(pik)
+  pikl <- up_systematic_jip(pik)
 
   expect_equal(pikl, t(pikl))
 })
 
-test_that("up_systematic_joint has correct diagonal", {
+test_that("up_systematic_jip has correct diagonal", {
   pik <- c(0.2, 0.3, 0.5)
-  pikl <- up_systematic_joint(pik)
+  pikl <- up_systematic_jip(pik)
 
   expect_equal(diag(pikl), pik)
 })
 
-test_that("up_systematic_joint produces valid probabilities", {
+test_that("up_systematic_jip produces valid probabilities", {
   pik <- c(0.2, 0.3, 0.5)
-  pikl <- up_systematic_joint(pik)
+  pikl <- up_systematic_jip(pik)
 
   expect_true(all(pikl >= 0))
   expect_true(all(pikl <= 1))
 })
 
-test_that("up_systematic_joint can have zero joint probabilities", {
+test_that("up_systematic_jip can have zero joint probabilities", {
   # Systematic sampling is NOT high-entropy - some pairs never selected together
   pik <- c(0.2, 0.3, 0.5)
-  pikl <- up_systematic_joint(pik)
+  pikl <- up_systematic_jip(pik)
 
   # At least check it runs and produces valid output
   # Zero joint probs are expected for systematic
@@ -138,10 +138,10 @@ test_that("up_systematic_joint can have zero joint probabilities", {
   expect_true(any(off_diag == 0) || all(off_diag > 0)) # Either is valid
 })
 
-test_that("up_systematic_joint satisfies marginal constraint on average", {
+test_that("up_systematic_jip satisfies marginal constraint on average", {
   # For systematic, sum_{l≠k} π_kl = (n-1) * π_k holds
   pik <- c(0.2, 0.3, 0.5)
-  pikl <- up_systematic_joint(pik)
+  pikl <- up_systematic_jip(pik)
   n <- sum(pik)
 
   for (k in seq_along(pik)) {
@@ -151,46 +151,46 @@ test_that("up_systematic_joint satisfies marginal constraint on average", {
   }
 })
 
-test_that("up_systematic_joint rejects invalid input", {
-  expect_error(up_systematic_joint(c(0.2, NA, 0.3)), "missing values")
-  expect_error(up_systematic_joint(c(0.2, -0.1, 0.3)), "between 0 and 1")
-  expect_error(up_systematic_joint(integer(0)), "empty")
+test_that("up_systematic_jip rejects invalid input", {
+  expect_error(up_systematic_jip(c(0.2, NA, 0.3)), "missing values")
+  expect_error(up_systematic_jip(c(0.2, -0.1, 0.3)), "between 0 and 1")
+  expect_error(up_systematic_jip(integer(0)), "empty")
 })
 
-test_that("up_brewer_joint returns correct dimensions", {
+test_that("up_brewer_jip returns correct dimensions", {
   pik <- c(0.2, 0.3, 0.5)
-  pikl <- up_brewer_joint(pik)
+  pikl <- up_brewer_jip(pik)
 
   expect_true(is.matrix(pikl))
   expect_equal(dim(pikl), c(3, 3))
 })
 
-test_that("up_brewer_joint is symmetric", {
+test_that("up_brewer_jip is symmetric", {
   pik <- c(0.2, 0.3, 0.5)
-  pikl <- up_brewer_joint(pik)
+  pikl <- up_brewer_jip(pik)
 
   expect_equal(pikl, t(pikl))
 })
 
-test_that("up_brewer_joint has correct diagonal", {
+test_that("up_brewer_jip has correct diagonal", {
   pik <- c(0.2, 0.3, 0.5)
-  pikl <- up_brewer_joint(pik)
+  pikl <- up_brewer_jip(pik)
 
   expect_equal(diag(pikl), pik)
 })
 
-test_that("up_brewer_joint produces valid probabilities", {
+test_that("up_brewer_jip produces valid probabilities", {
   pik <- c(0.2, 0.3, 0.5)
-  pikl <- up_brewer_joint(pik)
+  pikl <- up_brewer_jip(pik)
 
   expect_true(all(pikl >= 0))
   expect_true(all(pikl <= 1))
 })
 
-test_that("up_brewer_joint approximates exact CPS reasonably", {
+test_that("up_brewer_jip approximates exact CPS reasonably", {
   pik <- tille_pik
-  pikl_brewer <- up_brewer_joint(pik)
-  pikl_exact <- up_maxent_joint(pik)
+  pikl_brewer <- up_brewer_jip(pik)
+  pikl_exact <- up_maxent_jip(pik)
 
   # Correlation should be very high
   off_diag_brewer <- pikl_brewer[row(pikl_brewer) != col(pikl_brewer)]
@@ -202,9 +202,9 @@ test_that("up_brewer_joint approximates exact CPS reasonably", {
   expect_true(mad < 0.03)
 })
 
-test_that("up_brewer_joint handles n <= 1 case", {
+test_that("up_brewer_jip handles n <= 1 case", {
   pik <- c(0.3, 0.3, 0.4) # n = 1
-  pikl <- up_brewer_joint(pik)
+  pikl <- up_brewer_jip(pik)
 
   # Should return diagonal matrix
   expect_equal(diag(pikl), pik)
@@ -213,16 +213,16 @@ test_that("up_brewer_joint handles n <= 1 case", {
   expect_equal(sum(off_diag), 0, tolerance = 1e-9)
 })
 
-test_that("up_brewer_joint rejects invalid input", {
-  expect_error(up_brewer_joint(c(0.2, NA, 0.3)), "missing values")
-  expect_error(up_brewer_joint(c(0.2, -0.1, 0.3)), "between 0 and 1")
-  expect_error(up_brewer_joint(integer(0)), "empty")
+test_that("up_brewer_jip rejects invalid input", {
+  expect_error(up_brewer_jip(c(0.2, NA, 0.3)), "missing values")
+  expect_error(up_brewer_jip(c(0.2, -0.1, 0.3)), "between 0 and 1")
+  expect_error(up_brewer_jip(integer(0)), "empty")
 })
 
 
-test_that("up_chromy_joint returns valid matrix", {
+test_that("up_chromy_jip returns valid matrix", {
   x <- c(10, 20, 15, 25, 30)
-  joint <- up_chromy_joint(x, n = 3, nsim = 5000)
+  joint <- up_chromy_jip(x, n = 3, nsim = 5000)
 
   expect_equal(dim(joint), c(5, 5))
   expect_equal(joint, t(joint)) # symmetric
@@ -236,10 +236,10 @@ test_that("up_chromy_joint returns valid matrix", {
 test_that("all joint methods agree on diagonal", {
   pik <- c(0.2, 0.3, 0.5)
 
-  pikl_maxent <- up_maxent_joint(pik)
-  pikl_sys <- up_systematic_joint(pik)
-  pikl_brewer <- up_brewer_joint(pik)
-  pikl_chromy <- up_chromy_joint(pik, round(sum(pik)), nsim = 1e6)
+  pikl_maxent <- up_maxent_jip(pik)
+  pikl_sys <- up_systematic_jip(pik)
+  pikl_brewer <- up_brewer_jip(pik)
+  pikl_chromy <- up_chromy_jip(pik, round(sum(pik)), nsim = 1e6)
 
   expect_equal(diag(pikl_maxent), pik)
   expect_equal(diag(pikl_sys), pik)
@@ -250,10 +250,10 @@ test_that("all joint methods agree on diagonal", {
 test_that("all joint methods produce symmetric matrices", {
   pik <- c(0.15, 0.25, 0.35, 0.25)
 
-  pikl_maxent <- up_maxent_joint(pik)
-  pikl_sys <- up_systematic_joint(pik)
-  pikl_brewer <- up_brewer_joint(pik)
-  pikl_chromy <- up_chromy_joint(pik, round(sum(pik)))
+  pikl_maxent <- up_maxent_jip(pik)
+  pikl_sys <- up_systematic_jip(pik)
+  pikl_brewer <- up_brewer_jip(pik)
+  pikl_chromy <- up_chromy_jip(pik, round(sum(pik)))
 
   expect_equal(pikl_maxent, t(pikl_maxent))
   expect_equal(pikl_sys, t(pikl_sys))
@@ -268,10 +268,10 @@ test_that("joint probabilities work with larger populations", {
   x <- runif(N)
   pik <- n * x / sum(x)
 
-  pikl_maxent <- up_maxent_joint(pik)
-  pikl_brewer <- up_brewer_joint(pik)
-  pikl_sys <- up_systematic_joint(pik)
-  pikl_chromy <- up_chromy_joint(x, n)
+  pikl_maxent <- up_maxent_jip(pik)
+  pikl_brewer <- up_brewer_jip(pik)
+  pikl_sys <- up_systematic_jip(pik)
+  pikl_chromy <- up_chromy_jip(x, n)
 
   # All should be N x N symmetric matrices
   expect_equal(dim(pikl_maxent), c(N, N))

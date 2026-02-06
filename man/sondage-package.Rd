@@ -51,10 +51,10 @@ Use \code{\link[=inclusion_prob]{inclusion_prob()}} to convert size measures to 
 \section{Joint Inclusion Probabilities}{
 
 \itemize{
-\item \code{\link[=up_maxent_joint]{up_maxent_joint()}} - Exact CPS joint probabilities
-\item \code{\link[=up_brewer_joint]{up_brewer_joint()}} - Brewer & Donadio approximation
-\item \code{\link[=up_systematic_joint]{up_systematic_joint()}} - Exact systematic joint probabilities
-\item \code{\link[=up_poisson_joint]{up_poisson_joint()}} - Independent selections
+\item \code{\link[=up_maxent_jip]{up_maxent_jip()}} - Exact CPS joint probabilities
+\item \code{\link[=up_brewer_jip]{up_brewer_jip()}} - Brewer & Donadio approximation
+\item \code{\link[=up_systematic_jip]{up_systematic_jip()}} - Exact systematic joint probabilities
+\item \code{\link[=up_poisson_jip]{up_poisson_jip()}} - Independent selections
 }
 }
 

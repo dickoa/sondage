@@ -13,10 +13,10 @@
 #'
 #' @examples
 #' pik <- c(0.2, 0.5, 0.8)
-#' pikl <- up_poisson_joint(pik)
+#' pikl <- up_poisson_jip(pik)
 #'
 #' @export
-up_poisson_joint <- function(pik) {
+up_poisson_jip <- function(pik) {
   check_pik(pik)
   pikl <- outer(pik, pik)
   diag(pikl) <- pik
@@ -47,12 +47,12 @@ up_poisson_joint <- function(pik) {
 #'
 #' @examples
 #' pik <- c(0.2, 0.3, 0.5)
-#' pikl <- up_maxent_joint(pik)
+#' pikl <- up_maxent_jip(pik)
 #'
 #' @export
-up_maxent_joint <- function(pik, eps = 1e-6) {
+up_maxent_jip <- function(pik, eps = 1e-6) {
   check_pik(pik)
-  .Call(C_up_maxent_joint, as.double(pik), as.double(eps))
+  .Call(C_up_maxent_jip, as.double(pik), as.double(eps))
 }
 
 #' Joint Inclusion Probabilities for Systematic Sampling
@@ -73,12 +73,12 @@ up_maxent_joint <- function(pik, eps = 1e-6) {
 #'
 #' @examples
 #' pik <- c(0.2, 0.3, 0.5)
-#' pikl <- up_systematic_joint(pik)
+#' pikl <- up_systematic_jip(pik)
 #'
 #' @export
-up_systematic_joint <- function(pik, eps = 1e-6) {
+up_systematic_jip <- function(pik, eps = 1e-6) {
   check_pik(pik)
-  .Call(C_up_systematic_joint, as.double(pik), as.double(eps))
+  .Call(C_up_systematic_jip, as.double(pik), as.double(eps))
 }
 
 #' Joint Inclusion Probabilities using Brewer's Approximation
@@ -103,12 +103,12 @@ up_systematic_joint <- function(pik, eps = 1e-6) {
 #'
 #' @examples
 #' pik <- c(0.2, 0.3, 0.5)
-#' pikl <- up_brewer_joint(pik)
+#' pikl <- up_brewer_jip(pik)
 #'
 #' @export
-up_brewer_joint <- function(pik) {
+up_brewer_jip <- function(pik) {
   check_pik(pik)
-  .Call(C_up_brewer_joint, as.double(pik))
+  .Call(C_up_brewer_jip, as.double(pik))
 }
 
 #' Joint Inclusion Probabilities for Chromy Sampling
@@ -135,19 +135,19 @@ up_brewer_joint <- function(pik) {
 #' Chauvet, G. (2019). Properties of Chromy's sampling procedure.
 #' \emph{arXiv:1912.10896}.
 #'
-#' @seealso [up_chromy()] for sampling, [up_brewer_joint()] for an
+#' @seealso [up_chromy()] for sampling, [up_brewer_jip()] for an
 #'   analytical approximation suitable for high-entropy designs.
 #'
 #' @examples
 #' x <- c(10, 20, 15, 25, 30)
-#' joint <- up_chromy_joint(x, n = 3, nsim = 5000)
+#' joint <- up_chromy_jip(x, n = 3, nsim = 5000)
 #'
 #' # Diagonal ≈ first-order probabilities
 #' pik <- 3 * x / sum(x)
 #' diag(joint)  # Should be close to pik
 #'
 #' @export
-up_chromy_joint <- function(x, n, nsim = 10000L) {
+up_chromy_jip <- function(x, n, nsim = 10000L) {
   check_mos(x)
 
   if (!is.numeric(n) || length(n) != 1L || is.na(n) || n < 1) {
@@ -157,5 +157,5 @@ up_chromy_joint <- function(x, n, nsim = 10000L) {
     stop("nsim must be a positive integer", call. = FALSE)
   }
 
-  .Call(C_up_chromy_joint, as.double(x), as.integer(n), as.integer(nsim))
+  .Call(C_up_chromy_jip, as.double(x), as.integer(n), as.integer(nsim))
 }

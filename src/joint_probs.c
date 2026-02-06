@@ -2,9 +2,9 @@
  * joint_probs.c - Joint Inclusion Probabilities
  *
  * Implements:
- * - C_up_maxent_joint: Exact CPS joint probabilities (Aires' formula)
- * - C_up_systematic_joint: Exact systematic sampling joint probabilities
- * - C_up_brewer_joint: Brewer approximation (equation 18, Brewer & Donadio 2003)
+ * - C_up_maxent_jip: Exact CPS joint probabilities (Aires' formula)
+ * - C_up_systematic_jip: Exact systematic sampling joint probabilities
+ * - C_up_brewer_jip: Brewer approximation (equation 18, Brewer & Donadio 2003)
  *
  * References:
  * - Aires (1999). Algorithms to Find Exact Inclusion Probabilities for
@@ -21,7 +21,7 @@ static int compare_double(const void *a, const void *b) {
     return (diff > 0) - (diff < 0);
 }
 
-SEXP C_up_maxent_joint(SEXP pik_sexp, SEXP eps_sexp) {
+SEXP C_up_maxent_jip(SEXP pik_sexp, SEXP eps_sexp) {
     const int N_full = LENGTH(pik_sexp);
     const double *pik_full = REAL(pik_sexp);
     const double eps = REAL(eps_sexp)[0];
@@ -125,7 +125,7 @@ SEXP C_up_maxent_joint(SEXP pik_sexp, SEXP eps_sexp) {
     return result;
 }
 
-SEXP C_up_systematic_joint(SEXP pik_sexp, SEXP eps_sexp) {
+SEXP C_up_systematic_jip(SEXP pik_sexp, SEXP eps_sexp) {
     const int N_full = LENGTH(pik_sexp);
     const double *pik_full = REAL(pik_sexp);
     const double eps = REAL(eps_sexp)[0];
@@ -223,7 +223,7 @@ SEXP C_up_systematic_joint(SEXP pik_sexp, SEXP eps_sexp) {
     return result;
 }
 
-SEXP C_up_brewer_joint(SEXP pik_sexp) {
+SEXP C_up_brewer_jip(SEXP pik_sexp) {
     const int N = LENGTH(pik_sexp);
     const double *pik = REAL(pik_sexp);
 

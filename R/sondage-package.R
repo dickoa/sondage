@@ -38,10 +38,10 @@
 #'
 #' @section Joint Inclusion Probabilities:
 #' \itemize{
-#'   \item [up_maxent_joint()] - Exact CPS joint probabilities
-#'   \item [up_brewer_joint()] - Brewer & Donadio approximation
-#'   \item [up_systematic_joint()] - Exact systematic joint probabilities
-#'   \item [up_poisson_joint()] - Independent selections
+#'   \item [up_maxent_jip()] - Exact CPS joint probabilities
+#'   \item [up_brewer_jip()] - Brewer & Donadio approximation
+#'   \item [up_systematic_jip()] - Exact systematic joint probabilities
+#'   \item [up_poisson_jip()] - Independent selections
 #' }
 #'
 #' @references

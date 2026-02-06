@@ -168,7 +168,7 @@ SEXP C_up_chromy(SEXP r_x, SEXP r_n) {
     return result;
 }
 
-SEXP C_up_chromy_joint(SEXP r_x, SEXP r_n, SEXP r_nsim) {
+SEXP C_up_chromy_jip(SEXP r_x, SEXP r_n, SEXP r_nsim) {
     const int N = LENGTH(r_x);
     const double *x = REAL(r_x);
     const int n = asInteger(r_n);
