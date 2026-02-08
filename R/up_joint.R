@@ -51,7 +51,7 @@ up_poisson_jip <- function(pik) {
 #'
 #' @export
 up_maxent_jip <- function(pik, eps = 1e-6) {
-  check_pik(pik)
+  check_pik(pik, fixed_size = TRUE)
   .Call(C_up_maxent_jip, as.double(pik), as.double(eps))
 }
 
@@ -77,7 +77,7 @@ up_maxent_jip <- function(pik, eps = 1e-6) {
 #'
 #' @export
 up_systematic_jip <- function(pik, eps = 1e-6) {
-  check_pik(pik)
+  check_pik(pik, fixed_size = TRUE)
   .Call(C_up_systematic_jip, as.double(pik), as.double(eps))
 }
 
@@ -107,7 +107,7 @@ up_systematic_jip <- function(pik, eps = 1e-6) {
 #'
 #' @export
 up_brewer_jip <- function(pik) {
-  check_pik(pik)
+  check_pik(pik, fixed_size = TRUE)
   .Call(C_up_brewer_jip, as.double(pik))
 }
 
@@ -173,6 +173,8 @@ up_chromy_pairexp <- function(x, n, nsim = 10000L) {
   if (!is.numeric(nsim) || length(nsim) != 1L || is.na(nsim) || nsim < 1) {
     stop("nsim must be a positive integer", call. = FALSE)
   }
+  n <- check_integer(n, "n")
+  nsim <- check_integer(nsim, "nsim")
 
-  .Call(C_up_chromy_pairexp, as.double(x), as.integer(n), as.integer(nsim))
+  .Call(C_up_chromy_pairexp, as.double(x), n, nsim)
 }

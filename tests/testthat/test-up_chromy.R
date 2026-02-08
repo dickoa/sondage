@@ -145,3 +145,19 @@ test_that("up_chromy rejects invalid input", {
   expect_error(up_chromy(c(0, 0, 0), n = 1), "positive")
   expect_error(up_chromy(c(1, 2, 3), n = 0), "at least 1")
 })
+
+test_that("up_chromy rejects Inf in x", {
+  expect_error(up_chromy(c(1, Inf), 1), "finite")
+})
+
+test_that("up_chromy rejects NaN in x", {
+  expect_error(up_chromy(c(1, NaN), 1), "missing values")
+})
+
+test_that("up_chromy rejects non-integer n", {
+  expect_error(up_chromy(c(10, 20, 30), 2.9), "not close to an integer")
+})
+
+test_that("up_chromy silently accepts integer-like n", {
+  expect_no_error(up_chromy(c(10, 20, 30), 2.0))
+})

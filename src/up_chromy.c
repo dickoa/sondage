@@ -5,10 +5,6 @@
 
 #define CHROMY_EPS 1e-9
 
-/*
- * Core Chromy algorithm for fractional parts
- * pik values should be in [0,1), processes units in active[] order
- */
 static int chromy_core(const double *pik, const int *active, int n_active,
                        int n_target, int *out) {
     if (n_target == 0 || n_active == 0) return 0;

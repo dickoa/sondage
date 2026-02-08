@@ -168,3 +168,64 @@ test_that("bernoulli rejects invalid input", {
   expect_error(bernoulli(-0.1, 100), "probability")
   expect_error(bernoulli(1.1, 100), "probability")
 })
+
+# NA input handling
+
+test_that("srs rejects Inf inputs", {
+  expect_error(srs(Inf, 10), "finite")
+  expect_error(srs(3, Inf), "finite")
+  expect_error(srs(-Inf, 10), "non-negative")
+})
+
+test_that("systematic rejects Inf inputs", {
+  expect_error(systematic(Inf, 10), "finite")
+  expect_error(systematic(3, Inf), "finite")
+})
+
+test_that("bernoulli rejects Inf N", {
+  expect_error(bernoulli(0.5, Inf), "finite")
+})
+
+test_that("srs rejects NA_real_ inputs", {
+  expect_error(srs(NA_real_, 10), "non-negative")
+  expect_error(srs(NA, 10), "non-negative")
+  expect_error(srs(3, NA_real_), "positive")
+  expect_error(srs(3, NA), "positive")
+})
+
+test_that("systematic rejects NA_real_ inputs", {
+  expect_error(systematic(NA_real_, 10), "non-negative")
+  expect_error(systematic(NA, 10), "non-negative")
+  expect_error(systematic(3, NA_real_), "positive")
+  expect_error(systematic(3, NA), "positive")
+})
+
+test_that("bernoulli rejects NA_real_ inputs", {
+  expect_error(bernoulli(NA_real_, 100), "probability")
+  expect_error(bernoulli(NA, 100), "probability")
+  expect_error(bernoulli(0.5, NA_real_), "positive")
+  expect_error(bernoulli(0.5, NA), "positive")
+})
+
+# Non-integer parameter errors
+
+test_that("srs rejects non-integer n", {
+  expect_error(srs(2.9, 10), "not close to an integer")
+})
+
+test_that("srs rejects non-integer N", {
+  expect_error(srs(2, 10.7), "not close to an integer")
+})
+
+test_that("srs silently accepts integer-like doubles", {
+  expect_no_error(srs(3.0, 10))
+  expect_no_error(srs(3, 10.0))
+})
+
+test_that("systematic rejects non-integer n", {
+  expect_error(systematic(2.9, 10), "not close to an integer")
+})
+
+test_that("bernoulli rejects non-integer N", {
+  expect_error(bernoulli(0.5, 10.7), "not close to an integer")
+})

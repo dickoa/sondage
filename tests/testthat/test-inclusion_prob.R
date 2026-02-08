@@ -62,7 +62,33 @@ test_that("inclusion_prob warns about negative values", {
 test_that("inclusion_prob rejects invalid input", {
   expect_error(inclusion_prob(1:10, n = 15), "cannot exceed")
   expect_error(inclusion_prob(1:10, n = -1), "non-negative")
-  expect_error(inclusion_prob(1:10, n = NA), "not NA")
+  expect_error(inclusion_prob(1:10, n = NA), "single numeric")
+  expect_error(inclusion_prob(1:10, n = NA_real_), "not NA")
+})
+
+test_that("inclusion_prob rejects non-numeric n", {
+  expect_error(inclusion_prob(1:10, n = "5"), "single numeric")
+  expect_error(inclusion_prob(1:10, n = TRUE), "single numeric")
+})
+
+test_that("inclusion_prob rejects vector n", {
+  expect_error(inclusion_prob(1:10, n = c(1, 2)), "single numeric")
+})
+
+test_that("inclusion_prob rejects non-numeric x", {
+  expect_error(inclusion_prob(c("a", "b", "c"), n = 1), "numeric vector")
+})
+
+test_that("inclusion_prob rejects non-integer n", {
+  expect_error(inclusion_prob(1:10, n = 2.9), "not close to an integer")
+})
+
+test_that("inclusion_prob rejects Inf n", {
+  expect_error(inclusion_prob(1:10, n = Inf), "finite")
+})
+
+test_that("inclusion_prob silently accepts integer-like n", {
+  expect_no_error(inclusion_prob(1:10, n = 3.0))
 })
 
 test_that("inclusion_prob works with up_maxent", {
@@ -72,4 +98,47 @@ test_that("inclusion_prob works with up_maxent", {
   set.seed(42)
   idx <- up_maxent(pik)
   expect_length(idx, 3)
+})
+
+# Non-finite and NA input validation
+
+test_that("inclusion_prob rejects Inf in x", {
+  expect_error(inclusion_prob(c(1, Inf, 2), 2), "finite")
+})
+
+test_that("inclusion_prob rejects -Inf in x", {
+  expect_error(inclusion_prob(c(1, -Inf, 2), 2), "finite")
+})
+
+test_that("inclusion_prob rejects NaN in x", {
+  expect_error(inclusion_prob(c(1, NaN, 2), 2), "missing values")
+})
+
+test_that("inclusion_prob rejects NA in x", {
+  expect_error(inclusion_prob(c(1, NA, 2), 2), "missing values")
+})
+
+# n exceeds achievable positive units
+
+test_that("inclusion_prob errors when n exceeds positive units", {
+  expect_error(inclusion_prob(c(0, 0, 0, 1), 3), "exceeds")
+})
+
+test_that("inclusion_prob errors when all zeros with n > 0", {
+  expect_error(inclusion_prob(c(0, 0, 0), 1), "exceeds")
+})
+
+test_that("inclusion_prob handles n = 0 with all-zero x", {
+  pik <- inclusion_prob(c(0, 0, 0), n = 0)
+  expect_equal(pik, c(0, 0, 0))
+})
+
+test_that("inclusion_prob correctly sums to n after certainty capping", {
+  # 2 very large units, 2 small, n = 3
+  # After capping the 2 large ones, remaining n = 1 is achievable
+  size <- c(1, 1, 100, 200)
+  pik <- inclusion_prob(size, n = 3)
+  expect_equal(sum(pik), 3)
+  expect_equal(pik[3], 1)
+  expect_equal(pik[4], 1)
 })

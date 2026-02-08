@@ -18,8 +18,9 @@ An integer vector of n selected indices (1 to N).
 Selects every k-th unit starting from a random position.
 }
 \details{
-The sampling interval is k = N/n. A random start u is drawn from (0, k],
-then units at positions ceiling(u), ceiling(u + k), ceiling(u + 2k), ...
+The sampling interval is \eqn{k = N/n}. A random start \eqn{u} is drawn
+from \eqn{(0, k]}, then units at positions
+\eqn{\lceil u \rceil, \lceil u + k \rceil, \lceil u + 2k \rceil, \ldots}
 are selected.
 
 Properties:

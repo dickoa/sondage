@@ -65,7 +65,7 @@
 #'
 #' @export
 up_brewer <- function(pik, eps = 1e-06) {
-  check_pik(pik)
+  check_pik(pik, fixed_size = TRUE)
 
   .Call(C_up_brewer, as.double(pik), as.double(eps[1]))
 }

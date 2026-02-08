@@ -111,4 +111,37 @@ test_that("up_maxent rejects invalid input", {
   expect_error(up_maxent(c("a", "b")), "numeric")
   expect_error(up_maxent(numeric(0)), "empty")
   expect_error(up_maxent(c(0.5, 0.5), nrep = 0), "positive")
+  expect_error(up_maxent(c(0.5, 0.5), nrep = NA_real_), "positive")
+  expect_error(up_maxent(c(0.5, 0.5), nrep = NA), "positive")
+})
+
+test_that("up_maxent rejects non-integer sum(pik)", {
+  expect_error(up_maxent(c(0.49, 0.49, 0.49)), "not close to an integer")
+})
+
+test_that("up_maxent rejects slightly non-integer sum(pik)", {
+  # sum = 1.001, off by 0.001 which exceeds 1e-4 tolerance
+  expect_error(up_maxent(c(0.501, 0.25, 0.25)), "not close to an integer")
+})
+
+test_that("up_maxent silently accepts integer sum(pik)", {
+  expect_no_error(up_maxent(c(0.2, 0.4, 0.6, 0.8)))
+})
+
+test_that("up_maxent rejects non-integer nrep", {
+  expect_error(up_maxent(c(0.5, 0.5), nrep = 2.9), "not close to an integer")
+})
+
+test_that("up_maxent rejects Inf nrep", {
+  expect_error(up_maxent(c(0.5, 0.5), nrep = Inf), "finite")
+})
+
+test_that("up_maxent handles N=1 census", {
+  idx <- up_maxent(1.0)
+  expect_equal(idx, 1L)
+})
+
+test_that("up_maxent handles all-certainty pik", {
+  idx <- up_maxent(c(1.0, 1.0, 1.0))
+  expect_equal(sort(idx), 1:3)
 })

@@ -74,5 +74,6 @@ up_chromy <- function(x, n) {
   if (is.na(n) || n < 1) {
     stop("n must be at least 1", call. = FALSE)
   }
-  .Call(C_up_chromy, as.double(x), as.integer(n))
+  n <- check_integer(n, "n")
+  .Call(C_up_chromy, as.double(x), n)
 }

@@ -23,9 +23,9 @@
 #' }
 #'
 #' The implementation uses the sequential algorithm of Chen, Dempster, and Liu
-#' (1994) as described in Tillé (2006). The q-values are computed on-the-fly
-#' to reduce memory usage from O(N*n) for the full q-matrix to O(N) working
-#' arrays.
+#' (1994) as described in Tillé (2006). The elementary symmetric functions
+#' and forward propagation tables require O(N*n) memory, where N is the number
+#' of non-certainty units and n is the sample size.
 #'
 #' For repeated sampling (simulations), use the `nrep` parameter instead of
 #' a loop for much better performance. The design is computed once and reused
@@ -57,13 +57,12 @@
 #'
 #' @export
 up_maxent <- function(pik, nrep = 1L, eps = 1e-06) {
-  check_pik(pik)
+  check_pik(pik, fixed_size = TRUE)
 
-  if (!is.numeric(nrep) || length(nrep) != 1 || nrep < 1) {
+  if (!is.numeric(nrep) || length(nrep) != 1 || is.na(nrep) || nrep < 1) {
     stop("nrep must be a positive integer", call. = FALSE)
   }
-
-  nrep <- as.integer(nrep)
+  nrep <- check_integer(nrep, "nrep")
 
   if (nrep == 1L) {
     .Call(C_maxent_single, as.double(pik), as.double(eps))

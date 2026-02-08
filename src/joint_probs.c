@@ -1,16 +1,9 @@
 /*
- * joint_probs.c - Joint Inclusion Probabilities
+ * Joint Inclusion Probabilities
  *
- * Implements:
  * - C_up_maxent_jip: Exact CPS joint probabilities (Aires' formula)
  * - C_up_systematic_jip: Exact systematic sampling joint probabilities
  * - C_up_brewer_jip: Brewer approximation (equation 18, Brewer & Donadio 2003)
- *
- * References:
- * - Aires (1999). Algorithms to Find Exact Inclusion Probabilities for
- *   Conditional Poisson Sampling and Pareto pips Sampling Design
- * - Tillé (2006). Sampling Algorithms. Springer.
- * - Brewer & Donadio (2003). The High Entropy Variance of the HT Estimator.
  */
 
 #include "cps_core.h"
@@ -109,14 +102,13 @@ SEXP C_up_maxent_jip(SEXP pik_sexp, SEXP eps_sexp) {
                         (1.0 - (1.0 - pik_valid[i]) * (1.0 - pik_valid[jj]) / d);
             }
 
-            /* Clamp to valid range */
             if (pi_ij < 0.0) pi_ij = 0.0;
             if (pi_ij > pik_valid[i]) pi_ij = pik_valid[i];
             if (pi_ij > pik_valid[jj]) pi_ij = pik_valid[jj];
 
             int k = valid_idx[i];
             int l = valid_idx[jj];
-            pikl[l * N_full + k] = pi_ij;  /* Column-major */
+            pikl[l * N_full + k] = pi_ij;
             pikl[k * N_full + l] = pi_ij;
         }
     }
@@ -164,7 +156,6 @@ SEXP C_up_systematic_jip(SEXP pik_sexp, SEXP eps_sexp) {
         }
     }
 
-    /* Cumulative sums */
     double *Vk = (double *) R_alloc(N, sizeof(double));
     double *Vk1 = (double *) R_alloc(N, sizeof(double));
 

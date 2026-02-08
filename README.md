@@ -54,6 +54,7 @@ sim_cps <- up_maxent(pik, nrep = 10000)
 - `up_brewer_jip()` - Brewer's approximation (equation 18)
 - `up_systematic_jip()` - Exact systematic joint probabilities
 - `up_poisson_jip()` - Independent selections (π_i × π_j)
+- `up_chromy_pairexp()` - Pairwise Expectation (E(n_i × n_j))
 
 **Utilities:**
 

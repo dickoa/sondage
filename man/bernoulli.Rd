@@ -24,7 +24,7 @@ Each unit is selected independently with probability p.
 
 Properties:
 \itemize{
-\item Random sample size with expectation N\emph{p and variance N}p*(1-p)
+\item Random sample size with expectation \eqn{Np} and variance \eqn{Np(1-p)}
 \item Equal inclusion probabilities: \eqn{\pi = p}
 \item Very fast: O(N) time
 }

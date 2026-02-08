@@ -199,3 +199,35 @@ test_that("up_systematic rejects invalid input", {
   expect_error(up_systematic(c("a", "b")), "numeric")
   expect_error(up_systematic(numeric(0)), "empty")
 })
+
+# Non-integer parameter errors
+
+test_that("up_multinomial rejects non-integer n", {
+  expect_error(up_multinomial(c(10, 20, 30), 2.9), "not close to an integer")
+})
+
+test_that("up_multinomial silently accepts integer-like n", {
+  expect_no_error(up_multinomial(c(10, 20, 30), 3.0))
+})
+
+test_that("up_multinomial rejects Inf in x", {
+  expect_error(up_multinomial(c(10, Inf, 30), n = 2), "finite")
+})
+
+test_that("up_multinomial rejects NaN in x", {
+  expect_error(up_multinomial(c(10, NaN, 30), n = 2), "missing values")
+})
+
+# Non-integer sum(pik) errors for up_systematic
+
+test_that("up_systematic rejects non-integer sum(pik)", {
+  expect_error(up_systematic(c(0.49, 0.49, 0.49)), "not close to an integer")
+})
+
+test_that("up_systematic rejects slightly non-integer sum(pik)", {
+  expect_error(up_systematic(c(0.501, 0.25, 0.25)), "not close to an integer")
+})
+
+test_that("up_systematic silently accepts integer sum(pik)", {
+  expect_no_error(up_systematic(c(0.2, 0.3, 0.5)))
+})

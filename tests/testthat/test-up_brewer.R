@@ -80,3 +80,25 @@ test_that("up_brewer rejects invalid input", {
   expect_error(up_brewer(c("a", "b")), "numeric")
   expect_error(up_brewer(numeric(0)), "empty")
 })
+
+test_that("up_brewer rejects non-integer sum(pik)", {
+  expect_error(up_brewer(c(0.49, 0.49, 0.49)), "not close to an integer")
+})
+
+test_that("up_brewer rejects slightly non-integer sum(pik)", {
+  expect_error(up_brewer(c(0.501, 0.25, 0.25)), "not close to an integer")
+})
+
+test_that("up_brewer silently accepts integer sum(pik)", {
+  expect_no_error(up_brewer(c(0.2, 0.4, 0.6, 0.8)))
+})
+
+test_that("up_brewer handles N=1 census", {
+  idx <- up_brewer(1.0)
+  expect_equal(idx, 1L)
+})
+
+test_that("up_brewer handles all-certainty pik", {
+  idx <- up_brewer(c(1.0, 1.0, 1.0))
+  expect_equal(sort(idx), 1:3)
+})

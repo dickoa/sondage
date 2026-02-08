@@ -1,15 +1,8 @@
 /*
  * cps_core.h - Shared routines for Conditional Poisson Sampling
  *
- * Used by maxent.c (sampling) and joint_probs.c (joint inclusion probabilities).
- * Contains the elementary symmetric functions (expa), conditional selection
- * probabilities (q-values), forward probability propagation, and Newton
- * calibration of Poisson weights from target inclusion probabilities.
- *
- * References:
- * - Chen, Dempster & Liu (1994). Weighted Finite Population Sampling.
- * - Aires (1999). Exact Inclusion Probabilities for CPS.
- * - Tillé (2006). Sampling Algorithms. Springer.
+ * Elementary symmetric functions, conditional selection probabilities,
+ * forward probability propagation, and Newton calibration.
  */
 
 #ifndef CPS_CORE_H
@@ -21,14 +14,7 @@
 #include <string.h>
 #include <math.h>
 
-/*
- * Compute elementary symmetric functions (expa table).
- *
- * expa[i * n + z] = e_z(w_{i}, w_{i+1}, ..., w_{N-1})
- *
- * where e_z is the z-th elementary symmetric polynomial.
- * Used as denominators in the sequential conditional probabilities.
- */
+/* expa[i*n + z] = e_z(w_i, ..., w_{N-1}) */
 static void cps_compute_expa(const double *w, int N, int n, double *expa) {
     memset(expa, 0, (size_t)N * n * sizeof(double));
 
@@ -57,11 +43,7 @@ static void cps_compute_expa(const double *w, int N, int n, double *expa) {
     }
 }
 
-/*
- * Compute sequential conditional probability q(i, z).
- *
- * q(i, z) = P(select unit i | z units still needed from i, i+1, ..., N-1)
- */
+/* q(i,z) = P(select i | z still needed from i..N-1) */
 static inline double cps_compute_q(const double *w, const double *expa,
                                     int N, int n, int i, int z) {
     if (z == 0) {
@@ -79,16 +61,9 @@ static inline double cps_compute_q(const double *w, const double *expa,
     return w[i] * expa[(i + 1) * n + (z - 1)] / denom;
 }
 
-/*
- * Compute implied inclusion probabilities from Poisson weights w
- * using forward probability propagation.
- *
- * pro[i * n + z] = P(z units still needed when reaching unit i)
- * pik[i] = sum_z pro[i,z] * q(i,z)
- */
+/* pro[i*n+z] = P(z needed at unit i), pik[i] = sum_z pro[i,z]*q(i,z) */
 static void cps_compute_pik(const double *w, const double *expa,
-                             int N, int n, double *pik) {
-    double *pro = (double *) R_alloc((size_t)N * n, sizeof(double));
+                             int N, int n, double *pik, double *pro) {
     memset(pro, 0, (size_t)N * n * sizeof(double));
 
     pro[0 * n + (n - 1)] = 1.0;
@@ -119,22 +94,13 @@ static void cps_compute_pik(const double *w, const double *expa,
     }
 }
 
-/*
- * Calibrate Poisson weights w so that the CPS design achieves
- * target inclusion probabilities pik_target.
- *
- * Uses Newton-type fixed-point iteration:
- *   piktilde_new = piktilde_old + (pik_target - pik_implied)
- *   w_i = piktilde_i / (1 - piktilde_i)
- *
- * On exit, w[] and expa[] contain the calibrated values.
- * Returns the number of iterations used.
- */
+/* Calibrate w so CPS achieves pik_target. w[] and expa[] set on exit. */
 static int cps_calibrate(const double *pik_target, int N, int n,
                           double *w, double *expa,
                           double eps, int max_iter) {
     double *piktilde = (double *) R_alloc(N, sizeof(double));
     double *pik_implied = (double *) R_alloc(N, sizeof(double));
+    double *pro = (double *) R_alloc((size_t)N * n, sizeof(double));
 
     memcpy(piktilde, pik_target, N * sizeof(double));
 
@@ -147,7 +113,7 @@ static int cps_calibrate(const double *pik_target, int N, int n,
         }
 
         cps_compute_expa(w, N, n, expa);
-        cps_compute_pik(w, expa, N, n, pik_implied);
+        cps_compute_pik(w, expa, N, n, pik_implied, pro);
 
         double max_diff = 0.0;
         for (int i = 0; i < N; i++) {
@@ -161,7 +127,6 @@ static int cps_calibrate(const double *pik_target, int N, int n,
         }
 
         if (max_diff < eps) {
-            /* Final w and expa from converged piktilde */
             for (int i = 0; i < N; i++) {
                 double p = piktilde[i];
                 if (p < 1e-10) p = 1e-10;
@@ -176,11 +141,6 @@ static int cps_calibrate(const double *pik_target, int N, int n,
     return max_iter;
 }
 
-/*
- * Draw a sequential sample using calibrated weights.
- *
- * Caller must bracket with GetRNGstate() / PutRNGstate().
- */
 static void cps_sample(const double *w, const double *expa,
                         int N, int n, int *sample_idx) {
     int remaining = n;

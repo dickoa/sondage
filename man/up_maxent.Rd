@@ -34,9 +34,9 @@ Maximum entropy sampling has several desirable properties:
 }
 
 The implementation uses the sequential algorithm of Chen, Dempster, and Liu
-(1994) as described in Tillé (2006). The q-values are computed on-the-fly
-to reduce memory usage from O(N*n) for the full q-matrix to O(N) working
-arrays.
+(1994) as described in Tillé (2006). The elementary symmetric functions
+and forward propagation tables require O(N*n) memory, where N is the number
+of non-certainty units and n is the sample size.
 
 For repeated sampling (simulations), use the \code{nrep} parameter instead of
 a loop for much better performance. The design is computed once and reused

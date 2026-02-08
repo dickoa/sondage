@@ -8,7 +8,8 @@
 ^\.gitlab-ci\.yml$
 ^\.codecov\.yml$
 ^\.lintr$
-^revdep$
+^\.github$
+revdep$
 ^docs$
 ^public$
 ^README\.html$

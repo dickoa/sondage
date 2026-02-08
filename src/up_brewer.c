@@ -1,14 +1,10 @@
+/*
+ * Brewer's method for unequal probability sampling
+ */
+
 #include <R.h>
 #include <Rinternals.h>
 #include <Rmath.h>
-
-/*
- * Brewer's method for unequal probability sampling
- *
- * Optimizations:
- * - Binary search for selection (O(log N) vs O(N))
- * - Compact arrays with swap-remove
- */
 
 static inline int binary_search(const double *cumprob, int n, double u) {
     int lo = 0, hi = n - 1;

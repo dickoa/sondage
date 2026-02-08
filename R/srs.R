@@ -44,14 +44,14 @@
 #'
 #' @export
 srs <- function(n, N, replace = FALSE) {
-  if (!is.numeric(n) || length(n) != 1 || n < 0) {
+  if (!is.numeric(n) || length(n) != 1 || is.na(n) || n < 0) {
     stop("n must be a non-negative integer", call. = FALSE)
   }
-  if (!is.numeric(N) || length(N) != 1 || N < 1) {
+  if (!is.numeric(N) || length(N) != 1 || is.na(N) || N < 1) {
     stop("N must be a positive integer", call. = FALSE)
   }
-  n <- as.integer(n)
-  N <- as.integer(N)
+  n <- check_integer(n, "n")
+  N <- check_integer(N, "N")
 
   if (!replace && n > N) {
     stop("n cannot exceed N when replace = FALSE", call. = FALSE)
@@ -75,8 +75,9 @@ srs <- function(n, N, replace = FALSE) {
 #' @return An integer vector of n selected indices (1 to N).
 #'
 #' @details
-#' The sampling interval is k = N/n. A random start u is drawn from (0, k],
-#' then units at positions ceiling(u), ceiling(u + k), ceiling(u + 2k), ...
+#' The sampling interval is \eqn{k = N/n}. A random start \eqn{u} is drawn
+#' from \eqn{(0, k]}, then units at positions
+#' \eqn{\lceil u \rceil, \lceil u + k \rceil, \lceil u + 2k \rceil, \ldots}
 #' are selected.
 #'
 #' Properties:
@@ -110,18 +111,17 @@ srs <- function(n, N, replace = FALSE) {
 #'
 #' @export
 systematic <- function(n, N) {
-  if (!is.numeric(n) || length(n) != 1 || n < 0) {
+  if (!is.numeric(n) || length(n) != 1 || is.na(n) || n < 0) {
     stop("n must be a non-negative integer", call. = FALSE)
   }
-  if (!is.numeric(N) || length(N) != 1 || N < 1) {
+  if (!is.numeric(N) || length(N) != 1 || is.na(N) || N < 1) {
     stop("N must be a positive integer", call. = FALSE)
   }
+  n <- check_integer(n, "n")
+  N <- check_integer(N, "N")
   if (n > N) {
     stop("n cannot exceed N", call. = FALSE)
   }
-
-  n <- as.integer(n)
-  N <- as.integer(N)
 
   if (n == 0) {
     return(integer(0))
@@ -151,7 +151,7 @@ systematic <- function(n, N) {
 #'
 #' Properties:
 #' \itemize{
-#'   \item Random sample size with expectation N*p and variance N*p*(1-p)
+#'   \item Random sample size with expectation \eqn{Np} and variance \eqn{Np(1-p)}
 #'   \item Equal inclusion probabilities: \eqn{\pi = p}
 #'   \item Very fast: O(N) time
 #' }
@@ -172,13 +172,13 @@ systematic <- function(n, N) {
 #'
 #' @export
 bernoulli <- function(p, N) {
-  if (!is.numeric(p) || length(p) != 1 || p < 0 || p > 1) {
+  if (!is.numeric(p) || length(p) != 1 || is.na(p) || p < 0 || p > 1) {
     stop("p must be a probability between 0 and 1", call. = FALSE)
   }
-  if (!is.numeric(N) || length(N) != 1 || N < 1) {
+  if (!is.numeric(N) || length(N) != 1 || is.na(N) || N < 1) {
     stop("N must be a positive integer", call. = FALSE)
   }
-  N <- as.integer(N)
+  N <- check_integer(N, "N")
   selected <- as.logical(rbinom(N, 1, p))
   which(selected)
 }

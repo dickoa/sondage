@@ -34,6 +34,11 @@ SEXP C_inclusion_prob(SEXP a, SEXP n) {
     }
 
     if (sum_a == 0.0) {
+        if (n_val > 0.5) {
+            UNPROTECT(1);
+            error("'n' (%d) exceeds the number of units with positive size (0)",
+                  (int)(n_val + 0.5));
+        }
         for (int i = 0; i < len; i++) {
             if (!ISNA(pik_ptr[i])) {
                 pik_ptr[i] = 0.0;
@@ -86,6 +91,13 @@ SEXP C_inclusion_prob(SEXP a, SEXP n) {
 
         n_capped += new_capped;
         sum_uncapped = new_sum_uncapped;
+    }
+
+    /* n not achievable: all probability consumed by certainty selections */
+    if (sum_uncapped == 0.0 && n_capped < (int)(n_val + 0.5)) {
+        UNPROTECT(1);
+        error("'n' (%d) exceeds the number of units with positive size (%d)",
+              (int)(n_val + 0.5), n_capped);
     }
 
     UNPROTECT(1);

@@ -47,20 +47,31 @@
 #'
 #' @export
 inclusion_prob <- function(x, n) {
+  if (!is.numeric(n) || length(n) != 1) {
+    stop("'n' must be a single numeric value", call. = FALSE)
+  }
   if (is.na(n) || n < 0) {
     stop("'n' must be non-negative and not NA", call. = FALSE)
   }
+  n <- check_integer(n, "n")
 
-  if (!is.numeric(x) || length(n) != 1) {
-    stop("'n' must be a single numeric value", call. = FALSE)
+  if (!is.numeric(x)) {
+    stop("'x' must be a numeric vector", call. = FALSE)
   }
 
   if (n > length(x)) {
     stop("'n' cannot exceed length of 'x'", call. = FALSE)
   }
 
+  if (anyNA(x)) {
+    stop("there are missing values in 'x'", call. = FALSE)
+  }
+  if (any(!is.finite(x))) {
+    stop("'x' values must be finite (no Inf or NaN)", call. = FALSE)
+  }
+
   storage.mode(x) <- "double"
-  neg <- x < 0 & !is.na(x)
+  neg <- x < 0
   if (any(neg)) {
     warning("there are ", sum(neg), " negative value(s) shifted to zero")
   }

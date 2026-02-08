@@ -93,8 +93,7 @@ up_multinomial <- function(x, n) {
   if (is.na(n) || n < 0) {
     stop("n must be non-negative and not NA", call. = FALSE)
   }
-
-  n <- as.integer(n)
+  n <- check_integer(n, "n")
   if (n == 0L) {
     return(integer(0L))
   }
@@ -156,7 +155,7 @@ up_multinomial <- function(x, n) {
 #'
 #' @export
 up_systematic <- function(pik, eps = 1e-06) {
-  check_pik(pik)
+  check_pik(pik, fixed_size = TRUE)
 
   certain <- which(pik >= 1 - eps)
   zero <- which(pik <= eps)
