@@ -15,8 +15,8 @@ Description:  Fast implementations of survey sampling algorithms for drawing
     of first-order and joint inclusion probabilities. All functions return
     indices for easy subsetting. Based on algorithms from Tille (2006)
     "Sampling Algorithms" <doi:10.1007/0-387-34240-0>.
-Depends: R (>= 3.5.0)
-License: GPL (>= 2)
+Depends: R (>= 4.1.0)
+License: GPL-2 | GPL-3
 Encoding: UTF-8
 URL: https://dickoa.gitlab.io/sondage,
         https://gitlab.com/dickoa/sondage
