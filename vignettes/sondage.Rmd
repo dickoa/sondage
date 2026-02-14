@@ -14,9 +14,9 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup}
+```{r setup, echo = false}
 library(sondage)
-set.seed(42)
+set.seed(123)
 ```
 
 ## Overview
@@ -42,6 +42,7 @@ The simplest case: draw `n` units from a population of size `N` with equal
 probabilities.
 
 ```{r}
+library(sondage)
 s <- equal_prob_wor(N = 50, n = 5)
 s
 ```

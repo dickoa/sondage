@@ -62,6 +62,8 @@ dim(sim)   # 10 x 10000
 - `unequal_prob_wor(pik, method = "brewer")` - Brewer's method
 - `unequal_prob_wor(pik, method = "systematic")` - Systematic PPS
 - `unequal_prob_wor(pik, method = "poisson")` - Poisson sampling (random size)
+- `unequal_prob_wor(pik, method = "sps")` - Sequential Poisson sampling (order sampling)
+- `unequal_prob_wor(pik, method = "pareto")` - Pareto sampling (order sampling)
 
 **Unequal probability with replacement** (`unequal_prob_wr`):
 
@@ -81,14 +83,16 @@ dim(sim)   # 10 x 10000
 
 ## Method comparison
 
-| Method         | Fixed n | Exact pi | All pi_kl > 0        |
-|----------------|---------|----------|-----------------------|
-| `cps`          | yes     | yes      | yes                   |
-| `brewer`       | yes     | yes      | yes                   |
-| `systematic`   | yes     | yes      | no                    |
-| `poisson`      | no      | yes      | yes                   |
-| `multinomial`  | yes     | --       | yes (with replacement)|
-| `chromy`       | yes     | yes      | yes                   |
+| Method         | Fixed n | Exact pi | All pi_kl > 0         | PRN support |
+|----------------|---------|----------|-----------------------|-------------|
+| `cps`          | yes     | yes      | yes                   | no          |
+| `brewer`       | yes     | yes      | yes                   | no          |
+| `systematic`   | yes     | yes      | no                    | no          |
+| `poisson`      | no      | yes      | yes                   | yes         |
+| `sps`          | yes     | yes      | yes                   | yes         |
+| `pareto`       | yes     | yes      | yes                   | yes         |
+| `multinomial`  | yes     | --       | yes (with replacement)| no          |
+| `chromy`       | yes     | yes      | yes                   | no          |
 
 ## References
 
