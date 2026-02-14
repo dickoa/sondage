@@ -9,7 +9,7 @@ check-release:
   stage: check
   image: rocker/r-ver:4.5.0
   before_script:
-    - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev
+    - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev pandoc qpdf
     - mkdir -p $R_LIBS_USER
     - Rscript -e "install.packages(c('remotes', 'rcmdcheck'), repos='https://cloud.r-project.org')"
     - Rscript -e "remotes::install_deps(dependencies = TRUE)"
@@ -20,7 +20,7 @@ check-devel:
   stage: check
   image: rocker/r-devel:latest
   before_script:
-    - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev
+    - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev pandoc qpdf
     - mkdir -p $R_LIBS_USER
     - Rscript -e "install.packages(c('remotes', 'rcmdcheck'), repos='https://cloud.r-project.org')"
     - Rscript -e "remotes::install_deps(dependencies = TRUE)"
@@ -32,7 +32,7 @@ pages:
   stage: pkgdown
   image: rocker/r-ver:4.5.0
   before_script:
-    - apt-get update && apt-get install -y pandoc libcurl4-openssl-dev libssl-dev libxml2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
+    - apt-get update && apt-get install -y pandoc libcurl4-openssl-dev libssl-dev libxml2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev pandoc qpdf
     - mkdir -p $R_LIBS_USER
     - Rscript -e "install.packages(c('remotes', 'pkgdown'), repos='https://cloud.r-project.org')"
     - Rscript -e "remotes::install_deps(dependencies = TRUE)"
