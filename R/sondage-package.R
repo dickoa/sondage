@@ -1,53 +1,52 @@
 #' sondage: Survey Sampling Algorithms
 #'
 #' Fast implementations of survey sampling algorithms for drawing samples
-#' from finite populations. All functions return indices for easy subsetting.
+#' from finite populations. All functions return design objects that carry
+#' sample indices, inclusion probabilities (or expected hits), and design
+#' metadata.
+#'
+#' @section Unequal Probability Sampling:
+#' \itemize{
+#'   \item [unequal_prob_wor()] - Without replacement: CPS (maximum entropy),
+#'     Brewer, systematic PPS, Poisson
+#'   \item [unequal_prob_wr()] - With replacement: Chromy (minimum
+#'     replacement), multinomial PPS
+#' }
 #'
 #' @section Equal Probability Sampling:
 #' \itemize{
-#'   \item [srs()] - Simple random sampling (with/without replacement)
-#'   \item [systematic()] - Systematic sampling
-#'   \item [bernoulli()] - Bernoulli sampling (random size)
+#'   \item [equal_prob_wor()] - Without replacement: SRS, systematic,
+#'     Bernoulli (random size)
+#'   \item [equal_prob_wr()] - With replacement: SRS
 #' }
 #'
-#' @section Unequal Probability Sampling:
-#' Functions prefixed with `up_` take either inclusion probabilities (`pik`,
-#' values in \[0,1\] summing to n) or raw size measures (`x`, non-negative
-#' values):
+#' @section Design Queries:
+#' All sampling functions return objects of class `"sondage_sample"`.
+#' Use these generics to query the design:
 #'
-#' **pik interface** (inclusion probabilities):
 #' \itemize{
-#'   \item [up_maxent()] - Maximum entropy / Conditional Poisson Sampling
-#'   \item [up_brewer()] - Brewer's method
-#'   \item [up_systematic()] - Systematic PPS
-#'   \item [up_poisson()] - Poisson sampling (random size)
+#'   \item [inclusion_prob()] - First-order inclusion probabilities
+#'   \item [expected_hits()] - Expected number of selections (WR)
+#'   \item [joint_inclusion_prob()] - Joint inclusion probabilities (WOR)
+#'   \item [joint_expected_hits()] - Pairwise expectations (WR)
+#'   \item [sampling_cov()] - Sampling covariance matrix
 #' }
-#'
-#' **x interface** (raw size measures):
-#' \itemize{
-#'   \item [up_multinomial()] - PPS with replacement
-#'   \item [up_chromy()] - PPS with minimum replacement
-#' }
-#'
-#' Use [inclusion_prob()] to convert size measures to inclusion probabilities.
 #'
 #' @section Utilities:
 #' \itemize{
-#'   \item [inclusion_prob()] - Compute inclusion probabilities from size measure
-#' }
-#'
-#' @section Joint Inclusion Probabilities:
-#' \itemize{
-#'   \item [up_maxent_jip()] - Exact CPS joint probabilities
-#'   \item [up_brewer_jip()] - Brewer & Donadio approximation
-#'   \item [up_systematic_jip()] - Exact systematic joint probabilities
-#'   \item [up_poisson_jip()] - Independent selections
-#'   \item [up_chromy_pairexp()] - Pairwise expectations for Probability Minimum Replacement
-#'
+#'   \item [inclusion_prob()] - Compute inclusion probabilities from size
+#'     measures
+#'   \item [expected_hits()] - Compute expected hits from size measures
 #' }
 #'
 #' @references
-#' Tillé, Y. (2006). \emph{Sampling Algorithms}. Springer Series in Statistics.
+#' Tille, Y. (2006). \emph{Sampling Algorithms}. Springer Series in
+#'   Statistics.
+#'
+#' Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson
+#'   estimator. \emph{Memorial JSM}.
+#'
+#' @importFrom stats runif rbinom
 #'
 #' @useDynLib sondage, .registration = TRUE
 "_PACKAGE"

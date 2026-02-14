@@ -1,23 +1,44 @@
-test_that("srs returns correct number of indices", {
-  idx <- srs(5, 100)
-  expect_length(idx, 5)
+test_that("srs wor returns sondage_sample object", {
+  s <- equal_prob_wor(100, 5)
+  expect_s3_class(s, "sondage_sample")
+  expect_s3_class(s, "wor")
+  expect_s3_class(s, "equal_prob")
+  expect_equal(s$method, "srs")
+  expect_equal(s$n, 5L)
+  expect_equal(s$N, 100L)
+  expect_equal(s$pik, rep(5 / 100, 100))
 })
 
-test_that("srs indices are in valid range", {
-  idx <- srs(10, 50)
+test_that("srs wor returns correct number of indices", {
+  s <- equal_prob_wor(100, 5)
+  expect_length(s$sample, 5)
+})
+
+test_that("srs wor indices are in valid range", {
+  idx <- equal_prob_wor(50, 10)$sample
   expect_true(all(idx >= 1 & idx <= 50))
 })
 
-test_that("srs without replacement has no duplicates", {
-  idx <- srs(20, 100)
+test_that("srs wor has no duplicates", {
+  idx <- equal_prob_wor(100, 20)$sample
   expect_equal(length(unique(idx)), 20)
 })
 
-test_that("srs with replacement can have duplicates", {
+test_that("srs wr can have duplicates", {
   set.seed(42)
-  # With high probability, 50 draws from 10 will have duplicates
-  idx <- srs(50, 10, replace = TRUE)
+  idx <- equal_prob_wr(10, 50)$sample
   expect_true(length(unique(idx)) < 50)
+})
+
+test_that("srs wr returns correct object", {
+  s <- equal_prob_wr(10, 3)
+  expect_s3_class(s, "sondage_sample")
+  expect_s3_class(s, "wr")
+  expect_s3_class(s, "equal_prob")
+  expect_equal(s$method, "srs")
+  expect_equal(s$n, 3L)
+  expect_equal(s$N, 10L)
+  expect_equal(s$prob, rep(1 / 10, 10))
 })
 
 test_that("srs achieves uniform selection", {
@@ -28,7 +49,7 @@ test_that("srs achieves uniform selection", {
   set.seed(42)
   counts <- integer(N)
   for (i in 1:n_sim) {
-    idx <- srs(n, N)
+    idx <- equal_prob_wor(N, n)$sample
     counts[idx] <- counts[idx] + 1
   }
 
@@ -38,47 +59,51 @@ test_that("srs achieves uniform selection", {
 
 test_that("srs is reproducible with set.seed", {
   set.seed(123)
-  idx1 <- srs(5, 100)
+  idx1 <- equal_prob_wor(100, 5)$sample
   set.seed(123)
-  idx2 <- srs(5, 100)
+  idx2 <- equal_prob_wor(100, 5)$sample
   expect_identical(idx1, idx2)
 })
 
 test_that("srs rejects invalid input", {
-  expect_error(srs(10, 5), "cannot exceed") # n > N without replacement
-  expect_error(srs(-1, 10), "non-negative")
-  expect_error(srs(5, 0), "positive")
+  expect_error(equal_prob_wor(5, 10), "cannot exceed")
+  expect_error(equal_prob_wor(10, -1), "non-negative")
+  expect_error(equal_prob_wor(0, 5), "positive")
 })
 
 test_that("srs handles edge cases", {
-  # n = 0
-  idx <- srs(0, 10)
+  idx <- equal_prob_wor(10, 0)$sample
   expect_length(idx, 0)
 
-  # n = N (select all)
-  idx <- srs(5, 5)
+  idx <- equal_prob_wor(5, 5)$sample
   expect_equal(sort(idx), 1:5)
 })
 
+test_that("systematic returns sondage_sample object", {
+  s <- equal_prob_wor(100, 5, method = "systematic")
+  expect_s3_class(s, "sondage_sample")
+  expect_s3_class(s, "wor")
+  expect_s3_class(s, "equal_prob")
+  expect_equal(s$method, "systematic")
+})
+
 test_that("systematic returns correct number of indices", {
-  idx <- systematic(5, 100)
-  expect_length(idx, 5)
+  expect_length(equal_prob_wor(100, 5, method = "systematic")$sample, 5)
 })
 
 test_that("systematic indices are in valid range", {
-  idx <- systematic(10, 50)
+  idx <- equal_prob_wor(50, 10, method = "systematic")$sample
   expect_true(all(idx >= 1 & idx <= 50))
 })
 
-test_that("sys has no duplicates", {
-  idx <- systematic(20, 100)
+test_that("systematic has no duplicates", {
+  idx <- equal_prob_wor(100, 20, method = "systematic")$sample
   expect_equal(length(unique(idx)), 20)
 })
 
 test_that("systematic produces evenly spaced indices", {
-  idx <- systematic(5, 100) # interval = 20
+  idx <- equal_prob_wor(100, 5, method = "systematic")$sample
   diffs <- diff(idx)
-  # All differences should be close to 20
   expect_true(all(diffs >= 19 & diffs <= 21))
 })
 
@@ -90,7 +115,7 @@ test_that("systematic achieves uniform selection", {
   set.seed(42)
   counts <- integer(N)
   for (i in 1:n_sim) {
-    idx <- systematic(n, N)
+    idx <- equal_prob_wor(N, n, method = "systematic")$sample
     counts[idx] <- counts[idx] + 1
   }
 
@@ -100,132 +125,151 @@ test_that("systematic achieves uniform selection", {
 
 test_that("systematic is reproducible with set.seed", {
   set.seed(123)
-  idx1 <- systematic(5, 100)
+  idx1 <- equal_prob_wor(100, 5, method = "systematic")$sample
   set.seed(123)
-  idx2 <- systematic(5, 100)
+  idx2 <- equal_prob_wor(100, 5, method = "systematic")$sample
   expect_identical(idx1, idx2)
 })
 
 test_that("systematic rejects invalid input", {
-  expect_error(systematic(10, 5), "cannot exceed")
-  expect_error(systematic(-1, 10), "non-negative")
+  expect_error(equal_prob_wor(5, 10, method = "systematic"), "cannot exceed")
+  expect_error(equal_prob_wor(10, -1, method = "systematic"), "non-negative")
+})
+
+test_that("bernoulli returns sondage_sample object", {
+  s <- equal_prob_wor(100, 50, method = "bernoulli")
+  expect_s3_class(s, "sondage_sample")
+  expect_s3_class(s, "wor")
+  expect_s3_class(s, "equal_prob")
+  expect_equal(s$method, "bernoulli")
+  expect_equal(s$pik, rep(0.5, 100))
 })
 
 test_that("bernoulli returns indices in valid range", {
-  idx <- bernoulli(0.5, 100)
+  idx <- equal_prob_wor(100, 50, method = "bernoulli")$sample
   expect_true(all(idx >= 1 & idx <= 100))
 })
 
 test_that("bernoulli has no duplicates", {
-  idx <- bernoulli(0.5, 100)
+  idx <- equal_prob_wor(100, 50, method = "bernoulli")$sample
   expect_equal(length(unique(idx)), length(idx))
 })
 
 test_that("bernoulli achieves correct expected size", {
   n_sim <- 1000
   N <- 100
-  p <- 0.3
+  n <- 30
 
   set.seed(42)
-  sizes <- replicate(n_sim, length(bernoulli(p, N)))
+  sizes <- replicate(
+    n_sim,
+    length(equal_prob_wor(N, n, method = "bernoulli")$sample)
+  )
 
-  expect_equal(mean(sizes), N * p, tolerance = 2)
+  expect_equal(mean(sizes), n, tolerance = 2)
 })
 
 test_that("bernoulli achieves correct inclusion probability", {
   n_sim <- 5000
   N <- 20
-  p <- 0.4
+  n <- 8 # p = 0.4
 
   set.seed(42)
   counts <- integer(N)
   for (i in 1:n_sim) {
-    idx <- bernoulli(p, N)
+    idx <- equal_prob_wor(N, n, method = "bernoulli")$sample
     counts[idx] <- counts[idx] + 1
   }
 
   pi_hat <- counts / n_sim
-  expect_equal(pi_hat, rep(p, N), tolerance = 0.03)
+  expect_equal(pi_hat, rep(n / N, N), tolerance = 0.03)
 })
 
 test_that("bernoulli is reproducible with set.seed", {
   set.seed(123)
-  idx1 <- bernoulli(0.5, 100)
+  idx1 <- equal_prob_wor(100, 50, method = "bernoulli")$sample
   set.seed(123)
-  idx2 <- bernoulli(0.5, 100)
+  idx2 <- equal_prob_wor(100, 50, method = "bernoulli")$sample
   expect_identical(idx1, idx2)
 })
 
 test_that("bernoulli handles boundary cases", {
-  idx <- bernoulli(0, 100)
+  idx <- equal_prob_wor(100, 0, method = "bernoulli")$sample
   expect_length(idx, 0)
 
-  idx <- bernoulli(1, 100)
+  idx <- equal_prob_wor(100, 100, method = "bernoulli")$sample
   expect_equal(sort(idx), 1:100)
 })
 
 test_that("bernoulli rejects invalid input", {
-  expect_error(bernoulli(-0.1, 100), "probability")
-  expect_error(bernoulli(1.1, 100), "probability")
+  expect_error(equal_prob_wor(100, -1, method = "bernoulli"), "between 0 and N")
+  expect_error(
+    equal_prob_wor(100, 101, method = "bernoulli"),
+    "between 0 and N"
+  )
 })
 
-# NA input handling
-
 test_that("srs rejects Inf inputs", {
-  expect_error(srs(Inf, 10), "finite")
-  expect_error(srs(3, Inf), "finite")
-  expect_error(srs(-Inf, 10), "non-negative")
+  expect_error(equal_prob_wor(10, Inf), "cannot exceed")
+  expect_error(equal_prob_wor(Inf, 3), "finite")
+  expect_error(equal_prob_wor(10, -Inf), "non-negative")
 })
 
 test_that("systematic rejects Inf inputs", {
-  expect_error(systematic(Inf, 10), "finite")
-  expect_error(systematic(3, Inf), "finite")
+  expect_error(equal_prob_wor(10, Inf, method = "systematic"), "cannot exceed")
+  expect_error(equal_prob_wor(Inf, 3, method = "systematic"), "finite")
 })
 
-test_that("bernoulli rejects Inf N", {
-  expect_error(bernoulli(0.5, Inf), "finite")
+test_that("srs rejects NA inputs", {
+  expect_error(equal_prob_wor(10, NA_real_), "non-negative")
+  expect_error(equal_prob_wor(10, NA), "non-negative")
+  expect_error(equal_prob_wor(NA_real_, 3), "positive")
+  expect_error(equal_prob_wor(NA, 3), "positive")
 })
 
-test_that("srs rejects NA_real_ inputs", {
-  expect_error(srs(NA_real_, 10), "non-negative")
-  expect_error(srs(NA, 10), "non-negative")
-  expect_error(srs(3, NA_real_), "positive")
-  expect_error(srs(3, NA), "positive")
+test_that("systematic rejects NA inputs", {
+  expect_error(
+    equal_prob_wor(10, NA_real_, method = "systematic"),
+    "non-negative"
+  )
+  expect_error(equal_prob_wor(10, NA, method = "systematic"), "non-negative")
+  expect_error(equal_prob_wor(NA_real_, 3, method = "systematic"), "positive")
+  expect_error(equal_prob_wor(NA, 3, method = "systematic"), "positive")
 })
 
-test_that("systematic rejects NA_real_ inputs", {
-  expect_error(systematic(NA_real_, 10), "non-negative")
-  expect_error(systematic(NA, 10), "non-negative")
-  expect_error(systematic(3, NA_real_), "positive")
-  expect_error(systematic(3, NA), "positive")
+test_that("bernoulli rejects NA inputs", {
+  expect_error(
+    equal_prob_wor(100, NA_real_, method = "bernoulli"),
+    "single numeric"
+  )
+  expect_error(equal_prob_wor(100, NA, method = "bernoulli"), "single numeric")
+  expect_error(equal_prob_wor(NA_real_, 50, method = "bernoulli"), "positive")
+  expect_error(equal_prob_wor(NA, 50, method = "bernoulli"), "positive")
 })
-
-test_that("bernoulli rejects NA_real_ inputs", {
-  expect_error(bernoulli(NA_real_, 100), "probability")
-  expect_error(bernoulli(NA, 100), "probability")
-  expect_error(bernoulli(0.5, NA_real_), "positive")
-  expect_error(bernoulli(0.5, NA), "positive")
-})
-
-# Non-integer parameter errors
 
 test_that("srs rejects non-integer n", {
-  expect_error(srs(2.9, 10), "not close to an integer")
+  expect_error(equal_prob_wor(10, 2.9), "not close to an integer")
 })
 
 test_that("srs rejects non-integer N", {
-  expect_error(srs(2, 10.7), "not close to an integer")
+  expect_error(equal_prob_wor(10.7, 2), "not close to an integer")
 })
 
 test_that("srs silently accepts integer-like doubles", {
-  expect_no_error(srs(3.0, 10))
-  expect_no_error(srs(3, 10.0))
+  expect_no_error(equal_prob_wor(10, 3.0))
+  expect_no_error(equal_prob_wor(10.0, 3))
 })
 
 test_that("systematic rejects non-integer n", {
-  expect_error(systematic(2.9, 10), "not close to an integer")
+  expect_error(
+    equal_prob_wor(10, 2.9, method = "systematic"),
+    "not close to an integer"
+  )
 })
 
 test_that("bernoulli rejects non-integer N", {
-  expect_error(bernoulli(0.5, 10.7), "not close to an integer")
+  expect_error(
+    equal_prob_wor(10.7, 5, method = "bernoulli"),
+    "not close to an integer"
+  )
 })

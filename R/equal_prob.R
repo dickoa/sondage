@@ -1,0 +1,282 @@
+#' Equal Probability Sampling Without Replacement
+#'
+#' Draws a sample with equal inclusion probabilities, without replacement.
+#'
+#' @param N Population size (positive integer).
+#' @param n Expected sample size. For `"srs"` and `"systematic"`, must be
+#'   a positive integer not exceeding N. For `"bernoulli"`, this is the
+#'   expected sample size and `p = n/N` is used as the selection probability.
+#' @param method The sampling method:
+#'   \describe{
+#'     \item{`"srs"`}{Simple Random Sampling. Each possible sample of size n
+#'       has equal probability. Fixed sample size.}
+#'     \item{`"systematic"`}{Systematic sampling with interval `k = N/n`.
+#'       A random start is drawn from `(0, k]`. Fixed sample size.
+#'       Implicit stratification based on unit ordering.}
+#'     \item{`"bernoulli"`}{Bernoulli sampling. Each unit selected
+#'       independently with probability `p = n/N`. Random sample size.}
+#'   }
+#' @param nrep Number of replicate samples (default 1). When `nrep > 1`,
+#'   returns a matrix (fixed-size) or list (random-size) instead of a
+#'   design object.
+#' @param prn Optional vector of permanent random numbers (length N,
+#'   values in the open interval (0, 1)) for sample coordination.
+#'   Only supported by `"bernoulli"` method.
+#' @param ... Additional arguments passed to methods.
+#'
+#' @return When `nrep = 1`: an object of class
+#'   `c("equal_prob", "wor", "sondage_sample")`.
+#'   When `nrep > 1`: a matrix (n x nrep) for fixed-size methods,
+#'   or a list of integer vectors for Bernoulli sampling.
+#'
+#' @seealso [equal_prob_wr()] for with-replacement designs,
+#'   [unequal_prob_wor()] for unequal probability designs.
+#'
+#' @examples
+#' set.seed(1)
+#' s <- equal_prob_wor(10, 3)
+#' s$sample
+#'
+#' # Systematic sampling
+#' s <- equal_prob_wor(12, 3, method = "systematic")
+#' s$sample
+#'
+#' # Bernoulli sampling (random size, expected n = 30)
+#' s <- equal_prob_wor(100, 30, method = "bernoulli")
+#' length(s$sample)
+#'
+#' @export
+equal_prob_wor <- function(
+  N,
+  n,
+  method = c("srs", "systematic", "bernoulli"),
+  nrep = 1L,
+  prn = NULL,
+  ...
+) {
+  method <- match.arg(method)
+  nrep <- check_integer(nrep, "nrep")
+  if (nrep < 1L) {
+    stop("nrep must be at least 1", call. = FALSE)
+  }
+
+  if (!is.null(prn) && method != "bernoulli") {
+    warning(
+      sprintf("prn is not used by method '%s' and will be ignored", method),
+      call. = FALSE
+    )
+  }
+
+  if (nrep == 1L) {
+    switch(
+      method,
+      srs = .srs_wor_sample(N, n, ...),
+      systematic = .systematic_ep_sample(N, n, ...),
+      bernoulli = .bernoulli_sample(N, n, prn = prn, ...)
+    )
+  } else {
+    .batch_ep_wor(N, n, method, nrep, prn, ...)
+  }
+}
+
+#' Equal Probability Sampling With Replacement
+#'
+#' Draws a simple random sample with replacement.
+#'
+#' @param N Population size (positive integer).
+#' @param n Sample size (positive integer).
+#' @param method The sampling method. Currently only `"srs"`.
+#' @param nrep Number of replicate samples (default 1).
+#' @param prn Optional vector of permanent random numbers for sample
+#'   coordination. Not currently used by any equal-probability WR method;
+#'   a warning is issued if provided.
+#' @param ... Additional arguments passed to methods.
+#'
+#' @return When `nrep = 1`: an object of class
+#'   `c("equal_prob", "wr", "sondage_sample")`.
+#'   When `nrep > 1`: a matrix (n x nrep).
+#'
+#' @seealso [equal_prob_wor()] for without-replacement designs,
+#'   [unequal_prob_wr()] for unequal probability designs.
+#'
+#' @examples
+#' set.seed(1)
+#' s <- equal_prob_wr(10, 3)
+#' s$sample
+#' s$hits
+#'
+#' @export
+equal_prob_wr <- function(N, n, method = c("srs"), nrep = 1L, prn = NULL, ...) {
+  method <- match.arg(method)
+  nrep <- check_integer(nrep, "nrep")
+  if (nrep < 1L) {
+    stop("nrep must be at least 1", call. = FALSE)
+  }
+
+  if (!is.null(prn)) {
+    warning(
+      sprintf("prn is not used by method '%s' and will be ignored", method),
+      call. = FALSE
+    )
+  }
+
+  if (nrep == 1L) {
+    .srs_wr_sample(N, n, ...)
+  } else {
+    .batch_ep_wr(N, n, method, nrep, prn, ...)
+  }
+}
+
+#' @noRd
+.srs_wor_sample <- function(N, n, ...) {
+  .check_ep_args(N, n, replace = FALSE)
+  N <- check_integer(N, "N")
+  n <- check_integer(n, "n")
+
+  if (n == 0L) {
+    idx <- integer(0)
+  } else {
+    idx <- sample.int(N, n)
+  }
+
+  .new_wor_sample(
+    sample = idx,
+    pik = rep(n / N, N),
+    n = n,
+    N = N,
+    method = "srs",
+    fixed_size = TRUE,
+    prob_class = "equal_prob"
+  )
+}
+
+#' @noRd
+.systematic_ep_sample <- function(N, n, ...) {
+  .check_ep_args(N, n, replace = FALSE)
+  N <- check_integer(N, "N")
+  n <- check_integer(n, "n")
+
+  if (n == 0L) {
+    idx <- integer(0)
+  } else {
+    k <- N / n
+    u <- runif(1, 0, k)
+    idx <- as.integer(ceiling(u + k * (0:(n - 1))))
+  }
+
+  .new_wor_sample(
+    sample = idx,
+    pik = rep(n / N, N),
+    n = n,
+    N = N,
+    method = "systematic",
+    fixed_size = TRUE,
+    prob_class = "equal_prob"
+  )
+}
+
+#' @noRd
+.bernoulli_sample <- function(N, n, prn = NULL, ...) {
+  if (!is.numeric(N) || length(N) != 1 || is.na(N) || N < 1) {
+    stop("N must be a positive integer", call. = FALSE)
+  }
+  N <- check_integer(N, "N")
+  if (!is.numeric(n) || length(n) != 1 || is.na(n)) {
+    stop("n must be a single numeric value", call. = FALSE)
+  }
+  if (n < 0 || n > N) {
+    stop("n must be between 0 and N", call. = FALSE)
+  }
+
+  p <- n / N
+  if (is.null(prn)) {
+    sel <- as.logical(rbinom(N, 1, p))
+  } else {
+    check_prn(prn, N)
+    sel <- prn < p
+  }
+  idx <- which(sel)
+
+  .new_wor_sample(
+    sample = idx,
+    pik = rep(p, N),
+    n = n,
+    N = N,
+    method = "bernoulli",
+    fixed_size = FALSE,
+    prob_class = "equal_prob"
+  )
+}
+
+#' @noRd
+.srs_wr_sample <- function(N, n, ...) {
+  .check_ep_args(N, n, replace = TRUE)
+  N <- check_integer(N, "N")
+  n <- check_integer(n, "n")
+
+  prob <- rep(1 / N, N)
+
+  if (n == 0L) {
+    idx <- integer(0)
+  } else {
+    idx <- sample.int(N, n, replace = TRUE)
+  }
+  realized_hits <- tabulate(idx, nbins = N)
+
+  .new_wr_sample(
+    sample = idx,
+    prob = prob,
+    hits = realized_hits,
+    n = n,
+    N = N,
+    method = "srs",
+    fixed_size = TRUE,
+    prob_class = "equal_prob"
+  )
+}
+
+#' @noRd
+.check_ep_args <- function(N, n, replace = FALSE) {
+  if (!is.numeric(N) || length(N) != 1 || is.na(N) || N < 1) {
+    stop("N must be a positive integer", call. = FALSE)
+  }
+  if (!is.numeric(n) || length(n) != 1 || is.na(n) || n < 0) {
+    stop("n must be a non-negative integer", call. = FALSE)
+  }
+  if (!replace && n > N) {
+    stop("n cannot exceed N when replace = FALSE", call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+#' @noRd
+.batch_ep_wor <- function(N, n, method, nrep, prn, ...) {
+  if (method == "bernoulli") {
+    return(lapply(seq_len(nrep), function(i) {
+      .bernoulli_sample(N, n, prn = prn, ...)$sample
+    }))
+  }
+
+  # Fixed-size methods: return matrix
+  n_int <- check_integer(n, "n")
+  mat <- matrix(0L, n_int, nrep)
+  draw_fn <- switch(
+    method,
+    srs = .srs_wor_sample,
+    systematic = .systematic_ep_sample
+  )
+  for (i in seq_len(nrep)) {
+    mat[, i] <- draw_fn(N, n, ...)$sample
+  }
+  mat
+}
+
+#' @noRd
+.batch_ep_wr <- function(N, n, method, nrep, prn, ...) {
+  n_int <- check_integer(n, "n")
+  mat <- matrix(0L, n_int, nrep)
+  for (i in seq_len(nrep)) {
+    mat[, i] <- .srs_wr_sample(N, n, ...)$sample
+  }
+  mat
+}

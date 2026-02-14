@@ -1,5 +1,5 @@
 /*
- * Maximum Entropy sampling / Conditional Poisson sampling
+ * Conditional Poisson Sampling (CPS)
  *
  * References:
  * - Chen, S.X., Dempster, A.P., Liu, J.S. (1994)
@@ -8,7 +8,7 @@
 
 #include "cps_core.h"
 
-SEXP C_maxent_single(SEXP pik_sexp, SEXP eps_sexp) {
+SEXP C_cps_single(SEXP pik_sexp, SEXP eps_sexp) {
     const double *pik_full = REAL(pik_sexp);
     const double epsilon = REAL(eps_sexp)[0];
     const int N_full = LENGTH(pik_sexp);
@@ -78,7 +78,7 @@ SEXP C_maxent_single(SEXP pik_sexp, SEXP eps_sexp) {
     return result;
 }
 
-SEXP C_maxent_design(SEXP pik_sexp, SEXP eps_sexp) {
+SEXP C_cps_design(SEXP pik_sexp, SEXP eps_sexp) {
     const double *pik_full = REAL(pik_sexp);
     const double epsilon = REAL(eps_sexp)[0];
     const int N_full = LENGTH(pik_sexp);
@@ -177,13 +177,13 @@ SEXP C_maxent_design(SEXP pik_sexp, SEXP eps_sexp) {
     SET_STRING_ELT(names, 7, mkChar("expa"));
 
     setAttrib(result, R_NamesSymbol, names);
-    setAttrib(result, R_ClassSymbol, mkString("maxent_design_v2"));
+    setAttrib(result, R_ClassSymbol, mkString("cps_design"));
 
     UNPROTECT(6);
     return result;
 }
 
-SEXP C_maxent_draw_batch(SEXP design, SEXP n_samples_sexp) {
+SEXP C_cps_draw_batch(SEXP design, SEXP n_samples_sexp) {
     int N = INTEGER(VECTOR_ELT(design, 0))[0];
     int n = INTEGER(VECTOR_ELT(design, 1))[0];
     int N_certain = INTEGER(VECTOR_ELT(design, 4))[0];

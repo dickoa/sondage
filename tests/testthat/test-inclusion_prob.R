@@ -91,13 +91,74 @@ test_that("inclusion_prob silently accepts integer-like n", {
   expect_no_error(inclusion_prob(1:10, n = 3.0))
 })
 
-test_that("inclusion_prob works with up_maxent", {
+test_that("inclusion_prob works with unequal_prob_wor", {
   size <- c(500, 1200, 800, 3000, 600)
   pik <- inclusion_prob(size, n = 3)
 
   set.seed(42)
-  idx <- up_maxent(pik)
-  expect_length(idx, 3)
+  s <- unequal_prob_wor(pik, method = "cps")
+  expect_length(s$sample, 3)
+})
+
+test_that("inclusion_prob.wor extracts pik from design", {
+  pik <- c(0.2, 0.3, 0.5)
+  s <- unequal_prob_wor(pik, method = "cps")
+  expect_equal(inclusion_prob(s), pik)
+})
+
+test_that("expected_hits.default computes n * x / sum(x)", {
+  x <- c(10, 20, 30, 40)
+  expect_equal(expected_hits(x, n = 3), 3 * x / sum(x))
+})
+
+test_that("expected_hits.default allows n > length(x) (WR context)", {
+  x <- c(10, 20, 30, 40)
+  hits <- expected_hits(x, n = 10)
+  expect_equal(sum(hits), 10)
+  expect_equal(hits, 10 * x / sum(x))
+})
+
+test_that("expected_hits.wr extracts from design", {
+  x <- c(10, 20, 30, 40)
+  hits <- expected_hits(x, n = 3)
+  s <- unequal_prob_wr(hits, method = "chromy")
+  expect_equal(expected_hits(s), hits)
+})
+
+# expected_hits input validation
+
+test_that("expected_hits errors when n is missing", {
+  expect_error(expected_hits(c(10, 20, 30)), "required")
+})
+
+test_that("expected_hits errors when n is not a single numeric", {
+  expect_error(expected_hits(c(10, 20), n = "a"), "single numeric")
+  expect_error(expected_hits(c(10, 20), n = c(1, 2)), "single numeric")
+})
+
+test_that("expected_hits errors when n is NA or negative", {
+  expect_error(expected_hits(c(10, 20), n = NA_real_), "non-negative")
+  expect_error(expected_hits(c(10, 20), n = -1), "non-negative")
+})
+
+test_that("expected_hits errors when x is not numeric", {
+  expect_error(expected_hits("a", n = 2), "numeric vector")
+})
+
+test_that("expected_hits rejects NA in x", {
+  expect_error(expected_hits(c(10, NA, 30), n = 2), "missing values")
+})
+
+test_that("expected_hits rejects Inf in x", {
+  expect_error(expected_hits(c(10, Inf, 30), n = 2), "finite")
+})
+
+test_that("expected_hits rejects negative x", {
+  expect_error(expected_hits(c(10, -5, 30), n = 2), "non-negative")
+})
+
+test_that("expected_hits errors when sum(x) is zero", {
+  expect_error(expected_hits(c(0, 0, 0), n = 2), "sum")
 })
 
 # Non-finite and NA input validation

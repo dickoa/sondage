@@ -5,26 +5,26 @@
 
 extern SEXP C_up_brewer(SEXP pik, SEXP eps);
 extern SEXP C_inclusion_prob(SEXP a, SEXP n);
-extern SEXP C_maxent_single(SEXP pik, SEXP eps);
-extern SEXP C_maxent_design(SEXP pik, SEXP eps);
-extern SEXP C_maxent_draw_batch(SEXP design, SEXP n_samples);
+extern SEXP C_cps_single(SEXP pik, SEXP eps);
+extern SEXP C_cps_design(SEXP pik, SEXP eps);
+extern SEXP C_cps_draw_batch(SEXP design, SEXP n_samples);
 extern SEXP C_up_chromy(SEXP x, SEXP n);
-extern SEXP C_up_chromy_pairexp(SEXP x, SEXP n, SEXP nsim);
-extern SEXP C_up_maxent_jip(SEXP pik, SEXP eps);
+extern SEXP C_chromy_joint_exp(SEXP x, SEXP n, SEXP nsim);
+extern SEXP C_cps_jip(SEXP pik, SEXP eps);
 extern SEXP C_up_systematic_jip(SEXP pik, SEXP eps);
-extern SEXP C_up_brewer_jip(SEXP pik);
+extern SEXP C_high_entropy_jip(SEXP pik);
 
 static const R_CallMethodDef CallEntries[] = {
     {"C_up_brewer",               (DL_FUNC) &C_up_brewer,               2},
     {"C_inclusion_prob",          (DL_FUNC) &C_inclusion_prob,          2},
-    {"C_maxent_single",           (DL_FUNC) &C_maxent_single,           2},
-    {"C_maxent_design",           (DL_FUNC) &C_maxent_design,           2},
-    {"C_maxent_draw_batch",       (DL_FUNC) &C_maxent_draw_batch,       2},
+    {"C_cps_single",              (DL_FUNC) &C_cps_single,              2},
+    {"C_cps_design",              (DL_FUNC) &C_cps_design,              2},
+    {"C_cps_draw_batch",          (DL_FUNC) &C_cps_draw_batch,          2},
     {"C_up_chromy",               (DL_FUNC) &C_up_chromy,               2},
-    {"C_up_chromy_pairexp",       (DL_FUNC) &C_up_chromy_pairexp,       3},
-    {"C_up_maxent_jip",         (DL_FUNC) &C_up_maxent_jip,         2},
+    {"C_chromy_joint_exp",        (DL_FUNC) &C_chromy_joint_exp,        3},
+    {"C_cps_jip",                 (DL_FUNC) &C_cps_jip,                 2},
     {"C_up_systematic_jip",     (DL_FUNC) &C_up_systematic_jip,     2},
-    {"C_up_brewer_jip",         (DL_FUNC) &C_up_brewer_jip,         1},
+    {"C_high_entropy_jip",      (DL_FUNC) &C_high_entropy_jip,      1},
     {NULL, NULL, 0}
 };
 

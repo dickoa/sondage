@@ -7,61 +7,58 @@
 \title{sondage: Survey Sampling Algorithms}
 \description{
 Fast implementations of survey sampling algorithms for drawing samples
-from finite populations. All functions return indices for easy subsetting.
+from finite populations. All functions return design objects that carry
+sample indices, inclusion probabilities (or expected hits), and design
+metadata.
 }
+\section{Unequal Probability Sampling}{
+
+\itemize{
+\item \code{\link[=unequal_prob_wor]{unequal_prob_wor()}} - Without replacement: CPS (maximum entropy),
+Brewer, systematic PPS, Poisson
+\item \code{\link[=unequal_prob_wr]{unequal_prob_wr()}} - With replacement: Chromy (minimum
+replacement), multinomial PPS
+}
+}
+
 \section{Equal Probability Sampling}{
 
 \itemize{
-\item \code{\link[=srs]{srs()}} - Simple random sampling (with/without replacement)
-\item \code{\link[=systematic]{systematic()}} - Systematic sampling
-\item \code{\link[=bernoulli]{bernoulli()}} - Bernoulli sampling (random size)
+\item \code{\link[=equal_prob_wor]{equal_prob_wor()}} - Without replacement: SRS, systematic,
+Bernoulli (random size)
+\item \code{\link[=equal_prob_wr]{equal_prob_wr()}} - With replacement: SRS
 }
 }
 
-\section{Unequal Probability Sampling}{
+\section{Design Queries}{
 
-Functions prefixed with \code{up_} take either inclusion probabilities (\code{pik},
-values in [0,1] summing to n) or raw size measures (\code{x}, non-negative
-values):
+All sampling functions return objects of class \code{"sondage_sample"}.
+Use these generics to query the design:
 
-\strong{pik interface} (inclusion probabilities):
 \itemize{
-\item \code{\link[=up_maxent]{up_maxent()}} - Maximum entropy / Conditional Poisson Sampling
-\item \code{\link[=up_brewer]{up_brewer()}} - Brewer's method
-\item \code{\link[=up_systematic]{up_systematic()}} - Systematic PPS
-\item \code{\link[=up_poisson]{up_poisson()}} - Poisson sampling (random size)
+\item \code{\link[=inclusion_prob]{inclusion_prob()}} - First-order inclusion probabilities
+\item \code{\link[=expected_hits]{expected_hits()}} - Expected number of selections (WR)
+\item \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} - Joint inclusion probabilities (WOR)
+\item \code{\link[=joint_expected_hits]{joint_expected_hits()}} - Pairwise expectations (WR)
+\item \code{\link[=sampling_cov]{sampling_cov()}} - Sampling covariance matrix
 }
-
-\strong{x interface} (raw size measures):
-\itemize{
-\item \code{\link[=up_multinomial]{up_multinomial()}} - PPS with replacement
-\item \code{\link[=up_chromy]{up_chromy()}} - PPS with minimum replacement
-}
-
-Use \code{\link[=inclusion_prob]{inclusion_prob()}} to convert size measures to inclusion probabilities.
 }
 
 \section{Utilities}{
 
 \itemize{
-\item \code{\link[=inclusion_prob]{inclusion_prob()}} - Compute inclusion probabilities from size measure
-}
-}
-
-\section{Joint Inclusion Probabilities}{
-
-\itemize{
-\item \code{\link[=up_maxent_jip]{up_maxent_jip()}} - Exact CPS joint probabilities
-\item \code{\link[=up_brewer_jip]{up_brewer_jip()}} - Brewer & Donadio approximation
-\item \code{\link[=up_systematic_jip]{up_systematic_jip()}} - Exact systematic joint probabilities
-\item \code{\link[=up_poisson_jip]{up_poisson_jip()}} - Independent selections
-\item \code{\link[=up_chromy_pairexp]{up_chromy_pairexp()}} - Pairwise expectations for Probability Minimum Replacement
-
+\item \code{\link[=inclusion_prob]{inclusion_prob()}} - Compute inclusion probabilities from size
+measures
+\item \code{\link[=expected_hits]{expected_hits()}} - Compute expected hits from size measures
 }
 }
 
 \references{
-Tillé, Y. (2006). \emph{Sampling Algorithms}. Springer Series in Statistics.
+Tille, Y. (2006). \emph{Sampling Algorithms}. Springer Series in
+Statistics.
+
+Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson
+estimator. \emph{Memorial JSM}.
 }
 \seealso{
 Useful links:

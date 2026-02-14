@@ -4,3 +4,6 @@ indent-width = 2
 indent-style = "space"
 line-ending = "auto"
 persistent-line-breaks = true
+default-exclude = true
+skip = ["tribble", "matrix"]
+default-table = true

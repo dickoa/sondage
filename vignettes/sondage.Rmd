@@ -1,0 +1,199 @@
+---
+title: "Getting Started with sondage"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with sondage}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(sondage)
+set.seed(42)
+```
+
+## Overview
+
+**sondage** provides fast implementations of survey sampling algorithms for
+finite populations. Every sampling function returns a *design object* that
+carries the selected sample alongside the design metadata (inclusion
+probabilities or expected hits, sample size, method). A set of generics then
+operates on these objects to compute quantities needed for variance estimation.
+
+The four entry-point functions are organised by two dimensions:
+
+|                | Without replacement | With replacement |
+|----------------|---------------------|------------------|
+| Equal prob.    | `equal_prob_wor()`  | `equal_prob_wr()`  |
+| Unequal prob.  | `unequal_prob_wor()`| `unequal_prob_wr()`|
+
+## Equal probability sampling
+
+### Without replacement
+
+The simplest case: draw `n` units from a population of size `N` with equal
+probabilities.
+
+```{r}
+s <- equal_prob_wor(N = 50, n = 5)
+s
+```
+
+The returned object stores the sampled unit indices and the inclusion
+probabilities:
+
+```{r}
+s$sample
+s$pik[1:10]  # all equal to n/N = 0.1
+```
+
+Alternative methods are available. Systematic sampling provides implicit
+stratification based on the ordering of units:
+```{r}
+s_sys <- equal_prob_wor(N = 50, n = 5, method = "systematic")
+s_sys
+```
+
+Bernoulli sampling selects each unit independently with probability `p = n/N`,
+producing a random sample size:
+```{r}
+s_ber <- equal_prob_wor(N = 50, n = 5, method = "bernoulli")
+s_ber
+length(s_ber$sample)  # may differ from 5
+```
+
+### With replacement
+
+```{r}
+s_wr <- equal_prob_wr(N = 50, n = 5)
+s_wr
+```
+
+With-replacement designs track **hits** (how many times each unit was
+selected) instead of inclusion probabilities:
+```{r}
+s_wr$hits  # length-N vector of selection counts
+```
+
+## Unequal probability sampling
+
+When units have different sizes (employees, revenue, area, ...),
+probability-proportional-to-size (PPS) designs give larger units higher
+selection probabilities, which reduces the variance of Horvitz-Thompson
+estimators.
+
+### Computing design quantities
+
+Start from a vector of positive size measures and compute inclusion
+probabilities (WOR) or expected hits (WR):
+
+```{r}
+x <- c(10, 20, 5, 40, 25)
+n <- 3
+
+# Without replacement: inclusion probabilities (capped at 1)
+pik <- inclusion_prob(x, n)
+pik
+sum(pik)  # equals n
+
+# With replacement: expected hits (can exceed 1)
+eh <- expected_hits(x, n)
+eh
+sum(eh)   # equals n
+```
+
+### Without replacement
+
+Pass the inclusion probability vector to `unequal_prob_wor()`.
+The default method is Conditional Poisson Sampling (CPS), which has
+maximum entropy among fixed-size designs:
+
+```{r}
+s <- unequal_prob_wor(pik, method = "cps")
+s
+s$sample
+inclusion_prob(s)  # extract pik from the design
+```
+
+Other fixed-size methods include `"brewer"` (draw-by-draw, order-invariant),
+`"systematic"` (O(N), implicit stratification), `"sps"` (Sequential Poisson
+sampling, supports PRN), and `"pareto"` (Pareto sampling, supports PRN).
+The `"poisson"` method produces a random sample size.
+
+### With replacement
+
+Pass the expected hits vector to `unequal_prob_wr()`.
+Chromy's method is the default:
+
+```{r}
+s_wr <- unequal_prob_wr(eh, method = "chromy")
+s_wr
+s_wr$hits  # realized selection counts
+```
+
+The `"multinomial"` method draws each selection independently.
+
+## Design queries
+
+Once you have a design object, generics compute the quantities needed for
+variance estimation.
+
+### Joint inclusion probabilities (WOR)
+
+```{r}
+pik <- inclusion_prob(c(10, 20, 5, 40, 25), n = 3)
+s <- unequal_prob_wor(pik, method = "cps")
+
+pikl <- joint_inclusion_prob(s)
+pikl
+```
+
+The diagonal holds the first-order probabilities $\pi_i$ and the
+off-diagonal entries are $\pi_{ij} = P(i \in S \text{ and } j \in S)$.
+
+### Joint expected hits (WR)
+
+```{r}
+eh <- expected_hits(c(10, 20, 5, 40, 25), n = 3)
+s_wr <- unequal_prob_wr(eh, method = "chromy")
+
+joint_expected_hits(s_wr)
+```
+
+### Sampling covariance
+
+The `sampling_cov()` generic computes $\Delta_{ij} = \pi_{ij} - \pi_i \pi_j$
+for WOR designs (or the analogous expression for WR designs):
+
+```{r}
+sampling_cov(s)
+```
+
+With `scaled = TRUE`, it returns the Sen-Yates-Grundy check quantities
+$1 - \pi_i \pi_j / \pi_{ij}$. For well-behaved WOR designs, these should be
+non-positive off-diagonal:
+
+```{r}
+sampling_cov(s, scaled = TRUE)
+```
+
+## Batch sampling
+
+All four dispatchers accept an `nrep` parameter for drawing multiple
+independent samples in one call, useful for simulation studies:
+
+```{r}
+sim <- equal_prob_wor(N = 50, n = 5, nrep = 4)
+dim(sim)  # 5 x 4 matrix: each column is one sample
+sim
+```
+
+For fixed-size designs the result is a matrix (`n x nrep`). For random-size
+designs (Bernoulli, Poisson) it is a list of integer vectors.

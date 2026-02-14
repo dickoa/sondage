@@ -1,6 +1,6 @@
 # sondage
 
-Fast survey sampling algorithms for R. All functions return **indices** for easy subsetting.
+Fast survey sampling algorithms for R. Sampling functions return **design objects** with generics for extracting inclusion probabilities, joint inclusion probabilities, and variance estimation quantities.
 
 ## Installation
 
@@ -18,61 +18,82 @@ library(sondage)
 data(state)
 states <- as.data.frame(state.x77)
 
-# Simple random sample: 10 states
-idx <- srs(10, nrow(states))
-states[idx, ]
-
-# Unequal probability sampling: probability proportional to population
+# Compute inclusion probabilities from population size
 pik <- inclusion_prob(states$Population, n = 10)
-idx <- up_maxent(pik)
-states[idx, ]
 
-# Batch sampling for simulations (returns n × nrep matrix)
-sim_cps <- up_maxent(pik, nrep = 10000)
+# Draw a sample (Conditional Poisson Sampling)
+s <- unequal_prob_wor(pik, method = "cps")
+states[s$sample, ]
+
+# Joint inclusion probabilities for variance estimation
+pikl  <- joint_inclusion_prob(s)
+delta <- sampling_cov(s)                # pi_ij - pi_i * pi_j
+chk   <- sampling_cov(s, scaled = TRUE) # 1 - pi_i * pi_j / pi_ij
+
+# Equal probability sampling
+s <- equal_prob_wor(nrow(states), 10)
+states[s$sample, ]
+
+# PPS with minimum replacement (Chromy)
+hits <- expected_hits(states$Population, n = 10)
+s <- unequal_prob_wr(hits, method = "chromy")
+joint_expected_hits(s, nsim = 10000)
+
+# Batch sampling for simulations (returns n x nrep matrix)
+sim <- unequal_prob_wor(pik, method = "cps", nrep = 10000)
+dim(sim)   # 10 x 10000
 ```
 
-## Functions
+## Sampling functions
 
-**Equal probability:**
+**Equal probability without replacement** (`equal_prob_wor`):
 
-- `srs()` - Simple random sampling
-- `systematic()` - Systematic sampling
-- `bernoulli()` - Bernoulli sampling
+- `equal_prob_wor(N, n, method = "srs")` - Simple random sampling
+- `equal_prob_wor(N, n, method = "systematic")` - Systematic sampling
+- `equal_prob_wor(N, n, method = "bernoulli")` - Bernoulli sampling (random size)
 
-**Unequal probability:**
+**Equal probability with replacement** (`equal_prob_wr`):
 
-- `up_maxent()` - Maximum entropy / Conditional Poisson
-- `up_brewer()` - Brewer's method
-- `up_systematic()` - Systematic PPS
-- `up_poisson()` - Poisson sampling
-- `up_multinomial()` - PPS with replacement
-- `up_chromy()` - PPS with minimum replacement
+- `equal_prob_wr(N, n, method = "srs")` - Simple random sampling with replacement
 
-**Joint inclusion probabilities :**
+**Unequal probability without replacement** (`unequal_prob_wor`):
 
-- `up_maxent_jip()` - Exact CPS joint probabilities (Aires' formula)
-- `up_brewer_jip()` - Brewer's approximation (equation 18)
-- `up_systematic_jip()` - Exact systematic joint probabilities
-- `up_poisson_jip()` - Independent selections (π_i × π_j)
-- `up_chromy_pairexp()` - Pairwise Expectation (E(n_i × n_j))
+- `unequal_prob_wor(pik, method = "cps")` - Conditional Poisson / maximum entropy
+- `unequal_prob_wor(pik, method = "brewer")` - Brewer's method
+- `unequal_prob_wor(pik, method = "systematic")` - Systematic PPS
+- `unequal_prob_wor(pik, method = "poisson")` - Poisson sampling (random size)
 
-**Utilities:**
+**Unequal probability with replacement** (`unequal_prob_wr`):
 
-- `inclusion_prob()` - Compute π from measure of size
+- `unequal_prob_wr(hits, method = "chromy")` - PPS with minimum replacement
+- `unequal_prob_wr(hits, method = "multinomial")` - Multinomial PPS
+
+## Design queries
+
+- `inclusion_prob(x, n)` - Compute inclusion probabilities from size measures
+- `inclusion_prob(s)` - Extract inclusion probabilities from a WOR design
+- `expected_hits(x, n)` - Compute expected hits from size measures
+- `expected_hits(s)` - Extract expected hits from a WR design
+- `joint_inclusion_prob(s)` - Joint inclusion probabilities (WOR)
+- `joint_expected_hits(s)` - Pairwise expectations E(n_i n_j) (WR)
+- `sampling_cov(s)` - Sampling covariance matrix
+- `sampling_cov(s, scaled = TRUE)` - Check quantities for SYG variance estimator
 
 ## Method comparison
 
-| Method           | Fixed n | Exact π | All π_kl > 0         |
-|------------------|---------|---------|----------------------|
-| `up_maxent`      | ✓       | ✓       | ✓                    |
-| `up_brewer`      | ✓       | ✓       | ✓                    |
-| `up_systematic`  | ✓       | ✓       | ✗                    |
-| `up_poisson`     | ✗       | ✓       | ✓                    |
-| `up_multinomial` | ✓       | —       | ✓ (with replacement) |
-| `up_chromy`      | ✓       | ✓       | ✓                    |
+| Method         | Fixed n | Exact pi | All pi_kl > 0        |
+|----------------|---------|----------|-----------------------|
+| `cps`          | yes     | yes      | yes                   |
+| `brewer`       | yes     | yes      | yes                   |
+| `systematic`   | yes     | yes      | no                    |
+| `poisson`      | no      | yes      | yes                   |
+| `multinomial`  | yes     | --       | yes (with replacement)|
+| `chromy`       | yes     | yes      | yes                   |
 
 ## References
 
 Brewer, K.R.W. and Donadio, M.E. (2003). The High Entropy Variance of the Horvitz-Thompson Estimator. *Survey Methodology*, 29(2), 189-196.
 
-Tillé, Y. (2006). *Sampling Algorithms*. Springer.
+Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson estimator. *Memorial JSM*.
+
+Tille, Y. (2006). *Sampling Algorithms*. Springer.

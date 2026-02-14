@@ -5,13 +5,19 @@
 #' @param pik Vector to validate.
 #' @param allow_zero If TRUE, allow pik values of exactly 0. Default TRUE.
 #' @param allow_one If TRUE, allow pik values of exactly 1. Default TRUE.
+#' @param tol Tolerance for integer check.
 #'
 #' @return Invisibly returns TRUE if valid, otherwise stops with error.
 #'
 #' @keywords internal
 #' @noRd
-check_pik <- function(pik, allow_zero = TRUE, allow_one = TRUE,
-                      fixed_size = FALSE) {
+check_pik <- function(
+  pik,
+  allow_zero = TRUE,
+  allow_one = TRUE,
+  fixed_size = FALSE,
+  tol = 1e-4
+) {
   if (!is.numeric(pik)) {
     stop("pik must be a numeric vector", call. = FALSE)
   }
@@ -32,7 +38,7 @@ check_pik <- function(pik, allow_zero = TRUE, allow_one = TRUE,
   }
   if (fixed_size) {
     s <- sum(pik)
-    if (abs(s - round(s)) > 1e-4) {
+    if (abs(s - round(s)) > tol) {
       stop(
         sprintf(
           "sum(pik) = %.4g is not close to an integer",
@@ -41,6 +47,36 @@ check_pik <- function(pik, allow_zero = TRUE, allow_one = TRUE,
         call. = FALSE
       )
     }
+  }
+  invisible(TRUE)
+}
+
+#' Validate permanent random numbers
+#'
+#' Checks that prn is a valid vector of permanent random numbers.
+#'
+#' @param prn Vector to validate.
+#' @param N Expected length (population size).
+#'
+#' @return Invisibly returns TRUE if valid, otherwise stops with error.
+#'
+#' @keywords internal
+#' @noRd
+check_prn <- function(prn, N) {
+  if (!is.numeric(prn)) {
+    stop("prn must be a numeric vector", call. = FALSE)
+  }
+  if (length(prn) != N) {
+    stop(
+      sprintf("prn must have length %d (same as population size)", N),
+      call. = FALSE
+    )
+  }
+  if (anyNA(prn)) {
+    stop("there are missing values in prn", call. = FALSE)
+  }
+  if (any(prn <= 0) || any(prn >= 1)) {
+    stop("prn values must be in the open interval (0, 1)", call. = FALSE)
   }
   invisible(TRUE)
 }
@@ -102,4 +138,36 @@ check_integer <- function(x, name = "n", tol = 1e-4) {
     )
   }
   as.integer(r)
+}
+
+#' Validate expected hits vector
+#'
+#' Checks that hits is a valid vector of expected hits for WR sampling.
+#'
+#' @param hits Vector to validate.
+#'
+#' @return Invisibly returns TRUE if valid, otherwise stops with error.
+#'
+#' @keywords internal
+#' @noRd
+check_hits <- function(hits) {
+  if (!is.numeric(hits)) {
+    stop("hits must be a numeric vector", call. = FALSE)
+  }
+  if (length(hits) == 0L) {
+    stop("hits vector is empty", call. = FALSE)
+  }
+  if (anyNA(hits)) {
+    stop("there are missing values in hits", call. = FALSE)
+  }
+  if (any(!is.finite(hits))) {
+    stop("hits values must be finite (no Inf or NaN)", call. = FALSE)
+  }
+  if (any(hits < 0)) {
+    stop("hits values must be non-negative", call. = FALSE)
+  }
+  if (sum(hits) == 0) {
+    stop("sum of hits must be positive", call. = FALSE)
+  }
+  invisible(TRUE)
 }

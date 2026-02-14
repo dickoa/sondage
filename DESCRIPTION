@@ -1,20 +1,22 @@
 Package: sondage
 Type: Package
 Title: Survey Sampling Algorithms
-Version: 0.1.0
+Version: 0.1.9999
 Authors@R: person(given = "Ahmadou",
                   family = "Dicko",
 	          email = "mail@ahmadoudicko.com",
 		  comment = c(ORCID ="0000-0002-9654-7582"),
                   role = c("aut", "cre"))
-Description:  Fast implementations of survey sampling algorithms for drawing
+Description: Fast implementations of survey sampling algorithms for drawing
     samples from finite populations. Provides equal probability methods
     (simple random sampling, systematic, Bernoulli) and unequal probability
-    methods (Brewer, maximum entropy/conditional Poisson, systematic PPS,
-    Chromy's sequential PPS, Poisson, multinomial). Includes computation
-    of first-order and joint inclusion probabilities. All functions return
-    indices for easy subsetting. Based on algorithms from Tille (2006)
-    "Sampling Algorithms" <doi:10.1007/0-387-34240-0>.
+    methods (Brewer, conditional Poisson/maximum entropy, systematic PPS, Pareto piPS,
+    Chromy's sequential PPS, Sequential Poisson, Poisson, multinomial).
+    All sampling functions return design objects carrying sample indices,
+    inclusion probabilities, and design metadata. Generics compute joint inclusion
+    probabilities, pairwise expectations, and sampling covariances for variance estimation.
+    Based on algorithms from Tille (2006, <doi:10.1007/0-387-34240-0>)
+    and the generalized framework of Chromy (2009).
 Depends: R (>= 4.1.0)
 License: GPL-2 | GPL-3
 Encoding: UTF-8
@@ -24,5 +26,9 @@ BugReports: https://gitlab.com/dickoa/sondage/-/issues
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 NeedsCompilation: yes
-Suggests: testthat (>= 3.0.0)
+Suggests:
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+VignetteBuilder: knitr
 Config/testthat/edition: 3
