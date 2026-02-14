@@ -12,6 +12,7 @@ check-release:
     - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev
     - mkdir -p $R_LIBS_USER
     - Rscript -e "install.packages(c('testthat', 'rcmdcheck'), repos='https://cloud.r-project.org')"
+    - Rscript -e "remotes::install_deps(dependencies = TRUE)"
   script:
     - Rscript -e "rcmdcheck::rcmdcheck(args = c('--no-manual', '--as-cran'), error_on = 'warning')"
 
@@ -22,6 +23,7 @@ check-devel:
     - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev
     - mkdir -p $R_LIBS_USER
     - Rscript -e "install.packages(c('testthat', 'rcmdcheck'), repos='https://cloud.r-project.org')"
+    - Rscript -e "remotes::install_deps(dependencies = TRUE)"
   script:
     - Rscript -e "rcmdcheck::rcmdcheck(args = c('--no-manual', '--as-cran'), error_on = 'error')"
   allow_failure: true
@@ -33,6 +35,7 @@ pages:
     - apt-get update && apt-get install -y pandoc libcurl4-openssl-dev libssl-dev libxml2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
     - mkdir -p $R_LIBS_USER
     - Rscript -e "install.packages(c('pkgdown', 'testthat'), repos='https://cloud.r-project.org')"
+    - Rscript -e "remotes::install_deps(dependencies = TRUE)"
   script:
     - Rscript -e "pkgdown::build_site()"
     - mv docs public
