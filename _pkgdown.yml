@@ -6,6 +6,10 @@ articles:
   - sondage
 
 reference:
+- title: Package
+  contents:
+  - sondage-package
+
 - title: Sampling functions
   desc: Draw samples from finite populations.
   contents:
