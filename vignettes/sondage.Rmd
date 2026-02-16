@@ -1,6 +1,7 @@
 ---
 title: "Getting Started with sondage"
 output: rmarkdown::html_vignette
+bibliography: references.bib
 vignette: >
   %\VignetteIndexEntry{Getting Started with sondage}
   %\VignetteEngine{knitr::rmarkdown}
@@ -14,18 +15,14 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup}
+```{r setup, echo = FALSE}
 library(sondage)
-set.seed(42)
+set.seed(1)
 ```
 
 ## Overview
 
-**sondage** provides fast implementations of survey sampling algorithms for
-finite populations. Every sampling function returns a *design object* that
-carries the selected sample alongside the design metadata (inclusion
-probabilities or expected hits, sample size, method). A set of generics then
-operates on these objects to compute quantities needed for variance estimation.
+`sondage` provides fast implementations of survey sampling algorithms for finite populations. Every sampling function returns a *design object* that carries the selected sample alongside the design metadata (inclusion probabilities or expected hits, sample size, method). A set of generics then operates on these objects to compute quantities needed for variance estimation.
 
 The four entry-point functions are organised by two dimensions:
 
@@ -38,31 +35,30 @@ The four entry-point functions are organised by two dimensions:
 
 ### Without replacement
 
-The simplest case: draw `n` units from a population of size `N` with equal
-probabilities.
+The simplest case: draw `n` units from a population of size `N` with equal probabilities.
 
 ```{r}
+library(sondage)
 s <- equal_prob_wor(N = 50, n = 5)
 s
 ```
 
-The returned object stores the sampled unit indices and the inclusion
-probabilities:
+The returned object stores the sampled unit indices and the inclusion probabilities:
 
 ```{r}
 s$sample
 s$pik[1:10]  # all equal to n/N = 0.1
 ```
 
-Alternative methods are available. Systematic sampling provides implicit
-stratification based on the ordering of units:
+Alternative methods are available. Systematic sampling provides implicit stratification based on the ordering of units:
+
 ```{r}
 s_sys <- equal_prob_wor(N = 50, n = 5, method = "systematic")
 s_sys
 ```
 
-Bernoulli sampling selects each unit independently with probability `p = n/N`,
-producing a random sample size:
+Bernoulli sampling selects each unit independently with probability `p = n/N`, producing a random sample size. The parameter `n` is the expected sample size not the realized sample size.
+
 ```{r}
 s_ber <- equal_prob_wor(N = 50, n = 5, method = "bernoulli")
 s_ber
@@ -76,23 +72,19 @@ s_wr <- equal_prob_wr(N = 50, n = 5)
 s_wr
 ```
 
-With-replacement designs track **hits** (how many times each unit was
-selected) instead of inclusion probabilities:
+With-replacement designs track **hits** (how many times each unit was selected) instead of inclusion probabilities:
+
 ```{r}
 s_wr$hits  # length-N vector of selection counts
 ```
 
 ## Unequal probability sampling
 
-When units have different sizes (employees, revenue, area, ...),
-probability-proportional-to-size (PPS) designs give larger units higher
-selection probabilities, which reduces the variance of Horvitz-Thompson
-estimators.
+When units have different sizes (employees, revenue, area, ...), probability-proportional-to-size (PPS) designs give larger units higher selection probabilities, which reduces the variance of Horvitz--Thompson estimators [@horvitz1952].
 
 ### Computing design quantities
 
-Start from a vector of positive size measures and compute inclusion
-probabilities (WOR) or expected hits (WR):
+Start from a vector of positive size measures and compute inclusion probabilities (WOR) or expected hits (WR):
 
 ```{r}
 x <- c(10, 20, 5, 40, 25)
@@ -111,9 +103,7 @@ sum(eh)   # equals n
 
 ### Without replacement
 
-Pass the inclusion probability vector to `unequal_prob_wor()`.
-The default method is Conditional Poisson Sampling (CPS), which has
-maximum entropy among fixed-size designs:
+Pass the inclusion probability vector to `unequal_prob_wor()`. The default method is Conditional Poisson Sampling [CPS, @chen1994], which has maximum entropy among fixed-size designs:
 
 ```{r}
 s <- unequal_prob_wor(pik, method = "cps")
@@ -122,15 +112,11 @@ s$sample
 inclusion_prob(s)  # extract pik from the design
 ```
 
-Other fixed-size methods include `"brewer"` (draw-by-draw, order-invariant),
-`"systematic"` (O(N), implicit stratification), `"sps"` (Sequential Poisson
-sampling, supports PRN), and `"pareto"` (Pareto sampling, supports PRN).
-The `"poisson"` method produces a random sample size.
+Other fixed-size methods include `"brewer"` (draw-by-draw, order-invariant), `"systematic"` (O(N), implicit stratification), `"sps"` [Sequential Poisson sampling, @ohlsson1998, supports PRN], and `"pareto"` [Pareto sampling, @rosen1997, supports PRN]. The `"poisson"` method produces a random sample size.
 
 ### With replacement
 
-Pass the expected hits vector to `unequal_prob_wr()`.
-Chromy's method is the default:
+Pass the expected hits vector to `unequal_prob_wr()`. @chromy1979's method is the default:
 
 ```{r}
 s_wr <- unequal_prob_wr(eh, method = "chromy")
@@ -142,8 +128,7 @@ The `"multinomial"` method draws each selection independently.
 
 ## Design queries
 
-Once you have a design object, generics compute the quantities needed for
-variance estimation.
+Once you have a design object, generics compute the quantities needed for variance estimation.
 
 ### Joint inclusion probabilities (WOR)
 
@@ -155,8 +140,7 @@ pikl <- joint_inclusion_prob(s)
 pikl
 ```
 
-The diagonal holds the first-order probabilities $\pi_i$ and the
-off-diagonal entries are $\pi_{ij} = P(i \in S \text{ and } j \in S)$.
+The diagonal holds the first-order probabilities $\pi_i$ and the off-diagonal entries are $\pi_{ij} = P(i \in S \text{ and } j \in S)$.
 
 ### Joint expected hits (WR)
 
@@ -169,16 +153,13 @@ joint_expected_hits(s_wr)
 
 ### Sampling covariance
 
-The `sampling_cov()` generic computes $\Delta_{ij} = \pi_{ij} - \pi_i \pi_j$
-for WOR designs (or the analogous expression for WR designs):
+The `sampling_cov()` generic computes $\Delta_{ij} = \pi_{ij} - \pi_i \pi_j$ for WOR designs (or the analogous expression for WR designs):
 
 ```{r}
 sampling_cov(s)
 ```
 
-With `scaled = TRUE`, it returns the Sen-Yates-Grundy check quantities
-$1 - \pi_i \pi_j / \pi_{ij}$. For well-behaved WOR designs, these should be
-non-positive off-diagonal:
+With `scaled = TRUE`, it returns the Sen--Yates--Grundy check quantities $1 - \pi_i \pi_j / \pi_{ij}$ [@sen1953; @yatesandgrundy1953]. For well-behaved WOR designs, these should be non-positive off-diagonal:
 
 ```{r}
 sampling_cov(s, scaled = TRUE)
@@ -186,10 +167,7 @@ sampling_cov(s, scaled = TRUE)
 
 ## Batch sampling
 
-All four dispatchers accept an `nrep` parameter for drawing multiple
-independent samples in one call, useful for simulation studies. The result
-is always a design object --- the same class as `nrep = 1` --- but with
-`$sample` holding all replicates:
+All four dispatchers accept an `nrep` parameter for drawing multiple independent samples in one call, useful for simulation studies. The result is always a design object (the same class as `nrep = 1`) but with `$sample` holding all replicates:
 
 ```{r}
 sim <- equal_prob_wor(N = 50, n = 5, nrep = 4)
@@ -200,15 +178,11 @@ dim(sim$sample)  # 5 x 4 matrix: each column is one sample
 inclusion_prob(sim)
 ```
 
-For fixed-size designs `$sample` is a matrix (`n x nrep`). For random-size
-designs (Bernoulli, Poisson) it is a list of integer vectors, and realized
-sample sizes are available via `lengths(sim$sample)`.
+For fixed-size designs `$sample` is a matrix (`n x nrep`). For random-size designs (Bernoulli, Poisson) it is a list of integer vectors, and realized sample sizes are available via `lengths(sim$sample)`.
 
 ## Design properties and statistical guarantees
 
-The table below summarises what **sondage** computes for each method.
-Understanding these properties is essential for choosing the right
-variance estimator.
+The table below summarises what `sondage` computes for each method. Understanding these properties is essential for choosing the right variance estimator.
 
 ```{r, echo = FALSE}
 props <- data.frame(
@@ -259,47 +233,23 @@ knitr::kable(props, align = "llccl",
 
 ### Notes on specific methods
 
-**Equal-probability systematic sampling.** In **sondage**, `joint_inclusion_prob()`
-returns the SRS formula $\pi_{ij} = n(n-1)/[N(N-1)]$ for this design.
-This is appropriate when the frame order is unrelated to the study variable
-(effectively random). For frames with structure, the true joint probabilities
-depend on the ordering and some may be zero; in that case, consider
-replication or successive-differences variance estimators.
+**Equal-probability systematic sampling.** In `sondage`, `joint_inclusion_prob()` returns the SRS formula $\pi_{ij} = n(n-1)/[N(N-1)]$ for this design. This is appropriate when the frame order is unrelated to the study variable (effectively random). For frames with structure, the true joint probabilities depend on the ordering and some may be zero; in that case, consider replication or successive-differences variance estimators.
 
-**SPS and Pareto (order sampling).** Both are implemented via Rosen's (1997)
-order sampling framework. SPS uses ranking key $\xi_k = u_k / \pi_k$
-(equivalent to Ohlsson's 1998 sequential threshold adjustment); Pareto uses
-$\xi_k = [u_k/(1-u_k)] / [\pi_k/(1-\pi_k)]$. The $n$ units with the
-smallest $\xi_k$ are selected. First-order inclusion probabilities are
-approximately (not exactly) equal to the target $\pi_k$ for finite
-populations; the discrepancy vanishes as $N$ grows. Both support permanent
-random numbers (PRN) for sample coordination.
+**SPS and Pareto (order sampling).** Both are implemented via @rosen1997's order sampling framework. SPS uses ranking key $\xi_k = u_k / \pi_k$ [equivalent to @ohlsson1998's sequential threshold adjustment]; Pareto uses $\xi_k = [u_k/(1-u_k)] / [\pi_k/(1-\pi_k)]$. The $n$ units with the smallest $\xi_k$ are selected. First-order inclusion probabilities are approximately (not exactly) equal to the target $\pi_k$ for finite populations; the discrepancy vanishes as $N$ grows. Both support permanent random numbers (PRN) for sample coordination.
 
-**Systematic PPS.** Joint inclusion probabilities are exact (computed via
-C code) but some $\pi_{ij}$ are structurally zero --- pairs of units that
-can never co-occur. `sampling_cov(s, scaled = TRUE)` returns `NA` for
-those entries and issues a warning, because the SYG estimator is undefined
-for such pairs. Consider successive-differences, Hartley--Rao, or
-replication methods instead.
+**Systematic PPS.** Joint inclusion probabilities are exact (computed via C code) but some $\pi_{ij}$ are structurally zero e.g for pairs of units that
+can never co-occur. `sampling_cov(s, scaled = TRUE)` returns `NA` for those entries and issues a warning, because the SYG estimator is undefined
+for such pairs. Consider successive-differences, Hartley--Rao, or replication methods instead.
 
 **Chromy.** Pairwise expectations $E(n_i n_j)$ are estimated by Monte Carlo
 simulation in `joint_expected_hits()` (controlled by `nsim`, default 10 000).
 
 ### Choosing a variance strategy
 
-- **SYG with exact $\pi_{ij}$**: CPS and SRS WOR provide exact joint
-  probabilities, so the Sen-Yates-Grundy variance estimator is unbiased.
-- **SYG with approximate $\pi_{ij}$**: For Brewer, SPS, and Pareto,
-  joint probabilities use the high-entropy approximation. The resulting
-  SYG estimate is very accurate but not exactly unbiased (Hajek, 1964;
-  Brewer & Donadio, 2003).
-- **Independent designs** (Poisson, Bernoulli): The covariance
-  $\Delta_{ij} = 0$ for $i \neq j$, so the variance simplifies to
-  $\text{Var}(\hat{Y}_{HT}) = \sum_i (1 - \pi_i)\, y_i^2 / \pi_i$.
-- **Systematic designs with $\pi_{ij} = 0$**: The SYG estimator is
-  undefined. Use successive-differences, Hartley--Rao approximations,
-  or replication methods.
-- **With-replacement designs** (Chromy, multinomial): Use the
-  Hansen--Hurwitz estimator, or the generalised HT framework of
-  Chromy (2009) which unifies WOR and WR variance estimation via
-  `sampling_cov()`.
+- **SYG with exact $\pi_{ij}$**: CPS and SRS WOR provide exact joint probabilities, so the Sen--Yates--Grundy variance estimator [@sen1953; @yatesandgrundy1953] is unbiased.
+- **SYG with approximate $\pi_{ij}$**: For Brewer, SPS, and Pareto, joint probabilities use the high-entropy approximation. The resulting SYG estimate is very accurate but not exactly unbiased [@hajek1964; @brewer2003].
+- **Independent designs** (Poisson, Bernoulli): The covariance $\Delta_{ij} = 0$ for $i \neq j$, so the variance simplifies to $\text{Var}(\hat{Y}_{HT}) = \sum_i (1 - \pi_i)\, y_i^2 / \pi_i$.
+- **Systematic designs with $\pi_{ij} = 0$**: The SYG estimator is undefined. Use successive-differences, Hartley--Rao approximations, or replication methods.
+- **With-replacement designs** (Chromy, multinomial): Use the @hansen1943 estimator, or the generalised Horvitz--Thompson framework of @chromy2009 which unifies WOR and WR variance estimation via `sampling_cov()`.
+
+## References

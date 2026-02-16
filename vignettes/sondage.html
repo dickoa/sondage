@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Getting Started with sondage</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+<style type="text/css">
+
+div.csl-bib-body { }
+div.csl-entry {
+clear: both;
+margin-bottom: 0em;
+}
+.hanging div.csl-entry {
+margin-left:2em;
+text-indent:-2em;
+}
+div.csl-left-margin {
+min-width:2em;
+float:left;
+}
+div.csl-right-inline {
+margin-left:2em;
+padding-left:1em;
+}
+div.csl-indent {
+margin-left: 2em;
+}
+</style>
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Getting Started with sondage</h1>
+
+
+
+<div id="overview" class="section level2">
+<h2>Overview</h2>
+<p><code>sondage</code> provides fast implementations of survey sampling
+algorithms for finite populations. Every sampling function returns a
+<em>design object</em> that carries the selected sample alongside the
+design metadata (inclusion probabilities or expected hits, sample size,
+method). A set of generics then operates on these objects to compute
+quantities needed for variance estimation.</p>
+<p>The four entry-point functions are organised by two dimensions:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th>Without replacement</th>
+<th>With replacement</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Equal prob.</td>
+<td><code>equal_prob_wor()</code></td>
+<td><code>equal_prob_wr()</code></td>
+</tr>
+<tr class="even">
+<td>Unequal prob.</td>
+<td><code>unequal_prob_wor()</code></td>
+<td><code>unequal_prob_wr()</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="equal-probability-sampling" class="section level2">
+<h2>Equal probability sampling</h2>
+<div id="without-replacement" class="section level3">
+<h3>Without replacement</h3>
+<p>The simplest case: draw <code>n</code> units from a population of
+size <code>N</code> with equal probabilities.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(sondage)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>s <span class="ot">&lt;-</span> <span class="fu">equal_prob_wor</span>(<span class="at">N =</span> <span class="dv">50</span>, <span class="at">n =</span> <span class="dv">5</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>s</span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="co">#&gt; Equal prob WOR [srs] (n=5, N=50): 4 39 1 34 23</span></span></code></pre></div>
+<p>The returned object stores the sampled unit indices and the inclusion
+probabilities:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>s<span class="sc">$</span>sample</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="co">#&gt; [1]  4 39  1 34 23</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>s<span class="sc">$</span>pik[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]  <span class="co"># all equal to n/N = 0.1</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co">#&gt;  [1] 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1</span></span></code></pre></div>
+<p>Alternative methods are available. Systematic sampling provides
+implicit stratification based on the ordering of units:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>s_sys <span class="ot">&lt;-</span> <span class="fu">equal_prob_wor</span>(<span class="at">N =</span> <span class="dv">50</span>, <span class="at">n =</span> <span class="dv">5</span>, <span class="at">method =</span> <span class="st">&quot;systematic&quot;</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>s_sys</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt; Equal prob WOR [systematic] (n=5, N=50): 7 17 27 37 47</span></span></code></pre></div>
+<p>Bernoulli sampling selects each unit independently with probability
+<code>p = n/N</code>, producing a random sample size. The parameter
+<code>n</code> is the expected sample size not the realized sample
+size.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>s_ber <span class="ot">&lt;-</span> <span class="fu">equal_prob_wor</span>(<span class="at">N =</span> <span class="dv">50</span>, <span class="at">n =</span> <span class="dv">5</span>, <span class="at">method =</span> <span class="st">&quot;bernoulli&quot;</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>s_ber</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="co">#&gt; Equal prob WOR [bernoulli] (n=5, N=50): 10 13</span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="fu">length</span>(s_ber<span class="sc">$</span>sample)  <span class="co"># may differ from 5</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co">#&gt; [1] 2</span></span></code></pre></div>
+</div>
+<div id="with-replacement" class="section level3">
+<h3>With replacement</h3>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>s_wr <span class="ot">&lt;-</span> <span class="fu">equal_prob_wr</span>(<span class="at">N =</span> <span class="dv">50</span>, <span class="at">n =</span> <span class="dv">5</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>s_wr</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">#&gt; Equal prob WR [srs] (n=5, N=50): 39 42 6 24 32</span></span></code></pre></div>
+<p>With-replacement designs track <strong>hits</strong> (how many times
+each unit was selected) instead of inclusion probabilities:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>s_wr<span class="sc">$</span>hits  <span class="co"># length-N vector of selection counts</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">#&gt;  [1] 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0 0 1 0 0 0 0 0 0 0 0</span></span></code></pre></div>
+</div>
+</div>
+<div id="unequal-probability-sampling" class="section level2">
+<h2>Unequal probability sampling</h2>
+<p>When units have different sizes (employees, revenue, area, …),
+probability-proportional-to-size (PPS) designs give larger units higher
+selection probabilities, which reduces the variance of Horvitz–Thompson
+estimators <span class="citation">(Horvitz and Thompson
+1952)</span>.</p>
+<div id="computing-design-quantities" class="section level3">
+<h3>Computing design quantities</h3>
+<p>Start from a vector of positive size measures and compute inclusion
+probabilities (WOR) or expected hits (WR):</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">5</span>, <span class="dv">40</span>, <span class="dv">25</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">3</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co"># Without replacement: inclusion probabilities (capped at 1)</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>pik <span class="ot">&lt;-</span> <span class="fu">inclusion_prob</span>(x, n)</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>pik</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="co">#&gt; [1] 0.3333333 0.6666667 0.1666667 1.0000000 0.8333333</span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a><span class="fu">sum</span>(pik)  <span class="co"># equals n</span></span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a><span class="co">#&gt; [1] 3</span></span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a><span class="co"># With replacement: expected hits (can exceed 1)</span></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a>eh <span class="ot">&lt;-</span> <span class="fu">expected_hits</span>(x, n)</span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a>eh</span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="co">#&gt; [1] 0.30 0.60 0.15 1.20 0.75</span></span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a><span class="fu">sum</span>(eh)   <span class="co"># equals n</span></span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a><span class="co">#&gt; [1] 3</span></span></code></pre></div>
+</div>
+<div id="without-replacement-1" class="section level3">
+<h3>Without replacement</h3>
+<p>Pass the inclusion probability vector to
+<code>unequal_prob_wor()</code>. The default method is Conditional
+Poisson Sampling <span class="citation">(CPS, Chen, Dempster, and Liu
+1994)</span>, which has maximum entropy among fixed-size designs:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>s <span class="ot">&lt;-</span> <span class="fu">unequal_prob_wor</span>(pik, <span class="at">method =</span> <span class="st">&quot;cps&quot;</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>s</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="co">#&gt; Unequal prob WOR [cps] (n=3, N=5): 4 1 5</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>s<span class="sc">$</span>sample</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="co">#&gt; [1] 4 1 5</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="fu">inclusion_prob</span>(s)  <span class="co"># extract pik from the design</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="co">#&gt; [1] 0.3333333 0.6666667 0.1666667 1.0000000 0.8333333</span></span></code></pre></div>
+<p>Other fixed-size methods include <code>&quot;brewer&quot;</code> (draw-by-draw,
+order-invariant), <code>&quot;systematic&quot;</code> (O(N), implicit
+stratification), <code>&quot;sps&quot;</code> <span class="citation">(Sequential
+Poisson sampling, Ohlsson 1998, supports PRN)</span>, and
+<code>&quot;pareto&quot;</code> <span class="citation">(Pareto sampling, Rosén
+1997, supports PRN)</span>. The <code>&quot;poisson&quot;</code> method produces a
+random sample size.</p>
+</div>
+<div id="with-replacement-1" class="section level3">
+<h3>With replacement</h3>
+<p>Pass the expected hits vector to <code>unequal_prob_wr()</code>.
+<span class="citation">Chromy (1979)</span>’s method is the default:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>s_wr <span class="ot">&lt;-</span> <span class="fu">unequal_prob_wr</span>(eh, <span class="at">method =</span> <span class="st">&quot;chromy&quot;</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>s_wr</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt; Unequal prob WR [chromy] (n=3, N=5): 2 4 5</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>s_wr<span class="sc">$</span>hits  <span class="co"># realized selection counts</span></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co">#&gt; [1] 0 1 0 1 1</span></span></code></pre></div>
+<p>The <code>&quot;multinomial&quot;</code> method draws each selection
+independently.</p>
+</div>
+</div>
+<div id="design-queries" class="section level2">
+<h2>Design queries</h2>
+<p>Once you have a design object, generics compute the quantities needed
+for variance estimation.</p>
+<div id="joint-inclusion-probabilities-wor" class="section level3">
+<h3>Joint inclusion probabilities (WOR)</h3>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>pik <span class="ot">&lt;-</span> <span class="fu">inclusion_prob</span>(<span class="fu">c</span>(<span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">5</span>, <span class="dv">40</span>, <span class="dv">25</span>), <span class="at">n =</span> <span class="dv">3</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>s <span class="ot">&lt;-</span> <span class="fu">unequal_prob_wor</span>(pik, <span class="at">method =</span> <span class="st">&quot;cps&quot;</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>pikl <span class="ot">&lt;-</span> <span class="fu">joint_inclusion_prob</span>(s)</span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>pikl</span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="co">#&gt;            [,1]       [,2]       [,3]      [,4]      [,5]</span></span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="co">#&gt; [1,] 0.33333333 0.10026570 0.01935766 0.3333333 0.2137089</span></span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="co">#&gt; [2,] 0.10026570 0.66666667 0.04704226 0.6666667 0.5193577</span></span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a><span class="co">#&gt; [3,] 0.01935766 0.04704226 0.16666667 0.1666667 0.1002667</span></span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a><span class="co">#&gt; [4,] 0.33333333 0.66666667 0.16666667 1.0000000 0.8333333</span></span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a><span class="co">#&gt; [5,] 0.21370893 0.51935766 0.10026667 0.8333333 0.8333333</span></span></code></pre></div>
+<p>The diagonal holds the first-order probabilities <span class="math inline">\(\pi_i\)</span> and the off-diagonal entries are
+<span class="math inline">\(\pi_{ij} = P(i \in S \text{ and } j \in
+S)\)</span>.</p>
+</div>
+<div id="joint-expected-hits-wr" class="section level3">
+<h3>Joint expected hits (WR)</h3>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>eh <span class="ot">&lt;-</span> <span class="fu">expected_hits</span>(<span class="fu">c</span>(<span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">5</span>, <span class="dv">40</span>, <span class="dv">25</span>), <span class="at">n =</span> <span class="dv">3</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>s_wr <span class="ot">&lt;-</span> <span class="fu">unequal_prob_wr</span>(eh, <span class="at">method =</span> <span class="st">&quot;chromy&quot;</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="fu">joint_expected_hits</span>(s_wr)</span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a><span class="co">#&gt;        [,1]   [,2]   [,3]   [,4]   [,5]</span></span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a><span class="co">#&gt; [1,] 0.2976 0.1084 0.0332 0.3540 0.0996</span></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="co">#&gt; [2,] 0.1084 0.5979 0.0097 0.6346 0.4431</span></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="co">#&gt; [3,] 0.0332 0.0097 0.1561 0.1627 0.1066</span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a><span class="co">#&gt; [4,] 0.3540 0.6346 0.1627 1.5982 0.8487</span></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a><span class="co">#&gt; [5,] 0.0996 0.4431 0.1066 0.8487 0.7490</span></span></code></pre></div>
+</div>
+<div id="sampling-covariance" class="section level3">
+<h3>Sampling covariance</h3>
+<p>The <code>sampling_cov()</code> generic computes <span class="math inline">\(\Delta_{ij} = \pi_{ij} - \pi_i \pi_j\)</span> for
+WOR designs (or the analogous expression for WR designs):</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu">sampling_cov</span>(s)</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a><span class="co">#&gt;             [,1]        [,2]        [,3] [,4]        [,5]</span></span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="co">#&gt; [1,]  0.22222222 -0.12195653 -0.03619789    0 -0.06406885</span></span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a><span class="co">#&gt; [2,] -0.12195653  0.22222222 -0.06406885    0 -0.03619789</span></span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a><span class="co">#&gt; [3,] -0.03619789 -0.06406885  0.13888889    0 -0.03862222</span></span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a><span class="co">#&gt; [4,]  0.00000000  0.00000000  0.00000000    0  0.00000000</span></span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a><span class="co">#&gt; [5,] -0.06406885 -0.03619789 -0.03862222    0  0.13888889</span></span></code></pre></div>
+<p>With <code>scaled = TRUE</code>, it returns the Sen–Yates–Grundy
+check quantities <span class="math inline">\(1 - \pi_i \pi_j /
+\pi_{ij}\)</span> <span class="citation">(Sen 1953; Yates and Grundy
+1953)</span>. For well-behaved WOR designs, these should be non-positive
+off-diagonal:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">sampling_cov</span>(s, <span class="at">scaled =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="co">#&gt;            [,1]        [,2]       [,3] [,4]        [,5]</span></span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="co">#&gt; [1,]  0.6666667 -1.21633352 -1.8699516    0 -0.29979492</span></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co">#&gt; [2,] -1.2163335  0.33333333 -1.3619425    0 -0.06969743</span></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="co">#&gt; [3,] -1.8699516 -1.36194247  0.8333333    0 -0.38519497</span></span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a><span class="co">#&gt; [4,]  0.0000000  0.00000000  0.0000000    0  0.00000000</span></span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a><span class="co">#&gt; [5,] -0.2997949 -0.06969743 -0.3851950    0  0.16666667</span></span></code></pre></div>
+</div>
+</div>
+<div id="batch-sampling" class="section level2">
+<h2>Batch sampling</h2>
+<p>All four dispatchers accept an <code>nrep</code> parameter for
+drawing multiple independent samples in one call, useful for simulation
+studies. The result is always a design object (the same class as
+<code>nrep = 1</code>) but with <code>$sample</code> holding all
+replicates:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>sim <span class="ot">&lt;-</span> <span class="fu">equal_prob_wor</span>(<span class="at">N =</span> <span class="dv">50</span>, <span class="at">n =</span> <span class="dv">5</span>, <span class="at">nrep =</span> <span class="dv">4</span>)</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>sim  <span class="co"># design object</span></span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="co">#&gt; Equal prob WOR [srs] (n=5, N=50): 4 replicates</span></span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="co">#&gt;   rep 1: 21 16 30 45 6</span></span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a><span class="fu">dim</span>(sim<span class="sc">$</span>sample)  <span class="co"># 5 x 4 matrix: each column is one sample</span></span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a><span class="co">#&gt; [1] 5 4</span></span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a></span>
+<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a><span class="co"># Generics still work on batch objects</span></span>
+<span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a><span class="fu">inclusion_prob</span>(sim)</span>
+<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a><span class="co">#&gt;  [1] 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1</span></span>
+<span id="cb14-11"><a href="#cb14-11" tabindex="-1"></a><span class="co">#&gt; [26] 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1</span></span></code></pre></div>
+<p>For fixed-size designs <code>$sample</code> is a matrix
+(<code>n x nrep</code>). For random-size designs (Bernoulli, Poisson) it
+is a list of integer vectors, and realized sample sizes are available
+via <code>lengths(sim$sample)</code>.</p>
+</div>
+<div id="design-properties-and-statistical-guarantees" class="section level2">
+<h2>Design properties and statistical guarantees</h2>
+<p>The table below summarises what <code>sondage</code> computes for
+each method. Understanding these properties is essential for choosing
+the right variance estimator.</p>
+<table>
+<caption>HE approx = high-entropy (Hajek) approximation. Approx* =
+target probabilities, exact asymptotically. SRS approx = treated as SRS
+(see text). Simulated = Monte Carlo via nsim parameter.</caption>
+<thead>
+<tr class="header">
+<th align="left">Method</th>
+<th align="left">Type</th>
+<th align="center">Fixed n</th>
+<th align="center">Exact 1st order</th>
+<th align="left">Joint probs</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">SRS WOR</td>
+<td align="left">EP WOR</td>
+<td align="center">Yes</td>
+<td align="center">Yes</td>
+<td align="left">Exact</td>
+</tr>
+<tr class="even">
+<td align="left">Systematic (EP)</td>
+<td align="left">EP WOR</td>
+<td align="center">Yes</td>
+<td align="center">Yes</td>
+<td align="left">SRS approx</td>
+</tr>
+<tr class="odd">
+<td align="left">Bernoulli</td>
+<td align="left">EP WOR</td>
+<td align="center">No</td>
+<td align="center">Yes</td>
+<td align="left">Exact</td>
+</tr>
+<tr class="even">
+<td align="left">SRS WR</td>
+<td align="left">EP WR</td>
+<td align="center">Yes</td>
+<td align="center">Yes</td>
+<td align="left">Exact</td>
+</tr>
+<tr class="odd">
+<td align="left">CPS</td>
+<td align="left">UP WOR</td>
+<td align="center">Yes</td>
+<td align="center">Yes</td>
+<td align="left">Exact</td>
+</tr>
+<tr class="even">
+<td align="left">Brewer</td>
+<td align="left">UP WOR</td>
+<td align="center">Yes</td>
+<td align="center">Yes</td>
+<td align="left">HE approx</td>
+</tr>
+<tr class="odd">
+<td align="left">Systematic PPS</td>
+<td align="left">UP WOR</td>
+<td align="center">Yes</td>
+<td align="center">Yes</td>
+<td align="left">Exact (zeros)</td>
+</tr>
+<tr class="even">
+<td align="left">Poisson</td>
+<td align="left">UP WOR</td>
+<td align="center">No</td>
+<td align="center">Yes</td>
+<td align="left">Exact</td>
+</tr>
+<tr class="odd">
+<td align="left">SPS</td>
+<td align="left">UP WOR</td>
+<td align="center">Yes</td>
+<td align="center">Approx*</td>
+<td align="left">HE approx</td>
+</tr>
+<tr class="even">
+<td align="left">Pareto</td>
+<td align="left">UP WOR</td>
+<td align="center">Yes</td>
+<td align="center">Approx*</td>
+<td align="left">HE approx</td>
+</tr>
+<tr class="odd">
+<td align="left">Chromy</td>
+<td align="left">UP WR</td>
+<td align="center">Yes</td>
+<td align="center">Yes</td>
+<td align="left">Simulated</td>
+</tr>
+<tr class="even">
+<td align="left">Multinomial</td>
+<td align="left">UP WR</td>
+<td align="center">Yes</td>
+<td align="center">Yes</td>
+<td align="left">Exact</td>
+</tr>
+</tbody>
+</table>
+<div id="notes-on-specific-methods" class="section level3">
+<h3>Notes on specific methods</h3>
+<p><strong>Equal-probability systematic sampling.</strong> In
+<code>sondage</code>, <code>joint_inclusion_prob()</code> returns the
+SRS formula <span class="math inline">\(\pi_{ij} =
+n(n-1)/[N(N-1)]\)</span> for this design. This is appropriate when the
+frame order is unrelated to the study variable (effectively random). For
+frames with structure, the true joint probabilities depend on the
+ordering and some may be zero; in that case, consider replication or
+successive-differences variance estimators.</p>
+<p><strong>SPS and Pareto (order sampling).</strong> Both are
+implemented via <span class="citation">Rosén (1997)</span>’s order
+sampling framework. SPS uses ranking key <span class="math inline">\(\xi_k = u_k / \pi_k\)</span> <span class="citation">(equivalent to Ohlsson 1998’s sequential threshold
+adjustment)</span>; Pareto uses <span class="math inline">\(\xi_k =
+[u_k/(1-u_k)] / [\pi_k/(1-\pi_k)]\)</span>. The <span class="math inline">\(n\)</span> units with the smallest <span class="math inline">\(\xi_k\)</span> are selected. First-order inclusion
+probabilities are approximately (not exactly) equal to the target <span class="math inline">\(\pi_k\)</span> for finite populations; the
+discrepancy vanishes as <span class="math inline">\(N\)</span> grows.
+Both support permanent random numbers (PRN) for sample coordination.</p>
+<p><strong>Systematic PPS.</strong> Joint inclusion probabilities are
+exact (computed via C code) but some <span class="math inline">\(\pi_{ij}\)</span> are structurally zero e.g for
+pairs of units that can never co-occur.
+<code>sampling_cov(s, scaled = TRUE)</code> returns <code>NA</code> for
+those entries and issues a warning, because the SYG estimator is
+undefined for such pairs. Consider successive-differences, Hartley–Rao,
+or replication methods instead.</p>
+<p><strong>Chromy.</strong> Pairwise expectations <span class="math inline">\(E(n_i n_j)\)</span> are estimated by Monte Carlo
+simulation in <code>joint_expected_hits()</code> (controlled by
+<code>nsim</code>, default 10 000).</p>
+</div>
+<div id="choosing-a-variance-strategy" class="section level3">
+<h3>Choosing a variance strategy</h3>
+<ul>
+<li><strong>SYG with exact <span class="math inline">\(\pi_{ij}\)</span></strong>: CPS and SRS WOR
+provide exact joint probabilities, so the Sen–Yates–Grundy variance
+estimator <span class="citation">(Sen 1953; Yates and Grundy
+1953)</span> is unbiased.</li>
+<li><strong>SYG with approximate <span class="math inline">\(\pi_{ij}\)</span></strong>: For Brewer, SPS, and
+Pareto, joint probabilities use the high-entropy approximation. The
+resulting SYG estimate is very accurate but not exactly unbiased <span class="citation">(Hájek 1964; Brewer and Donadio 2003)</span>.</li>
+<li><strong>Independent designs</strong> (Poisson, Bernoulli): The
+covariance <span class="math inline">\(\Delta_{ij} = 0\)</span> for
+<span class="math inline">\(i \neq j\)</span>, so the variance
+simplifies to <span class="math inline">\(\text{Var}(\hat{Y}_{HT}) =
+\sum_i (1 - \pi_i)\, y_i^2 / \pi_i\)</span>.</li>
+<li><strong>Systematic designs with <span class="math inline">\(\pi_{ij}
+= 0\)</span></strong>: The SYG estimator is undefined. Use
+successive-differences, Hartley–Rao approximations, or replication
+methods.</li>
+<li><strong>With-replacement designs</strong> (Chromy, multinomial): Use
+the <span class="citation">Hansen and Hurwitz (1943)</span> estimator,
+or the generalised Horvitz–Thompson framework of <span class="citation">Chromy (2009)</span> which unifies WOR and WR variance
+estimation via <code>sampling_cov()</code>.</li>
+</ul>
+</div>
+</div>
+<div id="references" class="section level2 unnumbered">
+<h2 class="unnumbered">References</h2>
+<div id="refs" class="references csl-bib-body hanging-indent" entry-spacing="0">
+<div id="ref-brewer2003" class="csl-entry">
+Brewer, K. R. W., and M. E. Donadio. 2003. <span>“The High Entropy
+Variance of the <span>H</span>orvitz–<span>T</span>hompson
+Estimator.”</span> <em>Survey Methodology</em> 29 (2): 189–96.
+</div>
+<div id="ref-chen1994" class="csl-entry">
+Chen, Shaw-Hwa, Arthur P. Dempster, and Jun S. Liu. 1994.
+<span>“Weighted Finite Population Sampling to Maximize Entropy.”</span>
+<em>Biometrika</em> 81 (3): 457–69. <a href="https://doi.org/10.1093/biomet/81.3.457">https://doi.org/10.1093/biomet/81.3.457</a>.
+</div>
+<div id="ref-chromy1979" class="csl-entry">
+Chromy, James R. 1979. <span>“Sequential Sample Selection
+Methods.”</span> In <em>Proceedings of the Survey Research Methods
+Section, American Statistical Association</em>, 401–6.
+</div>
+<div id="ref-chromy2009" class="csl-entry">
+———. 2009. <span>“Some Generalizations of the
+<span>H</span>orvitz–<span>T</span>hompson Estimator.”</span> In
+<em>Proceedings of the Survey Research Methods Section, American
+Statistical Association</em>.
+</div>
+<div id="ref-hajek1964" class="csl-entry">
+Hájek, Jaroslav. 1964. <span>“Asymptotic Theory of Rejective Sampling
+with Varying Probabilities from a Finite Population.”</span> <em>The
+Annals of Mathematical Statistics</em> 35 (4): 1491–1523. <a href="https://doi.org/10.1214/aoms/1177700375">https://doi.org/10.1214/aoms/1177700375</a>.
+</div>
+<div id="ref-hansen1943" class="csl-entry">
+Hansen, Morris H., and William N. Hurwitz. 1943. <span>“On the Theory of
+Sampling from Finite Populations.”</span> <em>The Annals of Mathematical
+Statistics</em> 14 (4): 333–62. <a href="https://doi.org/10.1214/aoms/1177731356">https://doi.org/10.1214/aoms/1177731356</a>.
+</div>
+<div id="ref-horvitz1952" class="csl-entry">
+Horvitz, D. G., and D. J. Thompson. 1952. <span>“A Generalization of
+Sampling Without Replacement from a Finite Universe.”</span> <em>Journal
+of the American Statistical Association</em> 47 (260): 663–85. <a href="https://doi.org/10.1080/01621459.1952.10483446">https://doi.org/10.1080/01621459.1952.10483446</a>.
+</div>
+<div id="ref-ohlsson1998" class="csl-entry">
+Ohlsson, Esbjörn. 1998. <span>“Sequential <span>P</span>oisson
+Sampling.”</span> <em>Journal of Official Statistics</em> 14 (2):
+149–62.
+</div>
+<div id="ref-rosen1997" class="csl-entry">
+Rosén, Bengt. 1997. <span>“On Sampling with Probability Proportional to
+Size.”</span> <em>Journal of Statistical Planning and Inference</em> 62
+(2): 159–91. <a href="https://doi.org/10.1016/S0378-3758(96)00186-3">https://doi.org/10.1016/S0378-3758(96)00186-3</a>.
+</div>
+<div id="ref-sen1953" class="csl-entry">
+Sen, A. R. 1953. <span>“On the Estimate of the Variance in Sampling with
+Varying Probabilities.”</span> <em>Journal of the Indian Society of
+Agricultural Statistics</em> 5: 119–27.
+</div>
+<div id="ref-yatesandgrundy1953" class="csl-entry">
+Yates, F., and P. M. Grundy. 1953. <span>“Selection Without Replacement
+from Within Strata with Probability Proportional to Size.”</span>
+<em>Journal of the Royal Statistical Society, Series B</em> 15 (2):
+253–61. <a href="https://doi.org/10.1111/j.2517-6161.1953.tb00140.x">https://doi.org/10.1111/j.2517-6161.1953.tb00140.x</a>.
+</div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

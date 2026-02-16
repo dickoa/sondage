@@ -10,7 +10,7 @@ Four dispatchers returning S3 design objects with class
 * `unequal_prob_wor(pik, method=)` - CPS (max entropy), Brewer, systematic PPS, Poisson
 * `unequal_prob_wr(hits, method=)` - Chromy (minimum replacement), multinomial PPS
 
-All dispatchers support `nrep` for batch sampling and `u` for sample coordination.
+All dispatchers support `nrep` for batch sampling and `prn` for sample coordination.
 
 ## Generics
 

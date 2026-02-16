@@ -23,7 +23,7 @@ Chen, Dempster & Liu, 1994). Fixed sample size, exact first-order
 inclusion probabilities. Joint inclusion probabilities are exact
 (computed from the CPS design matrix); all \eqn{\pi_{ij} > 0}.
 Complexity: O(N^2).}
-\item{\code{"brewer"}}{Brewer's (1963) draw-by-draw method. Fixed sample
+\item{\code{"brewer"}}{Brewer's (1975) draw-by-draw method. Fixed sample
 size, exact first-order inclusion probabilities. Joint inclusion
 probabilities are \emph{approximated} via the high-entropy
 approximation (see \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}). Complexity: O(Nn).}
@@ -112,8 +112,8 @@ Chen, S. X., Dempster, A. P., & Liu, J. S. (1994). Weighted finite
 population sampling to maximize entropy. \emph{Biometrika}, 81(3),
 457-469.
 
-Brewer, K.R.W. (1963). A model of systematic sampling with unequal
-probabilities. \emph{Australian Journal of Statistics}, 5, 5-13.
+Brewer, K.R.W. (1975). A simple procedure for sampling piPS.
+\emph{Australian Journal of Statistics}, 17(3), 166-172.
 
 Ohlsson, E. (1998). Sequential Poisson sampling. \emph{Journal of
 Official Statistics}, 14(2), 149-162.
