@@ -32,8 +32,8 @@ independently with probability \code{p = n/N}. Random sample size.}
 }}
 
 \item{nrep}{Number of replicate samples (default 1). When \code{nrep > 1},
-returns a matrix (fixed-size) or list (random-size) instead of a
-design object.}
+\verb{$sample} holds a matrix (fixed-size) or list (random-size) of all
+replicates. The design object and all generics remain usable.}
 
 \item{prn}{Optional vector of permanent random numbers (length N,
 values in the open interval (0, 1)) for sample coordination.
@@ -42,10 +42,10 @@ Only supported by \code{"bernoulli"} method.}
 \item{...}{Additional arguments passed to methods.}
 }
 \value{
-When \code{nrep = 1}: an object of class
-\code{c("equal_prob", "wor", "sondage_sample")}.
-When \code{nrep > 1}: a matrix (n x nrep) for fixed-size methods,
-or a list of integer vectors for Bernoulli sampling.
+An object of class \code{c("equal_prob", "wor", "sondage_sample")}.
+When \code{nrep = 1}, \verb{$sample} is an integer vector. When \code{nrep > 1},
+\verb{$sample} is a matrix (n x nrep) for fixed-size methods, or a list
+of integer vectors for \code{"bernoulli"}.
 }
 \description{
 Draws a sample with equal inclusion probabilities, without replacement.

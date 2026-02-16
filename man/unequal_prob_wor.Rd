@@ -18,27 +18,51 @@ For fixed-size methods, \code{sum(pik)} must be close to an integer.}
 
 \item{method}{The sampling method:
 \describe{
-\item{\code{"cps"}}{Conditional Poisson Sampling (maximum entropy).
-Fixed sample size, exact inclusion probabilities,
-all joint probabilities positive.}
-\item{\code{"brewer"}}{Brewer's draw-by-draw method.
-Fixed sample size, exact inclusion probabilities,
-all joint probabilities positive, order invariant.}
+\item{\code{"cps"}}{Conditional Poisson Sampling (maximum entropy design;
+Chen, Dempster & Liu, 1994). Fixed sample size, exact first-order
+inclusion probabilities. Joint inclusion probabilities are exact
+(computed from the CPS design matrix); all \eqn{\pi_{ij} > 0}.
+Complexity: O(N^2).}
+\item{\code{"brewer"}}{Brewer's (1963) draw-by-draw method. Fixed sample
+size, exact first-order inclusion probabilities. Joint inclusion
+probabilities are \emph{approximated} via the high-entropy
+approximation (see \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}). Complexity: O(Nn).}
 \item{\code{"systematic"}}{Systematic PPS sampling. Fixed sample size,
-O(N) time. Some joint probabilities may be zero.}
-\item{\code{"poisson"}}{Poisson sampling. Random sample size. Each unit
-selected independently with probability \eqn{\pi_k}.}
+exact first-order inclusion probabilities. Joint inclusion
+probabilities are exact but \strong{some may be zero} (pairs of
+units that can never co-occur in the same systematic sample).
+This makes the Sen-Yates-Grundy variance estimator inapplicable;
+see \code{\link[=sampling_cov]{sampling_cov()}}. Complexity: O(N).}
+\item{\code{"poisson"}}{Poisson sampling. \strong{Random} sample size
+(expected size \eqn{n = \sum \pi_k}). Each unit is selected
+independently with probability \eqn{\pi_k}, so joint inclusion
+probabilities are exact: \eqn{\pi_{ij} = \pi_i \pi_j}.
+Supports PRN for sample coordination. Complexity: O(N).}
 \item{\code{"sps"}}{Sequential Poisson Sampling (Ohlsson, 1998).
-Fixed sample size, high-entropy design. Supports permanent
-random numbers (PRN) for sample coordination.}
-\item{\code{"pareto"}}{Pareto sampling (Rosen, 1997). Fixed sample size,
-high-entropy design. Supports PRN for sample coordination.
-Uses the odds-ratio ranking function.}
+Implemented as order sampling (Rosen, 1997) with ranking key
+\eqn{\xi_k = u_k / \pi_k}: the \eqn{n} units with the smallest
+\eqn{\xi_k} are selected. This is equivalent to Ohlsson's
+sequential threshold adjustment. Fixed sample size, high-entropy
+design. Supports PRN for sample coordination. First-order
+inclusion probabilities are approximately (not exactly) equal
+to the target \code{pik} for finite populations; see
+\code{\link[=inclusion_prob]{inclusion_prob()}}. Joint inclusion probabilities are
+\emph{approximated} via the high-entropy approximation.
+Complexity: O(N log N).}
+\item{\code{"pareto"}}{Pareto sampling (Rosen, 1997). Order sampling
+with odds-ratio ranking key
+\eqn{\xi_k = [u_k/(1-u_k)] / [\pi_k/(1-\pi_k)]}. Fixed sample
+size, high-entropy design. Supports PRN for sample coordination.
+First-order inclusion probabilities are approximately (not
+exactly) equal to the target \code{pik} for finite populations; see
+\code{\link[=inclusion_prob]{inclusion_prob()}}. Joint inclusion probabilities are
+\emph{approximated} via the high-entropy approximation.
+Complexity: O(N log N).}
 }}
 
 \item{nrep}{Number of replicate samples (default 1). When \code{nrep > 1},
-returns a matrix (fixed-size) or list (random-size) instead of a
-design object.}
+\verb{$sample} holds a matrix (fixed-size) or list (random-size) of all
+replicates. The design object and all generics remain usable.}
 
 \item{prn}{Optional vector of permanent random numbers (length N,
 values in the open interval (0, 1)) for sample coordination.
@@ -49,10 +73,10 @@ When \code{NULL}, random numbers are generated internally.}
 boundary tolerance).}
 }
 \value{
-When \code{nrep = 1}: an object of class
-\code{c("unequal_prob", "wor", "sondage_sample")}.
-When \code{nrep > 1}: a matrix (n x nrep) for fixed-size methods,
-or a list of integer vectors for random-size methods.
+An object of class \code{c("unequal_prob", "wor", "sondage_sample")}.
+When \code{nrep = 1}, \verb{$sample} is an integer vector of selected unit indices.
+When \code{nrep > 1}, \verb{$sample} is a matrix (n x nrep) for fixed-size methods,
+or a list of integer vectors for random-size methods (\code{"poisson"}).
 }
 \description{
 Draws a sample with unequal inclusion probabilities, without replacement.

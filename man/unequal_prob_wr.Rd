@@ -20,9 +20,13 @@ selections per unit). Typically computed via \code{\link[=expected_hits]{expecte
 \item{method}{The sampling method:
 \describe{
 \item{\code{"chromy"}}{Chromy's (1979) sequential PPS with minimum
-replacement. Default method in SAS SURVEYSELECT.}
+replacement. Default method in SAS SURVEYSELECT. Pairwise
+expectations \eqn{E(n_i n_j)} are estimated by simulation;
+see \code{\link[=joint_expected_hits]{joint_expected_hits()}}. Complexity: O(N + n).}
 \item{\code{"multinomial"}}{Multinomial PPS (independent draws).
-Units can be selected any number of times.}
+Units can be selected any number of times. Pairwise expectations
+are exact: \eqn{E(n_i n_j) = n(n-1) p_i p_j}.
+Complexity: O(n).}
 }}
 
 \item{nrep}{Number of replicate samples (default 1).}
@@ -34,9 +38,10 @@ issued if provided.}
 \item{...}{Additional arguments passed to methods.}
 }
 \value{
-When \code{nrep = 1}: an object of class
-\code{c("unequal_prob", "wr", "sondage_sample")}.
-When \code{nrep > 1}: a matrix (n x nrep).
+An object of class \code{c("unequal_prob", "wr", "sondage_sample")}.
+When \code{nrep = 1}, \verb{$sample} is an integer vector and \verb{$hits} is an
+integer vector. When \code{nrep > 1}, \verb{$sample} is a matrix (n x nrep) and
+\verb{$hits} is a matrix (N x nrep).
 }
 \description{
 Draws a sample with unequal selection probabilities, with replacement

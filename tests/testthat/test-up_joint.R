@@ -183,7 +183,7 @@ test_that("sampling_cov works for WR designs", {
 # ---- sampling_cov scaled (SYG check) ----
 
 test_that("sampling_cov scaled returns correct matrix for WOR", {
-  pik <- c(0.2, 0.3, 0.5)
+  pik <- c(0.2, 0.4, 0.6, 0.8) # n = 2, all pi_ij > 0
   s <- unequal_prob_wor(pik, method = "cps")
   chk <- sampling_cov(s, scaled = TRUE)
   pikl <- joint_inclusion_prob(s)
@@ -191,6 +191,22 @@ test_that("sampling_cov scaled returns correct matrix for WOR", {
   expected <- 1 - outer(pik, pik) / pikl
   diag(expected) <- 1 - pik
   expect_equal(chk, expected, tolerance = 1e-10)
+})
+
+test_that("sampling_cov scaled warns and returns NA when pi_ij = 0", {
+  pik <- c(0.2, 0.3, 0.5) # n = 1, all off-diagonal pi_ij = 0
+  s <- unequal_prob_wor(pik, method = "cps")
+
+  expect_warning(
+    chk <- sampling_cov(s, scaled = TRUE),
+    "Sen-Yates-Grundy"
+  )
+
+  # diagonal is 1 - pik
+  expect_equal(diag(chk), 1 - pik)
+  # off-diagonal entries are NA
+  off_diag <- chk[row(chk) != col(chk)]
+  expect_true(all(is.na(off_diag)))
 })
 
 test_that("sampling_cov scaled off-diagonal is non-positive for high-entropy designs", {

@@ -25,7 +25,8 @@ Sen-Yates-Grundy variance estimator.}
 \value{
 A symmetric N x N matrix. For WOR designs with \code{scaled = FALSE},
 off-diagonal entries are typically negative for well-behaved designs.
-With \code{scaled = TRUE}, off-diagonal entries are typically non-positive.
+With \code{scaled = TRUE}, off-diagonal entries are typically non-positive
+(entries where \eqn{\pi_{ij} = 0} are set to \code{NA}).
 }
 \description{
 Computes the sampling covariance matrix used in variance estimation.
@@ -40,6 +41,32 @@ For with-replacement designs:
 When \code{scaled = TRUE}, returns the Sen-Yates-Grundy check quantities:
 \eqn{1 - \pi_i \pi_j / \pi_{ij}} for WOR,
 \eqn{1 - E(n_i) E(n_j) / E(n_i n_j)} for WR.
+
+\strong{Exact vs. approximate joint probabilities.}
+The accuracy of the covariance matrix depends on the accuracy of
+the underlying joint probabilities. For \code{cps}, \code{systematic}, \code{poisson},
+\code{srs}, and \code{bernoulli}, the joint probabilities are exact and so is
+the covariance matrix. For \code{brewer}, \code{sps}, and \code{pareto}, the joint
+probabilities are based on the high-entropy approximation, so the
+covariance matrix is also approximate. For \code{chromy}, the pairwise
+expectations are simulation-based (controlled by \code{nsim}).
+See \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} and \code{\link[=joint_expected_hits]{joint_expected_hits()}} for details.
+
+\strong{Zero joint inclusion probabilities.}
+Some designs (notably systematic PPS) can produce \eqn{\pi_{ij} = 0}
+for pairs of units that never co-occur in the same sample. When
+\code{scaled = TRUE}, the quantity \eqn{1 - \pi_i \pi_j / \pi_{ij}} is
+undefined for such pairs. These entries are set to \code{NA} and a
+warning is issued. The raw covariance (\code{scaled = FALSE}) is
+unaffected, since \eqn{\Delta_{ij} = 0 - \pi_i \pi_j} is finite.
+
+\strong{Implications for variance estimation.}
+The Sen-Yates-Grundy variance estimator requires all pairwise
+\eqn{\pi_{ij} > 0} in the observed sample. It is not applicable for
+designs with zero joint probabilities (a well-known limitation;
+see Tille, 2006, Ch. 5). Consider alternative variance estimators
+for such designs, e.g. successive-differences or Hartley-Rao
+approximations.
 }
 \examples{
 pik <- c(0.2, 0.3, 0.5)

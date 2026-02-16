@@ -63,21 +63,26 @@ test_that("cps is reproducible with set.seed", {
   expect_identical(idx1, idx2)
 })
 
-test_that("cps batch mode returns correct dimensions", {
+test_that("cps batch mode returns design object with matrix sample", {
   pik <- c(0.2, 0.4, 0.6, 0.8)
-  samples <- unequal_prob_wor(pik, method = "cps", nrep = 100)
+  s <- unequal_prob_wor(pik, method = "cps", nrep = 100)
 
-  expect_true(is.matrix(samples))
-  expect_equal(nrow(samples), 2)
-  expect_equal(ncol(samples), 100)
+  expect_s3_class(s, "sondage_sample")
+  expect_true(is.matrix(s$sample))
+  expect_equal(nrow(s$sample), 2)
+  expect_equal(ncol(s$sample), 100)
+  expect_equal(s$pik, pik)
+  expect_equal(s$method, "cps")
 })
 
 test_that("cps batch achieves correct inclusion probabilities", {
+  skip_on_cran()
   pik <- c(0.07, 0.17, 0.41, 0.61, 0.83, 0.91)
   N <- length(pik)
 
   set.seed(42)
-  samples <- unequal_prob_wor(pik, method = "cps", nrep = 5000)
+  s <- unequal_prob_wor(pik, method = "cps", nrep = 5000)
+  samples <- s$sample
 
   counts <- integer(N)
   for (j in 1:ncol(samples)) {
@@ -89,6 +94,7 @@ test_that("cps batch achieves correct inclusion probabilities", {
 })
 
 test_that("cps batch is faster than loop", {
+  skip_on_cran()
   pik <- c(0.07, 0.17, 0.41, 0.61, 0.83, 0.91)
   nrep <- 500
 

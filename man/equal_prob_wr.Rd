@@ -22,9 +22,10 @@ a warning is issued if provided.}
 \item{...}{Additional arguments passed to methods.}
 }
 \value{
-When \code{nrep = 1}: an object of class
-\code{c("equal_prob", "wr", "sondage_sample")}.
-When \code{nrep > 1}: a matrix (n x nrep).
+An object of class \code{c("equal_prob", "wr", "sondage_sample")}.
+When \code{nrep = 1}, \verb{$sample} is an integer vector and \verb{$hits} is an
+integer vector. When \code{nrep > 1}, \verb{$sample} is a matrix (n x nrep)
+and \verb{$hits} is a matrix (N x nrep).
 }
 \description{
 Draws a simple random sample with replacement.

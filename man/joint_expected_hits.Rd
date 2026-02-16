@@ -27,6 +27,19 @@ Computes the matrix of pairwise expectations \eqn{E(n_i n_j)} for a
 with-replacement sampling design, where \eqn{n_k} is the number of
 times unit \eqn{k} is selected.
 }
+\details{
+The computation depends on the sampling method:
+
+\describe{
+\item{Exact analytic}{\code{multinomial}
+(\eqn{E(n_i n_j) = n(n-1) p_i p_j}) and \code{srs}
+(\eqn{E(n_i n_j) = n(n-1)/N^2}).}
+\item{Simulation-based}{\code{chromy}: pairwise expectations are
+estimated by Monte Carlo simulation (controlled by the \code{nsim}
+parameter, default 10 000). Increase \code{nsim} for more precise
+estimates at the cost of computation time.}
+}
+}
 \examples{
 x <- c(40, 80, 50, 60, 70)
 hits <- expected_hits(x, n = 3)

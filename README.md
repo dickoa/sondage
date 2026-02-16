@@ -39,9 +39,10 @@ hits <- expected_hits(states$Population, n = 10)
 s <- unequal_prob_wr(hits, method = "chromy")
 joint_expected_hits(s, nsim = 10000)
 
-# Batch sampling for simulations (returns n x nrep matrix)
+# Batch sampling for simulations (design object with matrix $sample)
 sim <- unequal_prob_wor(pik, method = "cps", nrep = 10000)
-dim(sim)   # 10 x 10000
+dim(sim$sample)   # 10 x 10000
+inclusion_prob(sim) # generics still work
 ```
 
 ## Sampling functions
@@ -83,16 +84,18 @@ dim(sim)   # 10 x 10000
 
 ## Method comparison
 
-| Method         | Fixed n | Exact pi | All pi_kl > 0         | PRN support |
-|----------------|---------|----------|-----------------------|-------------|
-| `cps`          | yes     | yes      | yes                   | no          |
-| `brewer`       | yes     | yes      | yes                   | no          |
-| `systematic`   | yes     | yes      | no                    | no          |
-| `poisson`      | no      | yes      | yes                   | yes         |
-| `sps`          | yes     | yes      | yes                   | yes         |
-| `pareto`       | yes     | yes      | yes                   | yes         |
-| `multinomial`  | yes     | --       | yes (with replacement)| no          |
-| `chromy`       | yes     | yes      | yes                   | no          |
+| Method         | Fixed n | Exact pi_i | Exact pi_ij      | PRN support |
+|----------------|---------|------------|------------------|-------------|
+| `cps`          | yes     | yes        | yes              | no          |
+| `brewer`       | yes     | yes        | approx (HE)     | no          |
+| `systematic`   | yes     | yes        | yes (some = 0)   | no          |
+| `poisson`      | no      | yes        | yes (independent)| yes         |
+| `sps`          | yes     | approx*    | approx (HE)     | yes         |
+| `pareto`       | yes     | approx*    | approx (HE)     | yes         |
+| `multinomial`  | yes     | yes        | yes (analytic)   | no          |
+| `chromy`       | yes     | yes        | simulated        | no          |
+
+*approx = target probabilities, exact asymptotically. HE = high-entropy approximation.
 
 ## References
 

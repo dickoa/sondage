@@ -6,26 +6,50 @@
 #'   For fixed-size methods, `sum(pik)` must be close to an integer.
 #' @param method The sampling method:
 #'   \describe{
-#'     \item{`"cps"`}{Conditional Poisson Sampling (maximum entropy).
-#'       Fixed sample size, exact inclusion probabilities,
-#'       all joint probabilities positive.}
-#'     \item{`"brewer"`}{Brewer's draw-by-draw method.
-#'       Fixed sample size, exact inclusion probabilities,
-#'       all joint probabilities positive, order invariant.}
+#'     \item{`"cps"`}{Conditional Poisson Sampling (maximum entropy design;
+#'       Chen, Dempster & Liu, 1994). Fixed sample size, exact first-order
+#'       inclusion probabilities. Joint inclusion probabilities are exact
+#'       (computed from the CPS design matrix); all \eqn{\pi_{ij} > 0}.
+#'       Complexity: O(N^2).}
+#'     \item{`"brewer"`}{Brewer's (1963) draw-by-draw method. Fixed sample
+#'       size, exact first-order inclusion probabilities. Joint inclusion
+#'       probabilities are \emph{approximated} via the high-entropy
+#'       approximation (see [joint_inclusion_prob()]). Complexity: O(Nn).}
 #'     \item{`"systematic"`}{Systematic PPS sampling. Fixed sample size,
-#'       O(N) time. Some joint probabilities may be zero.}
-#'     \item{`"poisson"`}{Poisson sampling. Random sample size. Each unit
-#'       selected independently with probability \eqn{\pi_k}.}
+#'       exact first-order inclusion probabilities. Joint inclusion
+#'       probabilities are exact but \strong{some may be zero} (pairs of
+#'       units that can never co-occur in the same systematic sample).
+#'       This makes the Sen-Yates-Grundy variance estimator inapplicable;
+#'       see [sampling_cov()]. Complexity: O(N).}
+#'     \item{`"poisson"`}{Poisson sampling. \strong{Random} sample size
+#'       (expected size \eqn{n = \sum \pi_k}). Each unit is selected
+#'       independently with probability \eqn{\pi_k}, so joint inclusion
+#'       probabilities are exact: \eqn{\pi_{ij} = \pi_i \pi_j}.
+#'       Supports PRN for sample coordination. Complexity: O(N).}
 #'     \item{`"sps"`}{Sequential Poisson Sampling (Ohlsson, 1998).
-#'       Fixed sample size, high-entropy design. Supports permanent
-#'       random numbers (PRN) for sample coordination.}
-#'     \item{`"pareto"`}{Pareto sampling (Rosen, 1997). Fixed sample size,
-#'       high-entropy design. Supports PRN for sample coordination.
-#'       Uses the odds-ratio ranking function.}
+#'       Implemented as order sampling (Rosen, 1997) with ranking key
+#'       \eqn{\xi_k = u_k / \pi_k}: the \eqn{n} units with the smallest
+#'       \eqn{\xi_k} are selected. This is equivalent to Ohlsson's
+#'       sequential threshold adjustment. Fixed sample size, high-entropy
+#'       design. Supports PRN for sample coordination. First-order
+#'       inclusion probabilities are approximately (not exactly) equal
+#'       to the target `pik` for finite populations; see
+#'       [inclusion_prob()]. Joint inclusion probabilities are
+#'       \emph{approximated} via the high-entropy approximation.
+#'       Complexity: O(N log N).}
+#'     \item{`"pareto"`}{Pareto sampling (Rosen, 1997). Order sampling
+#'       with odds-ratio ranking key
+#'       \eqn{\xi_k = [u_k/(1-u_k)] / [\pi_k/(1-\pi_k)]}. Fixed sample
+#'       size, high-entropy design. Supports PRN for sample coordination.
+#'       First-order inclusion probabilities are approximately (not
+#'       exactly) equal to the target `pik` for finite populations; see
+#'       [inclusion_prob()]. Joint inclusion probabilities are
+#'       \emph{approximated} via the high-entropy approximation.
+#'       Complexity: O(N log N).}
 #'   }
 #' @param nrep Number of replicate samples (default 1). When `nrep > 1`,
-#'   returns a matrix (fixed-size) or list (random-size) instead of a
-#'   design object.
+#'   `$sample` holds a matrix (fixed-size) or list (random-size) of all
+#'   replicates. The design object and all generics remain usable.
 #' @param prn Optional vector of permanent random numbers (length N,
 #'   values in the open interval (0, 1)) for sample coordination.
 #'   Supported by methods `"sps"`, `"pareto"`, and `"poisson"`.
@@ -33,10 +57,10 @@
 #' @param ... Additional arguments passed to methods (e.g., `eps` for
 #'   boundary tolerance).
 #'
-#' @return When `nrep = 1`: an object of class
-#'   `c("unequal_prob", "wor", "sondage_sample")`.
-#'   When `nrep > 1`: a matrix (n x nrep) for fixed-size methods,
-#'   or a list of integer vectors for random-size methods.
+#' @return An object of class `c("unequal_prob", "wor", "sondage_sample")`.
+#'   When `nrep = 1`, `$sample` is an integer vector of selected unit indices.
+#'   When `nrep > 1`, `$sample` is a matrix (n x nrep) for fixed-size methods,
+#'   or a list of integer vectors for random-size methods (`"poisson"`).
 #'
 #' @references
 #' Chen, S. X., Dempster, A. P., & Liu, J. S. (1994). Weighted finite
@@ -130,9 +154,13 @@ unequal_prob_wor <- function(
 #' @param method The sampling method:
 #'   \describe{
 #'     \item{`"chromy"`}{Chromy's (1979) sequential PPS with minimum
-#'       replacement. Default method in SAS SURVEYSELECT.}
+#'       replacement. Default method in SAS SURVEYSELECT. Pairwise
+#'       expectations \eqn{E(n_i n_j)} are estimated by simulation;
+#'       see [joint_expected_hits()]. Complexity: O(N + n).}
 #'     \item{`"multinomial"`}{Multinomial PPS (independent draws).
-#'       Units can be selected any number of times.}
+#'       Units can be selected any number of times. Pairwise expectations
+#'       are exact: \eqn{E(n_i n_j) = n(n-1) p_i p_j}.
+#'       Complexity: O(n).}
 #'   }
 #' @param nrep Number of replicate samples (default 1).
 #' @param prn Optional vector of permanent random numbers for sample
@@ -140,9 +168,10 @@ unequal_prob_wor <- function(
 #'   issued if provided.
 #' @param ... Additional arguments passed to methods.
 #'
-#' @return When `nrep = 1`: an object of class
-#'   `c("unequal_prob", "wr", "sondage_sample")`.
-#'   When `nrep > 1`: a matrix (n x nrep).
+#' @return An object of class `c("unequal_prob", "wr", "sondage_sample")`.
+#'   When `nrep = 1`, `$sample` is an integer vector and `$hits` is an
+#'   integer vector. When `nrep > 1`, `$sample` is a matrix (n x nrep) and
+#'   `$hits` is a matrix (N x nrep).
 #'
 #' @references
 #' Chromy, J.R. (1979). Sequential sample selection methods.
@@ -388,48 +417,73 @@ unequal_prob_wr <- function(
 
 #' @noRd
 .batch_wor <- function(pik, method, nrep, prn, ...) {
+  N <- length(pik)
+  n <- sum(pik)
+  fixed_size <- method != "poisson"
+
   if (method == "cps") {
     eps <- list(...)$eps
-    if (is.null(eps)) {
-      eps <- 1e-06
-    }
+    if (is.null(eps)) eps <- 1e-06
     design <- .Call(C_cps_design, as.double(pik), as.double(eps))
-    return(.Call(C_cps_draw_batch, design, as.integer(nrep)))
-  }
-
-  if (method == "poisson") {
-    return(lapply(seq_len(nrep), function(i) {
+    sample_data <- .Call(C_cps_draw_batch, design, as.integer(nrep))
+  } else if (method == "poisson") {
+    sample_data <- lapply(seq_len(nrep), function(i) {
       .poisson_pps_sample(pik, prn = prn, ...)$sample
-    }))
+    })
+  } else {
+    n_int <- as.integer(round(n))
+    mat <- matrix(0L, n_int, nrep)
+    draw_fn <- switch(
+      method,
+      brewer = .brewer_sample,
+      systematic = .systematic_pps_sample,
+      sps = .sps_sample,
+      pareto = .pareto_sample
+    )
+    for (i in seq_len(nrep)) {
+      mat[, i] <- draw_fn(pik, prn = prn, ...)$sample
+    }
+    sample_data <- mat
   }
 
-  # Fixed-size methods: return matrix
-  n <- as.integer(round(sum(pik)))
-  mat <- matrix(0L, n, nrep)
-  draw_fn <- switch(
-    method,
-    brewer = .brewer_sample,
-    systematic = .systematic_pps_sample,
-    sps = .sps_sample,
-    pareto = .pareto_sample
+  .new_wor_sample(
+    sample = sample_data,
+    pik = pik,
+    n = n,
+    N = N,
+    method = method,
+    fixed_size = fixed_size,
+    prob_class = "unequal_prob"
   )
-  for (i in seq_len(nrep)) {
-    mat[, i] <- draw_fn(pik, prn = prn, ...)$sample
-  }
-  mat
 }
 
 #' @noRd
 .batch_wr <- function(hits, method, nrep, prn, ...) {
   n <- check_integer(sum(hits), "sum(hits)")
-  mat <- matrix(0L, n, nrep)
+  N <- length(hits)
+  prob <- hits / sum(hits)
+
+  sample_mat <- matrix(0L, n, nrep)
+  hits_mat <- matrix(0L, N, nrep)
   draw_fn <- switch(
     method,
     chromy = .chromy_sample,
     multinomial = .multinomial_sample
   )
   for (i in seq_len(nrep)) {
-    mat[, i] <- draw_fn(hits, ...)$sample
+    d <- draw_fn(hits, ...)
+    sample_mat[, i] <- d$sample
+    hits_mat[, i] <- d$hits
   }
-  mat
+
+  .new_wr_sample(
+    sample = sample_mat,
+    prob = prob,
+    hits = hits_mat,
+    n = n,
+    N = N,
+    method = method,
+    fixed_size = TRUE,
+    prob_class = "unequal_prob"
+  )
 }

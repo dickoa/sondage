@@ -9,7 +9,14 @@
 #'   ignored when `x` is a design object.
 #' @param ... Additional arguments (currently unused).
 #'
-#' @return A numeric vector of inclusion probabilities.
+#' @return A numeric vector of inclusion probabilities. When applied to a
+#'   design object, returns the \strong{target} inclusion probabilities
+#'   (i.e., the `pik` vector passed to [unequal_prob_wor()]). For most
+#'   methods (`cps`, `brewer`, `systematic`, `poisson`), these are the
+#'   exact first-order inclusion probabilities of the design. For order
+#'   sampling methods (`sps`, `pareto`), the true first-order inclusion
+#'   probabilities are approximately but not exactly equal to the target
+#'   for finite populations; the discrepancy vanishes as N grows.
 #'
 #' @seealso [expected_hits()] for the with-replacement analogue,
 #'   [unequal_prob_wor()] for sampling with these probabilities.
@@ -104,6 +111,28 @@ expected_hits.wr <- function(x, ...) x$n * x$prob
 #' @param ... Additional arguments passed to methods (e.g., `eps`
 #'   for boundary tolerance).
 #'
+#' @details
+#' The computation depends on the sampling method stored in the design
+#' object. Not all methods yield exact joint probabilities:
+#'
+#' \describe{
+#'   \item{Exact}{`cps` (from the CPS design matrix), `systematic`
+#'     (combinatorial enumeration via C code), `poisson`
+#'     (\eqn{\pi_{ij} = \pi_i \pi_j}, independent selections),
+#'     `srs`, and `bernoulli`.}
+#'   \item{Approximation}{`brewer`, `sps`, and `pareto` use the
+#'     \strong{high-entropy approximation}:
+#'     \eqn{\pi_{ij} \approx \pi_i \pi_j
+#'       (1 - (1-\pi_i)(1-\pi_j) / \sum_k \pi_k(1-\pi_k))}.
+#'     This is very accurate for these high-entropy designs
+#'     (Hajek, 1964; Brewer & Donadio, 2003).}
+#' }
+#'
+#' For \strong{systematic PPS} sampling, some off-diagonal entries may be
+#' exactly zero (pairs of units that can never co-occur in the same
+#' systematic sample). This has consequences for variance estimation;
+#' see [sampling_cov()].
+#'
 #' @return A symmetric N x N matrix of joint inclusion probabilities.
 #'   Diagonal entries are the first-order inclusion probabilities
 #'   \eqn{\pi_i}.
@@ -170,6 +199,19 @@ joint_inclusion_prob.wor <- function(x, eps = 1e-6, ...) {
 #' @param x A with-replacement design object (class `"wr"`).
 #' @param ... Additional arguments passed to methods (e.g., `nsim`
 #'   for simulation-based methods).
+#'
+#' @details
+#' The computation depends on the sampling method:
+#'
+#' \describe{
+#'   \item{Exact analytic}{`multinomial`
+#'     (\eqn{E(n_i n_j) = n(n-1) p_i p_j}) and `srs`
+#'     (\eqn{E(n_i n_j) = n(n-1)/N^2}).}
+#'   \item{Simulation-based}{`chromy`: pairwise expectations are
+#'     estimated by Monte Carlo simulation (controlled by the `nsim`
+#'     parameter, default 10 000). Increase `nsim` for more precise
+#'     estimates at the cost of computation time.}
+#' }
 #'
 #' @return A symmetric N x N matrix. Diagonal entries are
 #'   \eqn{E(n_i^2)} and off-diagonal entries are \eqn{E(n_i n_j)}.
@@ -245,9 +287,37 @@ joint_expected_hits.wr <- function(x, nsim = 10000L, ...) {
 #' @param ... Additional arguments passed to [joint_inclusion_prob()] or
 #'   [joint_expected_hits()].
 #'
+#' @details
+#' \strong{Exact vs. approximate joint probabilities.}
+#' The accuracy of the covariance matrix depends on the accuracy of
+#' the underlying joint probabilities. For `cps`, `systematic`, `poisson`,
+#' `srs`, and `bernoulli`, the joint probabilities are exact and so is
+#' the covariance matrix. For `brewer`, `sps`, and `pareto`, the joint
+#' probabilities are based on the high-entropy approximation, so the
+#' covariance matrix is also approximate. For `chromy`, the pairwise
+#' expectations are simulation-based (controlled by `nsim`).
+#' See [joint_inclusion_prob()] and [joint_expected_hits()] for details.
+#'
+#' \strong{Zero joint inclusion probabilities.}
+#' Some designs (notably systematic PPS) can produce \eqn{\pi_{ij} = 0}
+#' for pairs of units that never co-occur in the same sample. When
+#' `scaled = TRUE`, the quantity \eqn{1 - \pi_i \pi_j / \pi_{ij}} is
+#' undefined for such pairs. These entries are set to `NA` and a
+#' warning is issued. The raw covariance (`scaled = FALSE`) is
+#' unaffected, since \eqn{\Delta_{ij} = 0 - \pi_i \pi_j} is finite.
+#'
+#' \strong{Implications for variance estimation.}
+#' The Sen-Yates-Grundy variance estimator requires all pairwise
+#' \eqn{\pi_{ij} > 0} in the observed sample. It is not applicable for
+#' designs with zero joint probabilities (a well-known limitation;
+#' see Tille, 2006, Ch. 5). Consider alternative variance estimators
+#' for such designs, e.g. successive-differences or Hartley-Rao
+#' approximations.
+#'
 #' @return A symmetric N x N matrix. For WOR designs with `scaled = FALSE`,
 #'   off-diagonal entries are typically negative for well-behaved designs.
-#'   With `scaled = TRUE`, off-diagonal entries are typically non-positive.
+#'   With `scaled = TRUE`, off-diagonal entries are typically non-positive
+#'   (entries where \eqn{\pi_{ij} = 0} are set to `NA`).
 #'
 #' @references
 #' Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson
@@ -274,7 +344,20 @@ sampling_cov.wor <- function(x, scaled = FALSE, ...) {
   pikl <- joint_inclusion_prob(x, ...)
   pik <- x$pik
   if (scaled) {
-    m <- 1 - outer(pik, pik) / pikl
+    pip <- outer(pik, pik)
+    zero <- pikl == 0 & pip > 0
+    if (any(zero[lower.tri(zero)])) {
+      warning(
+        "Some joint inclusion probabilities are zero while marginal ",
+        "probabilities are positive. The Sen-Yates-Grundy variance ",
+        "estimator is not applicable for this design (e.g. systematic ",
+        "sampling). Affected entries are set to NA. Consider using an ",
+        "approximation-based variance estimator instead.",
+        call. = FALSE
+      )
+    }
+    m <- 1 - pip / pikl
+    m[zero] <- NA_real_
     diag(m) <- 1 - pik
     m
   } else {

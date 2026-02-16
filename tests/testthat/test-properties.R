@@ -16,13 +16,14 @@ nrep <- 10000 # simulation reps
 
 # ---- Property 1: HT estimator unbiasedness ----
 test_that("HT estimator is unbiased for fixed-size WOR methods", {
+  skip_on_cran()
   y <- c(10, 25, 15, 50)
   Y <- sum(y)
 
   for (method in wor_methods) {
     set.seed(42)
     sim <- unequal_prob_wor(pik4, method = method, nrep = nrep)
-    ht_estimates <- apply(sim, 2, function(s) sum(y[s] / pik4[s]))
+    ht_estimates <- apply(sim$sample, 2, function(s) sum(y[s] / pik4[s]))
     expect_equal(
       mean(ht_estimates),
       Y,
@@ -33,13 +34,14 @@ test_that("HT estimator is unbiased for fixed-size WOR methods", {
 })
 
 test_that("HT estimator is unbiased for Poisson sampling", {
+  skip_on_cran()
   y <- c(10, 25, 15, 50)
   Y <- sum(y)
 
   set.seed(42)
   sim <- unequal_prob_wor(pik4, method = "poisson", nrep = nrep)
   ht_estimates <- vapply(
-    sim,
+    sim$sample,
     function(s) {
       if (length(s) == 0) {
         return(0)
@@ -52,6 +54,7 @@ test_that("HT estimator is unbiased for Poisson sampling", {
 })
 
 test_that("HT estimator is unbiased for equal probability WOR", {
+  skip_on_cran()
   N <- 20L
   n <- 5L
   y <- seq_len(N)
@@ -59,13 +62,14 @@ test_that("HT estimator is unbiased for equal probability WOR", {
 
   set.seed(42)
   sim <- equal_prob_wor(N, n, method = "srs", nrep = nrep)
-  ht_estimates <- apply(sim, 2, function(s) sum(y[s]) * N / n)
+  ht_estimates <- apply(sim$sample, 2, function(s) sum(y[s]) * N / n)
   expect_equal(mean(ht_estimates), Y, tolerance = 0.05 * Y)
 })
 
 
 # ---- Property 2: Generalized HT unbiasedness for WR designs ----
 test_that("Generalized HT estimator is unbiased for WR methods", {
+  skip_on_cran()
   y <- c(10, 25, 15, 50, 35)
   Y <- sum(y)
   n <- round(sum(hits5))
@@ -74,7 +78,7 @@ test_that("Generalized HT estimator is unbiased for WR methods", {
   for (method in c("chromy", "multinomial")) {
     set.seed(42)
     sim <- unequal_prob_wr(hits5, method = method, nrep = nrep)
-    ht_estimates <- apply(sim, 2, function(s) {
+    ht_estimates <- apply(sim$sample, 2, function(s) {
       sum(y[s] / (n * prob[s]))
     })
     expect_equal(
@@ -149,39 +153,36 @@ test_that("All joint probabilities positive for CPS and Brewer (n >= 2)", {
 
 # ---- Property 7: Variance of sample size ----
 test_that("Sample size is constant for fixed-size methods", {
+  skip_on_cran()
   set.seed(42)
   sim_cps <- unequal_prob_wor(pik4, method = "cps", nrep = 500)
-  expect_true(nrow(sim_cps) == round(sum(pik4)))
+  expect_true(nrow(sim_cps$sample) == round(sum(pik4)))
 
   sim_brewer <- unequal_prob_wor(pik4, method = "brewer", nrep = 500)
-  expect_true(nrow(sim_brewer) == round(sum(pik4)))
+  expect_true(nrow(sim_brewer$sample) == round(sum(pik4)))
 
   sim_chromy <- unequal_prob_wr(hits5, method = "chromy", nrep = 500)
-  expect_true(nrow(sim_chromy) == round(sum(hits5)))
+  expect_true(nrow(sim_chromy$sample) == round(sum(hits5)))
 })
 
 test_that("Poisson has variable sample size", {
+  skip_on_cran()
   set.seed(42)
-  sizes <- vapply(
-    unequal_prob_wor(pik4, method = "poisson", nrep = 1000),
-    length,
-    integer(1)
-  )
+  sim <- unequal_prob_wor(pik4, method = "poisson", nrep = 1000)
+  sizes <- lengths(sim$sample)
   expect_true(var(sizes) > 0)
   expect_equal(mean(sizes), sum(pik4), tolerance = 0.1)
 })
 
 test_that("Bernoulli sample size variance matches N*p*(1-p)", {
+  skip_on_cran()
   N <- 100L
   n <- 30L
   p <- n / N
 
   set.seed(42)
-  sizes <- vapply(
-    equal_prob_wor(N, n, method = "bernoulli", nrep = 5000),
-    length,
-    integer(1)
-  )
+  sim <- equal_prob_wor(N, n, method = "bernoulli", nrep = 5000)
+  sizes <- lengths(sim$sample)
   expect_equal(var(sizes), N * p * (1 - p), tolerance = 2)
   expect_equal(mean(sizes), n, tolerance = 1)
 })
@@ -243,6 +244,7 @@ test_that("Multinomial covariance matches known formula", {
 
 # ---- Property 11: SRS known variance formula ----
 test_that("SRS HT variance matches formula", {
+  skip_on_cran()
   N <- 20L
   n <- 5L
   y <- seq_len(N)

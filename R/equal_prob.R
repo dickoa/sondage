@@ -17,17 +17,17 @@
 #'       independently with probability `p = n/N`. Random sample size.}
 #'   }
 #' @param nrep Number of replicate samples (default 1). When `nrep > 1`,
-#'   returns a matrix (fixed-size) or list (random-size) instead of a
-#'   design object.
+#'   `$sample` holds a matrix (fixed-size) or list (random-size) of all
+#'   replicates. The design object and all generics remain usable.
 #' @param prn Optional vector of permanent random numbers (length N,
 #'   values in the open interval (0, 1)) for sample coordination.
 #'   Only supported by `"bernoulli"` method.
 #' @param ... Additional arguments passed to methods.
 #'
-#' @return When `nrep = 1`: an object of class
-#'   `c("equal_prob", "wor", "sondage_sample")`.
-#'   When `nrep > 1`: a matrix (n x nrep) for fixed-size methods,
-#'   or a list of integer vectors for Bernoulli sampling.
+#' @return An object of class `c("equal_prob", "wor", "sondage_sample")`.
+#'   When `nrep = 1`, `$sample` is an integer vector. When `nrep > 1`,
+#'   `$sample` is a matrix (n x nrep) for fixed-size methods, or a list
+#'   of integer vectors for `"bernoulli"`.
 #'
 #' @seealso [equal_prob_wr()] for with-replacement designs,
 #'   [unequal_prob_wor()] for unequal probability designs.
@@ -92,9 +92,10 @@ equal_prob_wor <- function(
 #'   a warning is issued if provided.
 #' @param ... Additional arguments passed to methods.
 #'
-#' @return When `nrep = 1`: an object of class
-#'   `c("equal_prob", "wr", "sondage_sample")`.
-#'   When `nrep > 1`: a matrix (n x nrep).
+#' @return An object of class `c("equal_prob", "wr", "sondage_sample")`.
+#'   When `nrep = 1`, `$sample` is an integer vector and `$hits` is an
+#'   integer vector. When `nrep > 1`, `$sample` is a matrix (n x nrep)
+#'   and `$hits` is a matrix (N x nrep).
 #'
 #' @seealso [equal_prob_wor()] for without-replacement designs,
 #'   [unequal_prob_wr()] for unequal probability designs.
@@ -251,32 +252,63 @@ equal_prob_wr <- function(N, n, method = c("srs"), nrep = 1L, prn = NULL, ...) {
 
 #' @noRd
 .batch_ep_wor <- function(N, n, method, nrep, prn, ...) {
+  N_int <- check_integer(N, "N")
+  fixed_size <- method != "bernoulli"
+
   if (method == "bernoulli") {
-    return(lapply(seq_len(nrep), function(i) {
+    p <- n / N_int
+    sample_data <- lapply(seq_len(nrep), function(i) {
       .bernoulli_sample(N, n, prn = prn, ...)$sample
-    }))
+    })
+    pik <- rep(p, N_int)
+  } else {
+    n_int <- check_integer(n, "n")
+    mat <- matrix(0L, n_int, nrep)
+    draw_fn <- switch(
+      method,
+      srs = .srs_wor_sample,
+      systematic = .systematic_ep_sample
+    )
+    for (i in seq_len(nrep)) {
+      mat[, i] <- draw_fn(N, n, ...)$sample
+    }
+    sample_data <- mat
+    pik <- rep(n_int / N_int, N_int)
   }
 
-  # Fixed-size methods: return matrix
-  n_int <- check_integer(n, "n")
-  mat <- matrix(0L, n_int, nrep)
-  draw_fn <- switch(
-    method,
-    srs = .srs_wor_sample,
-    systematic = .systematic_ep_sample
+  .new_wor_sample(
+    sample = sample_data,
+    pik = pik,
+    n = n,
+    N = N_int,
+    method = method,
+    fixed_size = fixed_size,
+    prob_class = "equal_prob"
   )
-  for (i in seq_len(nrep)) {
-    mat[, i] <- draw_fn(N, n, ...)$sample
-  }
-  mat
 }
 
 #' @noRd
 .batch_ep_wr <- function(N, n, method, nrep, prn, ...) {
+  N_int <- check_integer(N, "N")
   n_int <- check_integer(n, "n")
-  mat <- matrix(0L, n_int, nrep)
+  prob <- rep(1 / N_int, N_int)
+
+  sample_mat <- matrix(0L, n_int, nrep)
+  hits_mat <- matrix(0L, N_int, nrep)
   for (i in seq_len(nrep)) {
-    mat[, i] <- .srs_wr_sample(N, n, ...)$sample
+    d <- .srs_wr_sample(N, n, ...)
+    sample_mat[, i] <- d$sample
+    hits_mat[, i] <- d$hits
   }
-  mat
+
+  .new_wr_sample(
+    sample = sample_mat,
+    prob = prob,
+    hits = hits_mat,
+    n = n_int,
+    N = N_int,
+    method = "srs",
+    fixed_size = TRUE,
+    prob_class = "equal_prob"
+  )
 }

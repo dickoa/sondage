@@ -14,9 +14,9 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup, echo = FALSE}
+```{r setup}
 library(sondage)
-set.seed(123)
+set.seed(42)
 ```
 
 ## Overview
@@ -42,7 +42,6 @@ The simplest case: draw `n` units from a population of size `N` with equal
 probabilities.
 
 ```{r}
-library(sondage)
 s <- equal_prob_wor(N = 50, n = 5)
 s
 ```
@@ -188,13 +187,119 @@ sampling_cov(s, scaled = TRUE)
 ## Batch sampling
 
 All four dispatchers accept an `nrep` parameter for drawing multiple
-independent samples in one call, useful for simulation studies:
+independent samples in one call, useful for simulation studies. The result
+is always a design object --- the same class as `nrep = 1` --- but with
+`$sample` holding all replicates:
 
 ```{r}
 sim <- equal_prob_wor(N = 50, n = 5, nrep = 4)
-dim(sim)  # 5 x 4 matrix: each column is one sample
-sim
+sim  # design object
+dim(sim$sample)  # 5 x 4 matrix: each column is one sample
+
+# Generics still work on batch objects
+inclusion_prob(sim)
 ```
 
-For fixed-size designs the result is a matrix (`n x nrep`). For random-size
-designs (Bernoulli, Poisson) it is a list of integer vectors.
+For fixed-size designs `$sample` is a matrix (`n x nrep`). For random-size
+designs (Bernoulli, Poisson) it is a list of integer vectors, and realized
+sample sizes are available via `lengths(sim$sample)`.
+
+## Design properties and statistical guarantees
+
+The table below summarises what **sondage** computes for each method.
+Understanding these properties is essential for choosing the right
+variance estimator.
+
+```{r, echo = FALSE}
+props <- data.frame(
+  Method = c(
+    "SRS WOR", "Systematic (EP)", "Bernoulli",
+    "SRS WR",
+    "CPS", "Brewer", "Systematic PPS", "Poisson",
+    "SPS", "Pareto",
+    "Chromy", "Multinomial"
+  ),
+  Type = c(
+    rep("EP WOR", 3), "EP WR",
+    rep("UP WOR", 6),
+    rep("UP WR", 2)
+  ),
+  `Fixed n` = c(
+    "Yes", "Yes", "No",
+    "Yes",
+    "Yes", "Yes", "Yes", "No",
+    "Yes", "Yes",
+    "Yes", "Yes"
+  ),
+  `Exact 1st order` = c(
+    "Yes", "Yes", "Yes",
+    "Yes",
+    "Yes", "Yes", "Yes", "Yes",
+    "Approx*", "Approx*",
+    "Yes", "Yes"
+  ),
+  `Joint probs` = c(
+    "Exact", "SRS approx", "Exact",
+    "Exact",
+    "Exact", "HE approx", "Exact (zeros)", "Exact",
+    "HE approx", "HE approx",
+    "Simulated", "Exact"
+  ),
+  check.names = FALSE
+)
+knitr::kable(props, align = "llccl",
+  caption = paste(
+    "HE approx = high-entropy (Hajek) approximation.",
+    "Approx* = target probabilities, exact asymptotically.",
+    "SRS approx = treated as SRS (see text).",
+    "Simulated = Monte Carlo via nsim parameter."
+  )
+)
+```
+
+### Notes on specific methods
+
+**Equal-probability systematic sampling.** In **sondage**, `joint_inclusion_prob()`
+returns the SRS formula $\pi_{ij} = n(n-1)/[N(N-1)]$ for this design.
+This is appropriate when the frame order is unrelated to the study variable
+(effectively random). For frames with structure, the true joint probabilities
+depend on the ordering and some may be zero; in that case, consider
+replication or successive-differences variance estimators.
+
+**SPS and Pareto (order sampling).** Both are implemented via Rosen's (1997)
+order sampling framework. SPS uses ranking key $\xi_k = u_k / \pi_k$
+(equivalent to Ohlsson's 1998 sequential threshold adjustment); Pareto uses
+$\xi_k = [u_k/(1-u_k)] / [\pi_k/(1-\pi_k)]$. The $n$ units with the
+smallest $\xi_k$ are selected. First-order inclusion probabilities are
+approximately (not exactly) equal to the target $\pi_k$ for finite
+populations; the discrepancy vanishes as $N$ grows. Both support permanent
+random numbers (PRN) for sample coordination.
+
+**Systematic PPS.** Joint inclusion probabilities are exact (computed via
+C code) but some $\pi_{ij}$ are structurally zero --- pairs of units that
+can never co-occur. `sampling_cov(s, scaled = TRUE)` returns `NA` for
+those entries and issues a warning, because the SYG estimator is undefined
+for such pairs. Consider successive-differences, Hartley--Rao, or
+replication methods instead.
+
+**Chromy.** Pairwise expectations $E(n_i n_j)$ are estimated by Monte Carlo
+simulation in `joint_expected_hits()` (controlled by `nsim`, default 10 000).
+
+### Choosing a variance strategy
+
+- **SYG with exact $\pi_{ij}$**: CPS and SRS WOR provide exact joint
+  probabilities, so the Sen-Yates-Grundy variance estimator is unbiased.
+- **SYG with approximate $\pi_{ij}$**: For Brewer, SPS, and Pareto,
+  joint probabilities use the high-entropy approximation. The resulting
+  SYG estimate is very accurate but not exactly unbiased (Hajek, 1964;
+  Brewer & Donadio, 2003).
+- **Independent designs** (Poisson, Bernoulli): The covariance
+  $\Delta_{ij} = 0$ for $i \neq j$, so the variance simplifies to
+  $\text{Var}(\hat{Y}_{HT}) = \sum_i (1 - \pi_i)\, y_i^2 / \pi_i$.
+- **Systematic designs with $\pi_{ij} = 0$**: The SYG estimator is
+  undefined. Use successive-differences, Hartley--Rao approximations,
+  or replication methods.
+- **With-replacement designs** (Chromy, multinomial): Use the
+  Hansen--Hurwitz estimator, or the generalised HT framework of
+  Chromy (2009) which unifies WOR and WR variance estimation via
+  `sampling_cov()`.

@@ -1,7 +1,7 @@
 Package: sondage
 Type: Package
 Title: Survey Sampling Algorithms
-Version: 0.1.9999
+Version: 0.2.9999
 Authors@R: person(given = "Ahmadou",
                   family = "Dicko",
 	          email = "mail@ahmadoudicko.com",

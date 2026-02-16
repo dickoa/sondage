@@ -28,6 +28,28 @@ Computes the matrix of joint inclusion probabilities
 \eqn{\pi_{ij} = P(i \in S \text{ and } j \in S)} for a
 without-replacement sampling design.
 }
+\details{
+The computation depends on the sampling method stored in the design
+object. Not all methods yield exact joint probabilities:
+
+\describe{
+\item{Exact}{\code{cps} (from the CPS design matrix), \code{systematic}
+(combinatorial enumeration via C code), \code{poisson}
+(\eqn{\pi_{ij} = \pi_i \pi_j}, independent selections),
+\code{srs}, and \code{bernoulli}.}
+\item{Approximation}{\code{brewer}, \code{sps}, and \code{pareto} use the
+\strong{high-entropy approximation}:
+\eqn{\pi_{ij} \approx \pi_i \pi_j
+      (1 - (1-\pi_i)(1-\pi_j) / \sum_k \pi_k(1-\pi_k))}.
+This is very accurate for these high-entropy designs
+(Hajek, 1964; Brewer & Donadio, 2003).}
+}
+
+For \strong{systematic PPS} sampling, some off-diagonal entries may be
+exactly zero (pairs of units that can never co-occur in the same
+systematic sample). This has consequences for variance estimation;
+see \code{\link[=sampling_cov]{sampling_cov()}}.
+}
 \examples{
 pik <- c(0.2, 0.3, 0.5)
 s <- unequal_prob_wor(pik, method = "cps")

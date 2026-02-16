@@ -8,7 +8,8 @@
 #' @section Unequal Probability Sampling:
 #' \itemize{
 #'   \item [unequal_prob_wor()] - Without replacement: CPS (maximum entropy),
-#'     Brewer, systematic PPS, Poisson
+#'     Brewer, systematic PPS, Poisson, SPS (sequential Poisson),
+#'     Pareto
 #'   \item [unequal_prob_wr()] - With replacement: Chromy (minimum
 #'     replacement), multinomial PPS
 #' }

@@ -1,6 +1,4 @@
-# sondage 0.1.0
-
-Initial CRAN release.
+# sondage 0.2.9999
 
 ## Sampling dispatchers
 
