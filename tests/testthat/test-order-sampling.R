@@ -270,15 +270,15 @@ test_that("warning when prn used with equal_prob_wr", {
 test_that("check_prn rejects invalid inputs", {
   expect_error(
     unequal_prob_wor(c(0.5, 0.5), method = "sps", prn = "a"),
-    "prn must be a numeric"
+    "'prn' must be a numeric"
   )
   expect_error(
     unequal_prob_wor(c(0.5, 0.5), method = "sps", prn = c(0.3)),
-    "prn must have length 2"
+    "'prn' must have length 2"
   )
   expect_error(
     unequal_prob_wor(c(0.5, 0.5), method = "sps", prn = c(0.3, NA)),
-    "missing values in prn"
+    "missing values in 'prn'"
   )
   expect_error(
     unequal_prob_wor(c(0.5, 0.5), method = "sps", prn = c(0.0, 0.5)),

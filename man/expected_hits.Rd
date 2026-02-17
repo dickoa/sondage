@@ -4,6 +4,7 @@
 \alias{expected_hits}
 \alias{expected_hits.default}
 \alias{expected_hits.wr}
+\alias{expected_hits.wor}
 \title{Expected Hits}
 \usage{
 expected_hits(x, ...)
@@ -11,6 +12,8 @@ expected_hits(x, ...)
 \method{expected_hits}{default}(x, n, ...)
 
 \method{expected_hits}{wr}(x, ...)
+
+\method{expected_hits}{wor}(x, ...)
 }
 \arguments{
 \item{x}{A numeric vector of positive size measures, or a

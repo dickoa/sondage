@@ -3,11 +3,17 @@
 \name{joint_inclusion_prob}
 \alias{joint_inclusion_prob}
 \alias{joint_inclusion_prob.wor}
+\alias{joint_inclusion_prob.wr}
+\alias{joint_inclusion_prob.default}
 \title{Joint Inclusion Probabilities}
 \usage{
 joint_inclusion_prob(x, ...)
 
 \method{joint_inclusion_prob}{wor}(x, eps = 1e-06, ...)
+
+\method{joint_inclusion_prob}{wr}(x, ...)
+
+\method{joint_inclusion_prob}{default}(x, ...)
 }
 \arguments{
 \item{x}{A without-replacement design object (class \code{"wor"}).}

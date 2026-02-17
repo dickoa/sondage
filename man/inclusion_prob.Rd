@@ -3,12 +3,15 @@
 \name{inclusion_prob}
 \alias{inclusion_prob}
 \alias{inclusion_prob.wor}
+\alias{inclusion_prob.wr}
 \alias{inclusion_prob.default}
 \title{Inclusion Probabilities}
 \usage{
 inclusion_prob(x, ...)
 
 \method{inclusion_prob}{wor}(x, ...)
+
+\method{inclusion_prob}{wr}(x, ...)
 
 \method{inclusion_prob}{default}(x, n, ...)
 }

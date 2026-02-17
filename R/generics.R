@@ -38,6 +38,16 @@ inclusion_prob <- function(x, ...) UseMethod("inclusion_prob")
 #' @export
 inclusion_prob.wor <- function(x, ...) x$pik
 
+#' @rdname inclusion_prob
+#' @export
+inclusion_prob.wr <- function(x, ...) {
+  stop(
+    "'inclusion_prob()' applies to without-replacement (WOR) designs only. ",
+    "For with-replacement designs, use 'expected_hits()' instead.",
+    call. = FALSE
+  )
+}
+
 #' Expected Hits
 #'
 #' Compute expected hits from a size measure, or extract them from a
@@ -100,6 +110,16 @@ expected_hits.default <- function(x, n, ...) {
 #' @rdname expected_hits
 #' @export
 expected_hits.wr <- function(x, ...) x$n * x$prob
+
+#' @rdname expected_hits
+#' @export
+expected_hits.wor <- function(x, ...) {
+  stop(
+    "'expected_hits()' applies to with-replacement (WR) designs only. ",
+    "For without-replacement designs, use 'inclusion_prob()' instead.",
+    call. = FALSE
+  )
+}
 
 #' Joint Inclusion Probabilities
 #'
@@ -190,6 +210,26 @@ joint_inclusion_prob.wor <- function(x, eps = 1e-6, ...) {
   )
 }
 
+#' @rdname joint_inclusion_prob
+#' @export
+joint_inclusion_prob.wr <- function(x, ...) {
+  stop(
+    "'joint_inclusion_prob()' applies to without-replacement (WOR) designs only. ",
+    "For with-replacement designs, use 'joint_expected_hits()' instead.",
+    call. = FALSE
+  )
+}
+
+#' @rdname joint_inclusion_prob
+#' @export
+joint_inclusion_prob.default <- function(x, ...) {
+  stop(
+    "'joint_inclusion_prob()' requires a WOR design object created by ",
+    "'equal_prob_wor()' or 'unequal_prob_wor()'.",
+    call. = FALSE
+  )
+}
+
 #' Joint Expected Hits
 #'
 #' Computes the matrix of pairwise expectations \eqn{E(n_i n_j)} for a
@@ -243,7 +283,7 @@ joint_expected_hits.wr <- function(x, nsim = 10000L, ...) {
     x$method,
     chromy = {
       if (!is.numeric(nsim) || length(nsim) != 1L || is.na(nsim) || nsim < 1) {
-        stop("nsim must be a positive integer", call. = FALSE)
+        stop("'nsim' must be a positive integer", call. = FALSE)
       }
       nsim <- check_integer(nsim, "nsim")
       .Call(C_chromy_joint_exp, as.double(prob), as.integer(n), nsim)
@@ -263,6 +303,26 @@ joint_expected_hits.wr <- function(x, nsim = 10000L, ...) {
       sprintf("joint_expected_hits not implemented for method '%s'", x$method),
       call. = FALSE
     )
+  )
+}
+
+#' @rdname joint_expected_hits
+#' @export
+joint_expected_hits.wor <- function(x, ...) {
+  stop(
+    "'joint_expected_hits()' applies to with-replacement (WR) designs only. ",
+    "For without-replacement designs, use 'joint_inclusion_prob()' instead.",
+    call. = FALSE
+  )
+}
+
+#' @rdname joint_expected_hits
+#' @export
+joint_expected_hits.default <- function(x, ...) {
+  stop(
+    "'joint_expected_hits()' requires a WR design object created by ",
+    "'equal_prob_wr()' or 'unequal_prob_wr()'.",
+    call. = FALSE
   )
 }
 
@@ -377,6 +437,17 @@ sampling_cov.wr <- function(x, scaled = FALSE, ...) {
   } else {
     pikl - outer(ehits, ehits)
   }
+}
+
+#' @rdname sampling_cov
+#' @export
+sampling_cov.default <- function(x, ...) {
+  stop(
+    "'sampling_cov()' requires a design object created by one of the ",
+    "sampling functions ('equal_prob_wor()', 'equal_prob_wr()', ",
+    "'unequal_prob_wor()', or 'unequal_prob_wr()').",
+    call. = FALSE
+  )
 }
 
 #' @noRd

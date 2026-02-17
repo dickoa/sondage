@@ -57,7 +57,7 @@ equal_prob_wor <- function(
   method <- match.arg(method)
   nrep <- check_integer(nrep, "nrep")
   if (nrep < 1L) {
-    stop("nrep must be at least 1", call. = FALSE)
+    stop("'nrep' must be at least 1", call. = FALSE)
   }
 
   if (!is.null(prn) && method != "bernoulli") {
@@ -111,7 +111,7 @@ equal_prob_wr <- function(N, n, method = c("srs"), nrep = 1L, prn = NULL, ...) {
   method <- match.arg(method)
   nrep <- check_integer(nrep, "nrep")
   if (nrep < 1L) {
-    stop("nrep must be at least 1", call. = FALSE)
+    stop("'nrep' must be at least 1", call. = FALSE)
   }
 
   if (!is.null(prn)) {
@@ -178,15 +178,12 @@ equal_prob_wr <- function(N, n, method = c("srs"), nrep = 1L, prn = NULL, ...) {
 
 #' @noRd
 .bernoulli_sample <- function(N, n, prn = NULL, ...) {
-  if (!is.numeric(N) || length(N) != 1 || is.na(N) || N < 1) {
-    stop("N must be a positive integer", call. = FALSE)
-  }
+  # Reuse shared N/n validation; replace = TRUE since n = N is valid (p = 1)
+  .check_ep_args(N, n, replace = TRUE)
   N <- check_integer(N, "N")
-  if (!is.numeric(n) || length(n) != 1 || is.na(n)) {
-    stop("n must be a single numeric value", call. = FALSE)
-  }
-  if (n < 0 || n > N) {
-    stop("n must be between 0 and N", call. = FALSE)
+  # n is the expected sample size (not necessarily integer), but must not exceed N
+  if (n > N) {
+    stop("'n' cannot exceed 'N'", call. = FALSE)
   }
 
   p <- n / N
@@ -239,13 +236,13 @@ equal_prob_wr <- function(N, n, method = c("srs"), nrep = 1L, prn = NULL, ...) {
 #' @noRd
 .check_ep_args <- function(N, n, replace = FALSE) {
   if (!is.numeric(N) || length(N) != 1 || is.na(N) || N < 1) {
-    stop("N must be a positive integer", call. = FALSE)
+    stop("'N' must be a positive integer", call. = FALSE)
   }
   if (!is.numeric(n) || length(n) != 1 || is.na(n) || n < 0) {
-    stop("n must be a non-negative integer", call. = FALSE)
+    stop("'n' must be a non-negative integer", call. = FALSE)
   }
   if (!replace && n > N) {
-    stop("n cannot exceed N when replace = FALSE", call. = FALSE)
+    stop("'n' cannot exceed 'N' when sampling without replacement", call. = FALSE)
   }
   invisible(TRUE)
 }

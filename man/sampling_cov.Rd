@@ -4,6 +4,7 @@
 \alias{sampling_cov}
 \alias{sampling_cov.wor}
 \alias{sampling_cov.wr}
+\alias{sampling_cov.default}
 \title{Sampling Covariance Matrix}
 \usage{
 sampling_cov(x, ...)
@@ -11,6 +12,8 @@ sampling_cov(x, ...)
 \method{sampling_cov}{wor}(x, scaled = FALSE, ...)
 
 \method{sampling_cov}{wr}(x, scaled = FALSE, ...)
+
+\method{sampling_cov}{default}(x, ...)
 }
 \arguments{
 \item{x}{A sampling design object (class \code{"sondage_sample"}).}

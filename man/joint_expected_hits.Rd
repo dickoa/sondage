@@ -3,11 +3,17 @@
 \name{joint_expected_hits}
 \alias{joint_expected_hits}
 \alias{joint_expected_hits.wr}
+\alias{joint_expected_hits.wor}
+\alias{joint_expected_hits.default}
 \title{Joint Expected Hits}
 \usage{
 joint_expected_hits(x, ...)
 
 \method{joint_expected_hits}{wr}(x, nsim = 10000L, ...)
+
+\method{joint_expected_hits}{wor}(x, ...)
+
+\method{joint_expected_hits}{default}(x, ...)
 }
 \arguments{
 \item{x}{A with-replacement design object (class \code{"wr"}).}

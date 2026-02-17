@@ -11,7 +11,7 @@
 #'       inclusion probabilities. Joint inclusion probabilities are exact
 #'       (computed from the CPS design matrix); all \eqn{\pi_{ij} > 0}.
 #'       Complexity: O(N^2).}
-#'     \item{`"brewer"`}{Brewer's (1975) draw-by-draw method. Fixed sample
+#'     \item{`"brewer"`}{Brewer's (1963) draw-by-draw method. Fixed sample
 #'       size, exact first-order inclusion probabilities. Joint inclusion
 #'       probabilities are \emph{approximated} via the high-entropy
 #'       approximation (see [joint_inclusion_prob()]). Complexity: O(Nn).}
@@ -67,8 +67,8 @@
 #'   population sampling to maximize entropy. \emph{Biometrika}, 81(3),
 #'   457-469.
 #'
-#' Brewer, K.R.W. (1975). A simple procedure for sampling piPS.
-#'   \emph{Australian Journal of Statistics}, 17(3), 166-172.
+#' Brewer, K.R.W. (1963). A model of systematic sampling with unequal
+#'   probabilities. \emph{Australian Journal of Statistics}, 5, 5-13.
 #'
 #' Ohlsson, E. (1998). Sequential Poisson sampling. \emph{Journal of
 #'   Official Statistics}, 14(2), 149-162.
@@ -105,7 +105,7 @@
 #'
 #' # Batch mode for simulations
 #' sim <- unequal_prob_wor(pik, method = "cps", nrep = 1000)
-#' dim(sim)  # 2 x 1000
+#' dim(sim$sample)  # 2 x 1000
 #'
 #' @export
 unequal_prob_wor <- function(
@@ -118,7 +118,7 @@ unequal_prob_wor <- function(
   method <- match.arg(method)
   nrep <- check_integer(nrep, "nrep")
   if (nrep < 1L) {
-    stop("nrep must be at least 1", call. = FALSE)
+    stop("'nrep' must be at least 1", call. = FALSE)
   }
 
   if (!is.null(prn) && !method %in% c("sps", "pareto", "poisson")) {
@@ -203,7 +203,7 @@ unequal_prob_wr <- function(
   method <- match.arg(method)
   nrep <- check_integer(nrep, "nrep")
   if (nrep < 1L) {
-    stop("nrep must be at least 1", call. = FALSE)
+    stop("'nrep' must be at least 1", call. = FALSE)
   }
 
   if (!is.null(prn)) {
@@ -308,9 +308,7 @@ unequal_prob_wr <- function(
   check_pik(pik, fixed_size = TRUE)
   N <- length(pik)
   n <- as.integer(round(sum(pik)))
-  if (is.null(prn)) {
-    prn <- stats::runif(N)
-  }
+  if (is.null(prn)) prn <- stats::runif(N)
   check_prn(prn, N)
 
   ta <- which(pik >= 1 - eps)
@@ -341,9 +339,7 @@ unequal_prob_wr <- function(
   check_pik(pik, fixed_size = TRUE)
   N <- length(pik)
   n <- as.integer(round(sum(pik)))
-  if (is.null(prn)) {
-    prn <- stats::runif(N)
-  }
+  if (is.null(prn)) prn <- stats::runif(N)
   check_prn(prn, N)
 
   ta <- which(pik >= 1 - eps)
@@ -427,9 +423,7 @@ unequal_prob_wr <- function(
 
   if (method == "cps") {
     eps <- list(...)$eps
-    if (is.null(eps)) {
-      eps <- 1e-06
-    }
+    if (is.null(eps)) eps <- 1e-06
     design <- .Call(C_cps_design, as.double(pik), as.double(eps))
     sample_data <- .Call(C_cps_draw_batch, design, as.integer(nrep))
   } else if (method == "poisson") {

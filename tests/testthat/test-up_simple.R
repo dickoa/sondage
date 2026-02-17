@@ -232,7 +232,7 @@ test_that("multinomial rejects invalid hits", {
   expect_error(unequal_prob_wr(c(1, -1, 2), method = "multinomial"),
                "non-negative")
   expect_error(unequal_prob_wr(c(0, 0, 0), method = "multinomial"),
-               "sum of hits must be positive")
+               "sum of 'hits' must be positive")
   expect_error(unequal_prob_wr(integer(0), method = "multinomial"), "empty")
   expect_error(unequal_prob_wr("abc", method = "multinomial"),
                "numeric vector")

@@ -51,7 +51,7 @@ inclusion_prob.default <- function(x, n, ...) {
   storage.mode(x) <- "double"
   neg <- x < 0
   if (any(neg)) {
-    warning("there are ", sum(neg), " negative value(s) shifted to zero")
+    warning("there are ", sum(neg), " negative value(s) shifted to zero", call. = FALSE)
   }
   .Call(C_inclusion_prob, x, as.double(n))
 }

@@ -202,10 +202,10 @@ test_that("bernoulli handles boundary cases", {
 })
 
 test_that("bernoulli rejects invalid input", {
-  expect_error(equal_prob_wor(100, -1, method = "bernoulli"), "between 0 and N")
+  expect_error(equal_prob_wor(100, -1, method = "bernoulli"), "non-negative")
   expect_error(
     equal_prob_wor(100, 101, method = "bernoulli"),
-    "between 0 and N"
+    "cannot exceed"
   )
 })
 
@@ -240,9 +240,9 @@ test_that("systematic rejects NA inputs", {
 test_that("bernoulli rejects NA inputs", {
   expect_error(
     equal_prob_wor(100, NA_real_, method = "bernoulli"),
-    "single numeric"
+    "non-negative"
   )
-  expect_error(equal_prob_wor(100, NA, method = "bernoulli"), "single numeric")
+  expect_error(equal_prob_wor(100, NA, method = "bernoulli"), "non-negative")
   expect_error(equal_prob_wor(NA_real_, 50, method = "bernoulli"), "positive")
   expect_error(equal_prob_wor(NA, 50, method = "bernoulli"), "positive")
 })

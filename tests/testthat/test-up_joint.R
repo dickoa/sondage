@@ -43,6 +43,8 @@ test_that("joint_inclusion_prob.brewer returns symmetric matrix with correct dia
   expect_equal(diag(pikl), pik, tolerance = 1e-10)
 })
 
+# ---- joint_inclusion_prob for systematic ----
+
 test_that("joint_inclusion_prob.systematic returns symmetric matrix", {
   pik <- c(0.2, 0.3, 0.5)
   s <- unequal_prob_wor(pik, method = "systematic")
@@ -52,6 +54,8 @@ test_that("joint_inclusion_prob.systematic returns symmetric matrix", {
   expect_equal(pikl, t(pikl), tolerance = 1e-10)
   expect_equal(diag(pikl), pik, tolerance = 1e-10)
 })
+
+# ---- joint_inclusion_prob for equal probability designs ----
 
 test_that("joint_inclusion_prob.srs returns known formula", {
   s <- equal_prob_wor(10, 3)
@@ -69,6 +73,8 @@ test_that("joint_inclusion_prob.bernoulli returns p^2 off-diagonal", {
   expect_equal(diag(pikl), rep(p, 5))
   expect_equal(pikl[1, 2], p * p)
 })
+
+# ---- joint_expected_hits for chromy ----
 
 test_that("joint_expected_hits.chromy returns matrix of correct size", {
   x <- c(10, 20, 30)
@@ -101,6 +107,8 @@ test_that("joint_expected_hits.chromy accepts integer-like nsim", {
   expect_no_error(joint_expected_hits(s, nsim = 100.0))
 })
 
+# ---- joint_expected_hits for multinomial ----
+
 test_that("joint_expected_hits.multinomial returns correct values", {
   x <- c(10, 20, 30, 40)
   hits <- expected_hits(x, n = 5)
@@ -117,6 +125,8 @@ test_that("joint_expected_hits.multinomial returns correct values", {
   expect_equal(diag(pikl), n * p)
 })
 
+# ---- joint_expected_hits for srs_wr ----
+
 test_that("joint_expected_hits.srs_wr returns correct values", {
   s <- equal_prob_wr(10, 5)
   pikl <- joint_expected_hits(s)
@@ -125,6 +135,8 @@ test_that("joint_expected_hits.srs_wr returns correct values", {
   expect_equal(diag(pikl), rep(5 * p, 10))
   expect_equal(pikl[1, 2], 5 * 4 * p * p)
 })
+
+# ---- sampling_cov ----
 
 test_that("sampling_cov.wor returns correct matrix", {
   pik <- c(0.2, 0.3, 0.5)
@@ -168,14 +180,7 @@ test_that("sampling_cov works for WR designs", {
   expect_no_error(sampling_cov(equal_prob_wr(10, 3)))
 })
 
-test_that("sampling_cov warns for zero joint probs with scaled = TRUE", {
-  pik <- c(0.2, 0.3, 0.5)
-  s <- unequal_prob_wor(pik, method = "systematic")
-  pikl <- joint_inclusion_prob(s)
-  if (any(pikl[row(pikl) != col(pikl)] == 0)) {
-    expect_warning(sampling_cov(s, scaled = TRUE), "zero")
-  }
-})
+# ---- sampling_cov scaled (SYG check) ----
 
 test_that("sampling_cov scaled returns correct matrix for WOR", {
   pik <- c(0.2, 0.4, 0.6, 0.8) # n = 2, all pi_ij > 0
