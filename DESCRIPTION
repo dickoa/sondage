@@ -2,11 +2,15 @@ Package: sondage
 Type: Package
 Title: Fast Survey Sampling Algorithms
 Version: 0.2.9999
-Authors@R: person(given = "Ahmadou",
-                  family = "Dicko",
-	          email = "mail@ahmadoudicko.com",
-		  comment = c(ORCID ="0000-0002-9654-7582"),
-                  role = c("aut", "cre"))
+Authors@R: c(person(given = "Ahmadou",
+                    family = "Dicko",
+	            email = "mail@ahmadoudicko.com",
+		    comment = c(ORCID ="0000-0002-9654-7582"),
+                    role = c("aut", "cre")),
+             person(given = "Thomas",
+                    family = "Lumley",
+	            email = "t.lumley at auckland.ac.nz",
+                    role = "ctb")
 Description: Fast implementations of survey sampling algorithms for
     single-stage probability sampling from finite populations.
     Provides equal probability methods (simple random sampling,
@@ -19,7 +23,7 @@ Description: Fast implementations of survey sampling algorithms for
     expectations, and sampling covariances for variance estimation.
     Mostly based on algorithms from Tille (2006, <doi:10.1007/0-387-34240-0>).
 Depends: R (>= 4.1.0)
-License: GPL-2 | GPL-3
+License: GPL (>= 2)
 Encoding: UTF-8
 URL: https://dickoa.gitlab.io/sondage,
         https://gitlab.com/dickoa/sondage
