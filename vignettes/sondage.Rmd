@@ -159,10 +159,10 @@ The `sampling_cov()` generic computes $\Delta_{ij} = \pi_{ij} - \pi_i \pi_j$ for
 sampling_cov(s)
 ```
 
-With `scaled = TRUE`, it returns the Sen--Yates--Grundy check quantities $1 - \pi_i \pi_j / \pi_{ij}$ [@sen1953; @yatesandgrundy1953]. For well-behaved WOR designs, these should be non-positive off-diagonal:
+With `weighted = TRUE`, it returns the Sen--Yates--Grundy check quantities $1 - \pi_i \pi_j / \pi_{ij}$ [@sen1953; @yatesandgrundy1953]. For well-behaved WOR designs, these should be non-positive off-diagonal:
 
 ```{r}
-sampling_cov(s, scaled = TRUE)
+sampling_cov(s, weighted = TRUE)
 ```
 
 ## Batch sampling
@@ -238,7 +238,7 @@ knitr::kable(props, align = "llccl",
 **SPS and Pareto (order sampling).** Both are implemented via @rosen1997's order sampling framework. SPS uses ranking key $\xi_k = u_k / \pi_k$ [equivalent to @ohlsson1998's sequential threshold adjustment]; Pareto uses $\xi_k = [u_k/(1-u_k)] / [\pi_k/(1-\pi_k)]$. The $n$ units with the smallest $\xi_k$ are selected. First-order inclusion probabilities are approximately (not exactly) equal to the target $\pi_k$ for finite populations; the discrepancy vanishes as $N$ grows. Both support permanent random numbers (PRN) for sample coordination.
 
 **Systematic PPS.** Joint inclusion probabilities are exact (computed via C code) but some $\pi_{ij}$ are structurally zero e.g for pairs of units that
-can never co-occur. `sampling_cov(s, scaled = TRUE)` returns `NA` for those entries and issues a warning, because the SYG estimator is undefined
+can never co-occur. `sampling_cov(s, weighted = TRUE)` returns `NA` for those entries and issues a warning, because the SYG estimator is undefined
 for such pairs. Consider successive-differences, Hartley--Rao, or replication methods instead.
 
 **Chromy.** Pairwise expectations $E(n_i n_j)$ are estimated by Monte Carlo

@@ -9,9 +9,9 @@
 \usage{
 sampling_cov(x, ...)
 
-\method{sampling_cov}{wor}(x, scaled = FALSE, ...)
+\method{sampling_cov}{wor}(x, weighted = FALSE, ...)
 
-\method{sampling_cov}{wr}(x, scaled = FALSE, ...)
+\method{sampling_cov}{wr}(x, weighted = FALSE, ...)
 
 \method{sampling_cov}{default}(x, ...)
 }
@@ -21,14 +21,14 @@ sampling_cov(x, ...)
 \item{...}{Additional arguments passed to \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} or
 \code{\link[=joint_expected_hits]{joint_expected_hits()}}.}
 
-\item{scaled}{If \code{FALSE} (default), returns the raw covariance matrix.
-If \code{TRUE}, returns the scaled check quantities used in the
+\item{weighted}{If \code{FALSE} (default), returns the raw covariance matrix.
+If \code{TRUE}, returns the weighted check quantities used in the
 Sen-Yates-Grundy variance estimator.}
 }
 \value{
-A symmetric N x N matrix. For WOR designs with \code{scaled = FALSE},
+A symmetric N x N matrix. For WOR designs with \code{weighted = FALSE},
 off-diagonal entries are typically negative for well-behaved designs.
-With \code{scaled = TRUE}, off-diagonal entries are typically non-positive
+With \code{weighted = TRUE}, off-diagonal entries are typically non-positive
 (entries where \eqn{\pi_{ij} = 0} are set to \code{NA}).
 }
 \description{
@@ -41,7 +41,7 @@ For without-replacement designs:
 For with-replacement designs:
 \eqn{E(n_i n_j) - E(n_i) E(n_j)}.
 
-When \code{scaled = TRUE}, returns the Sen-Yates-Grundy check quantities:
+When \code{weighted = TRUE}, returns the Sen-Yates-Grundy check quantities:
 \eqn{1 - \pi_i \pi_j / \pi_{ij}} for WOR,
 \eqn{1 - E(n_i) E(n_j) / E(n_i n_j)} for WR.
 
@@ -58,9 +58,9 @@ See \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} and \code{\link[
 \strong{Zero joint inclusion probabilities.}
 Some designs (notably systematic PPS) can produce \eqn{\pi_{ij} = 0}
 for pairs of units that never co-occur in the same sample. When
-\code{scaled = TRUE}, the quantity \eqn{1 - \pi_i \pi_j / \pi_{ij}} is
+\code{weighted = TRUE}, the quantity \eqn{1 - \pi_i \pi_j / \pi_{ij}} is
 undefined for such pairs. These entries are set to \code{NA} and a
-warning is issued. The raw covariance (\code{scaled = FALSE}) is
+warning is issued. The raw covariance (\code{weighted = FALSE}) is
 unaffected, since \eqn{\Delta_{ij} = 0 - \pi_i \pi_j} is finite.
 
 \strong{Implications for variance estimation.}
@@ -79,7 +79,7 @@ s <- unequal_prob_wor(pik, method = "cps")
 sampling_cov(s)
 
 # SYG check quantities
-sampling_cov(s, scaled = TRUE)
+sampling_cov(s, weighted = TRUE)
 
 }
 \references{

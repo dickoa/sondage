@@ -131,7 +131,7 @@ test_that("Off-diagonal covariance is negative for WOR designs", {
 test_that("SYG check quantities are non-positive off-diagonal", {
   for (method in c("cps")) {
     s <- unequal_prob_wor(pik5, method = method)
-    chk <- sampling_cov(s, scaled = TRUE)
+    chk <- sampling_cov(s, weighted = TRUE)
     off_diag <- chk[row(chk) != col(chk)]
     expect_true(
       all(off_diag <= 1e-10),

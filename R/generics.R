@@ -336,13 +336,13 @@ joint_expected_hits.default <- function(x, ...) {
 #' For with-replacement designs:
 #' \eqn{E(n_i n_j) - E(n_i) E(n_j)}.
 #'
-#' When `scaled = TRUE`, returns the Sen-Yates-Grundy check quantities:
+#' When `weighted = TRUE`, returns the Sen-Yates-Grundy check quantities:
 #' \eqn{1 - \pi_i \pi_j / \pi_{ij}} for WOR,
 #' \eqn{1 - E(n_i) E(n_j) / E(n_i n_j)} for WR.
 #'
 #' @param x A sampling design object (class `"sondage_sample"`).
-#' @param scaled If `FALSE` (default), returns the raw covariance matrix.
-#'   If `TRUE`, returns the scaled check quantities used in the
+#' @param weighted If `FALSE` (default), returns the raw covariance matrix.
+#'   If `TRUE`, returns the weighted check quantities used in the
 #'   Sen-Yates-Grundy variance estimator.
 #' @param ... Additional arguments passed to [joint_inclusion_prob()] or
 #'   [joint_expected_hits()].
@@ -361,9 +361,9 @@ joint_expected_hits.default <- function(x, ...) {
 #' \strong{Zero joint inclusion probabilities.}
 #' Some designs (notably systematic PPS) can produce \eqn{\pi_{ij} = 0}
 #' for pairs of units that never co-occur in the same sample. When
-#' `scaled = TRUE`, the quantity \eqn{1 - \pi_i \pi_j / \pi_{ij}} is
+#' `weighted = TRUE`, the quantity \eqn{1 - \pi_i \pi_j / \pi_{ij}} is
 #' undefined for such pairs. These entries are set to `NA` and a
-#' warning is issued. The raw covariance (`scaled = FALSE`) is
+#' warning is issued. The raw covariance (`weighted = FALSE`) is
 #' unaffected, since \eqn{\Delta_{ij} = 0 - \pi_i \pi_j} is finite.
 #'
 #' \strong{Implications for variance estimation.}
@@ -374,9 +374,9 @@ joint_expected_hits.default <- function(x, ...) {
 #' for such designs, e.g. successive-differences or Hartley-Rao
 #' approximations.
 #'
-#' @return A symmetric N x N matrix. For WOR designs with `scaled = FALSE`,
+#' @return A symmetric N x N matrix. For WOR designs with `weighted = FALSE`,
 #'   off-diagonal entries are typically negative for well-behaved designs.
-#'   With `scaled = TRUE`, off-diagonal entries are typically non-positive
+#'   With `weighted = TRUE`, off-diagonal entries are typically non-positive
 #'   (entries where \eqn{\pi_{ij} = 0} are set to `NA`).
 #'
 #' @references
@@ -393,17 +393,17 @@ joint_expected_hits.default <- function(x, ...) {
 #' sampling_cov(s)
 #'
 #' # SYG check quantities
-#' sampling_cov(s, scaled = TRUE)
+#' sampling_cov(s, weighted = TRUE)
 #'
 #' @export
 sampling_cov <- function(x, ...) UseMethod("sampling_cov")
 
 #' @rdname sampling_cov
 #' @export
-sampling_cov.wor <- function(x, scaled = FALSE, ...) {
+sampling_cov.wor <- function(x, weighted = FALSE, ...) {
   pikl <- joint_inclusion_prob(x, ...)
   pik <- x$pik
-  if (scaled) {
+  if (weighted) {
     pip <- outer(pik, pik)
     zero <- pikl == 0 & pip > 0
     if (any(zero[lower.tri(zero)])) {
@@ -427,10 +427,10 @@ sampling_cov.wor <- function(x, scaled = FALSE, ...) {
 
 #' @rdname sampling_cov
 #' @export
-sampling_cov.wr <- function(x, scaled = FALSE, ...) {
+sampling_cov.wr <- function(x, weighted = FALSE, ...) {
   pikl <- joint_expected_hits(x, ...)
   ehits <- expected_hits(x)
-  if (scaled) {
+  if (weighted) {
     m <- 1 - outer(ehits, ehits) / pikl
     diag(m) <- 1 - ehits / diag(pikl)
     m

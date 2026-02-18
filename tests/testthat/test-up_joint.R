@@ -180,12 +180,12 @@ test_that("sampling_cov works for WR designs", {
   expect_no_error(sampling_cov(equal_prob_wr(10, 3)))
 })
 
-# ---- sampling_cov scaled (SYG check) ----
+# ---- sampling_cov weighted (SYG check) ----
 
-test_that("sampling_cov scaled returns correct matrix for WOR", {
+test_that("sampling_cov weighted returns correct matrix for WOR", {
   pik <- c(0.2, 0.4, 0.6, 0.8) # n = 2, all pi_ij > 0
   s <- unequal_prob_wor(pik, method = "cps")
-  chk <- sampling_cov(s, scaled = TRUE)
+  chk <- sampling_cov(s, weighted = TRUE)
   pikl <- joint_inclusion_prob(s)
 
   expected <- 1 - outer(pik, pik) / pikl
@@ -193,12 +193,12 @@ test_that("sampling_cov scaled returns correct matrix for WOR", {
   expect_equal(chk, expected, tolerance = 1e-10)
 })
 
-test_that("sampling_cov scaled warns and returns NA when pi_ij = 0", {
+test_that("sampling_cov weighted warns and returns NA when pi_ij = 0", {
   pik <- c(0.2, 0.3, 0.5) # n = 1, all off-diagonal pi_ij = 0
   s <- unequal_prob_wor(pik, method = "cps")
 
   expect_warning(
-    chk <- sampling_cov(s, scaled = TRUE),
+    chk <- sampling_cov(s, weighted = TRUE),
     "Sen-Yates-Grundy"
   )
 
@@ -209,17 +209,17 @@ test_that("sampling_cov scaled warns and returns NA when pi_ij = 0", {
   expect_true(all(is.na(off_diag)))
 })
 
-test_that("sampling_cov scaled off-diagonal is non-positive for high-entropy designs", {
+test_that("sampling_cov weighted off-diagonal is non-positive for high-entropy designs", {
   pik <- c(0.2, 0.4, 0.6, 0.8) # n = 2
 
-  chk_cps <- sampling_cov(unequal_prob_wor(pik, method = "cps"), scaled = TRUE)
+  chk_cps <- sampling_cov(unequal_prob_wor(pik, method = "cps"), weighted = TRUE)
   off_diag <- chk_cps[row(chk_cps) != col(chk_cps)]
   expect_true(all(off_diag <= 1e-10))
   expect_equal(diag(chk_cps), 1 - pik, tolerance = 1e-10)
 
   chk_brewer <- sampling_cov(
     unequal_prob_wor(pik, method = "brewer"),
-    scaled = TRUE
+    weighted = TRUE
   )
   off_diag_b <- chk_brewer[row(chk_brewer) != col(chk_brewer)]
   expect_true(all(off_diag_b <= 1e-10))

@@ -28,7 +28,7 @@ states[s$sample, ]
 # Joint inclusion probabilities for variance estimation
 pikl  <- joint_inclusion_prob(s)
 delta <- sampling_cov(s)                # pi_ij - pi_i * pi_j
-chk   <- sampling_cov(s, scaled = TRUE) # 1 - pi_i * pi_j / pi_ij
+chk   <- sampling_cov(s, weighted = TRUE) # 1 - pi_i * pi_j / pi_ij
 
 # Equal probability sampling
 s <- equal_prob_wor(nrow(states), 10)
@@ -80,7 +80,7 @@ inclusion_prob(sim) # generics still work
 - `joint_inclusion_prob(s)` - Joint inclusion probabilities (WOR)
 - `joint_expected_hits(s)` - Pairwise expectations E(n_i n_j) (WR)
 - `sampling_cov(s)` - Sampling covariance matrix
-- `sampling_cov(s, scaled = TRUE)` - Check quantities for SYG variance estimator
+- `sampling_cov(s, weighted = TRUE)` - Check quantities for SYG variance estimator
 
 ## Method comparison
 

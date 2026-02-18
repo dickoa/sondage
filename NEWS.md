@@ -1,4 +1,6 @@
-# sondage 0.2.9999
+# sondage 0.1.0
+
+Initial CRAN release.
 
 ## Sampling dispatchers
 
@@ -10,7 +12,7 @@ Four dispatchers returning S3 design objects with class
 * `unequal_prob_wor(pik, method=)` - CPS (max entropy), Brewer, systematic PPS, Poisson
 * `unequal_prob_wr(hits, method=)` - Chromy (minimum replacement), multinomial PPS
 
-All dispatchers support `nrep` for batch sampling and `prn` for sample coordination.
+All dispatchers support `nrep` for batch sampling and `u` for sample coordination.
 
 ## Generics
 
@@ -19,7 +21,7 @@ All dispatchers support `nrep` for batch sampling and `prn` for sample coordinat
 * `joint_inclusion_prob()` - Joint inclusion probabilities (WOR)
 * `joint_expected_hits()` - Pairwise expectations E(n_i n_j) (WR)
 * `sampling_cov()` - Sampling covariance matrix (WOR and WR)
-* `sampling_cov(scaled = TRUE)` - SYG check quantities
+* `sampling_cov(weighted = TRUE)` - SYG check quantities
 
 ## Features
 
