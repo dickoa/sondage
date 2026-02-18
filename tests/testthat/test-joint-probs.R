@@ -1,8 +1,6 @@
-# Tests for joint inclusion probability functions via joint_inclusion_prob()
-
-# Tille Example 10 (page 86) - known exact values
+# Tille Example 10 (page 86), known exact values
 tille_pik <- c(0.07, 0.17, 0.41, 0.61, 0.83, 0.91)
-# fmt: skip
+
 tille_expected <- matrix(c(
   0.07,   0.0049, 0.0130, 0.0215, 0.0447, 0.0559,
   0.0049, 0.17,   0.0324, 0.0537, 0.1113, 0.1377,
@@ -87,8 +85,6 @@ test_that("joint_inclusion_prob.cps handles certainty selections", {
   expect_equal(pikl[3, 2], pik[2], tolerance = 1e-6)
 })
 
-# ---- systematic PPS ----
-
 test_that("joint_inclusion_prob.systematic returns correct dimensions", {
   pik <- c(0.2, 0.3, 0.5)
   pikl <- joint_inclusion_prob(unequal_prob_wor(pik, method = "systematic"))
@@ -138,8 +134,6 @@ test_that("joint_inclusion_prob.systematic satisfies marginal constraint", {
     expect_equal(row_sum, expected, tolerance = 0.01)
   }
 })
-
-# ---- brewer ----
 
 test_that("joint_inclusion_prob.brewer returns correct dimensions", {
   pik <- c(0.2, 0.3, 0.5)
@@ -194,8 +188,6 @@ test_that("joint_inclusion_prob.brewer handles n <= 1 case", {
   expect_equal(sum(off_diag), 0, tolerance = 1e-9)
 })
 
-# ---- chromy (joint_expected_hits) ----
-
 test_that("joint_expected_hits.chromy returns valid matrix", {
   x <- c(10, 20, 15, 25, 30)
   hits <- expected_hits(x, n = 3)
@@ -209,8 +201,6 @@ test_that("joint_expected_hits.chromy returns valid matrix", {
   pik <- 3 * x / sum(x)
   expect_equal(diag(joint), pik, tolerance = 0.05)
 })
-
-# ---- cross-method comparisons ----
 
 test_that("all joint_inclusion_prob methods agree on diagonal", {
   pik <- c(0.2, 0.3, 0.5)

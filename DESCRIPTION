@@ -9,8 +9,8 @@ Authors@R: c(person(given = "Ahmadou",
                     role = c("aut", "cre")),
              person(given = "Thomas",
                     family = "Lumley",
-	            email = "t.lumley at auckland.ac.nz",
-                    role = "ctb")
+	            email = "t.lumley@auckland.ac.nz",
+                    role = "ctb"))
 Description: Fast implementations of survey sampling algorithms for
     single-stage probability sampling from finite populations.
     Provides equal probability methods (simple random sampling,

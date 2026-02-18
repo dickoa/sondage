@@ -1,5 +1,3 @@
-# ---- Poisson PPS ----
-
 test_that("poisson returns sondage_sample object", {
   pik <- c(0.2, 0.5, 0.8)
   s <- unequal_prob_wor(pik, method = "poisson")
@@ -57,15 +55,19 @@ test_that("poisson is reproducible with set.seed", {
 })
 
 test_that("poisson rejects invalid input", {
-  expect_error(unequal_prob_wor(c(0.5, NA), method = "poisson"),
-               "missing values")
-  expect_error(unequal_prob_wor(c(-0.1, 0.5), method = "poisson"),
-               "between 0 and 1")
-  expect_error(unequal_prob_wor(c(0.5, 1.1), method = "poisson"),
-               "between 0 and 1")
+  expect_error(
+    unequal_prob_wor(c(0.5, NA), method = "poisson"),
+    "missing values"
+  )
+  expect_error(
+    unequal_prob_wor(c(-0.1, 0.5), method = "poisson"),
+    "between 0 and 1"
+  )
+  expect_error(
+    unequal_prob_wor(c(0.5, 1.1), method = "poisson"),
+    "between 0 and 1"
+  )
 })
-
-# ---- Systematic PPS ----
 
 test_that("systematic_pps returns sondage_sample object", {
   pik <- c(0.2, 0.3, 0.5, 0.4, 0.6)
@@ -143,23 +145,24 @@ test_that("systematic_pps works with larger populations", {
 })
 
 test_that("systematic_pps rejects invalid input", {
-  expect_error(unequal_prob_wor(c(0.5, NA), method = "systematic"),
-               "missing values")
-  expect_error(unequal_prob_wor(c("a", "b"), method = "systematic"),
-               "numeric")
+  expect_error(
+    unequal_prob_wor(c(0.5, NA), method = "systematic"),
+    "missing values"
+  )
+  expect_error(unequal_prob_wor(c("a", "b"), method = "systematic"), "numeric")
   expect_error(unequal_prob_wor(numeric(0), method = "systematic"), "empty")
 })
 
 test_that("systematic_pps rejects non-integer sum(pik)", {
-  expect_error(unequal_prob_wor(c(0.49, 0.49, 0.49), method = "systematic"),
-               "not close to an integer")
+  expect_error(
+    unequal_prob_wor(c(0.49, 0.49, 0.49), method = "systematic"),
+    "not close to an integer"
+  )
 })
 
 test_that("systematic_pps silently accepts integer sum(pik)", {
   expect_no_error(unequal_prob_wor(c(0.2, 0.3, 0.5), method = "systematic"))
 })
-
-# ---- Multinomial PPS ----
 
 test_that("multinomial returns sondage_sample object", {
   x <- c(10, 20, 30, 40)
@@ -173,10 +176,14 @@ test_that("multinomial returns sondage_sample object", {
 
 test_that("multinomial returns correct number of indices", {
   x <- c(10, 20, 30, 40)
-  expect_length(unequal_prob_wr(expected_hits(x, n = 5),
-                                method = "multinomial")$sample, 5)
-  expect_length(unequal_prob_wr(expected_hits(x, n = 1),
-                                method = "multinomial")$sample, 1)
+  expect_length(
+    unequal_prob_wr(expected_hits(x, n = 5), method = "multinomial")$sample,
+    5
+  )
+  expect_length(
+    unequal_prob_wr(expected_hits(x, n = 1), method = "multinomial")$sample,
+    1
+  )
 })
 
 test_that("multinomial indices are in valid range", {
@@ -227,20 +234,27 @@ test_that("multinomial is reproducible with set.seed", {
 })
 
 test_that("multinomial rejects invalid hits", {
-  expect_error(unequal_prob_wr(c(1, NA, 2), method = "multinomial"),
-               "missing values")
-  expect_error(unequal_prob_wr(c(1, -1, 2), method = "multinomial"),
-               "non-negative")
-  expect_error(unequal_prob_wr(c(0, 0, 0), method = "multinomial"),
-               "sum of 'hits' must be positive")
+  expect_error(
+    unequal_prob_wr(c(1, NA, 2), method = "multinomial"),
+    "missing values"
+  )
+  expect_error(
+    unequal_prob_wr(c(1, -1, 2), method = "multinomial"),
+    "non-negative"
+  )
+  expect_error(
+    unequal_prob_wr(c(0, 0, 0), method = "multinomial"),
+    "sum of 'hits' must be positive"
+  )
   expect_error(unequal_prob_wr(integer(0), method = "multinomial"), "empty")
-  expect_error(unequal_prob_wr("abc", method = "multinomial"),
-               "numeric vector")
+  expect_error(unequal_prob_wr("abc", method = "multinomial"), "numeric vector")
 })
 
 test_that("multinomial rejects non-integer sum(hits)", {
-  expect_error(unequal_prob_wr(c(0.5, 0.6, 0.8), method = "multinomial"),
-               "not close to an integer")
+  expect_error(
+    unequal_prob_wr(c(0.5, 0.6, 0.8), method = "multinomial"),
+    "not close to an integer"
+  )
 })
 
 test_that("multinomial silently accepts integer-like sum(hits)", {
@@ -250,11 +264,15 @@ test_that("multinomial silently accepts integer-like sum(hits)", {
 })
 
 test_that("multinomial rejects Inf in hits", {
-  expect_error(unequal_prob_wr(c(10, Inf, 30), method = "multinomial"),
-               "finite")
+  expect_error(
+    unequal_prob_wr(c(10, Inf, 30), method = "multinomial"),
+    "finite"
+  )
 })
 
 test_that("multinomial rejects NaN in hits", {
-  expect_error(unequal_prob_wr(c(10, NaN, 30), method = "multinomial"),
-               "missing values")
+  expect_error(
+    unequal_prob_wr(c(10, NaN, 30), method = "multinomial"),
+    "missing values"
+  )
 })

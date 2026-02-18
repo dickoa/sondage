@@ -125,8 +125,6 @@ test_that("expected_hits.wr extracts from design", {
   expect_equal(expected_hits(s), hits)
 })
 
-# expected_hits input validation
-
 test_that("expected_hits errors when n is missing", {
   expect_error(expected_hits(c(10, 20, 30)), "required")
 })
@@ -160,8 +158,6 @@ test_that("expected_hits rejects negative x", {
 test_that("expected_hits errors when sum(x) is zero", {
   expect_error(expected_hits(c(0, 0, 0), n = 2), "sum")
 })
-
-# Non-finite and NA input validation
 
 test_that("inclusion_prob rejects Inf in x", {
   expect_error(inclusion_prob(c(1, Inf, 2), 2), "finite")

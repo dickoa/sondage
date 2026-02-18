@@ -73,4 +73,9 @@ Useful links:
 \author{
 \strong{Maintainer}: Ahmadou Dicko \email{mail@ahmadoudicko.com} (\href{https://orcid.org/0000-0002-9654-7582}{ORCID})
 
+Other contributors:
+\itemize{
+  \item Thomas Lumley \email{t.lumley@auckland.ac.nz} [contributor]
+}
+
 }

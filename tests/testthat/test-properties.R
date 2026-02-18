@@ -14,7 +14,7 @@ exact_jip_methods <- c("cps", "systematic")
 nrep <- 10000 # simulation reps
 
 
-# ---- Property 1: HT estimator unbiasedness ----
+# Property 1: HT estimator unbiasedness
 test_that("HT estimator is unbiased for fixed-size WOR methods", {
   skip_on_cran()
   y <- c(10, 25, 15, 50)
@@ -67,7 +67,7 @@ test_that("HT estimator is unbiased for equal probability WOR", {
 })
 
 
-# ---- Property 2: Generalized HT unbiasedness for WR designs ----
+# Property 2: Generalized HT unbiasedness for WR designs
 test_that("Generalized HT estimator is unbiased for WR methods", {
   skip_on_cran()
   y <- c(10, 25, 15, 50, 35)
@@ -91,7 +91,7 @@ test_that("Generalized HT estimator is unbiased for WR methods", {
 })
 
 
-# ---- Property 3: Delta matrix row/column sums = 0 for fixed-size designs ----
+# Property 3: Delta matrix row/column sums = 0 for fixed-size designs
 test_that("Delta matrix rows sum to zero for fixed-size WOR", {
   for (method in exact_jip_methods) {
     s <- unequal_prob_wor(pik4, method = method)
@@ -113,7 +113,7 @@ test_that("Delta matrix rows sum to zero for SRS", {
 })
 
 
-# ---- Property 4: Negative covariance for WOR designs ----
+# Property 4: Negative covariance for WOR designs
 test_that("Off-diagonal covariance is negative for WOR designs", {
   for (method in c("cps", "brewer")) {
     s <- unequal_prob_wor(pik4, method = method)
@@ -127,7 +127,7 @@ test_that("Off-diagonal covariance is negative for WOR designs", {
 })
 
 
-# ---- Property 5: SYG check quantities non-positive for WOR ----
+# Property 5: SYG check quantities non-positive for WOR
 test_that("SYG check quantities are non-positive off-diagonal", {
   for (method in c("cps")) {
     s <- unequal_prob_wor(pik5, method = method)
@@ -141,7 +141,7 @@ test_that("SYG check quantities are non-positive off-diagonal", {
 })
 
 
-# ---- Property 6: Joint probability positivity (CPS, Brewer) ----
+# Property 6: Joint probability positivity (CPS, Brewer)
 test_that("All joint probabilities positive for CPS and Brewer (n >= 2)", {
   for (method in c("cps", "brewer")) {
     s <- unequal_prob_wor(pik4, method = method)
@@ -151,7 +151,7 @@ test_that("All joint probabilities positive for CPS and Brewer (n >= 2)", {
 })
 
 
-# ---- Property 7: Variance of sample size ----
+# Property 7: Variance of sample size
 test_that("Sample size is constant for fixed-size methods", {
   skip_on_cran()
   set.seed(42)
@@ -188,7 +188,7 @@ test_that("Bernoulli sample size variance matches N*p*(1-p)", {
 })
 
 
-# ---- Property 8: Poisson conditional independence ----
+# Property 8: Poisson conditional independence
 test_that("Poisson has independent selections (pi_ij = pi_i * pi_j)", {
   s <- unequal_prob_wor(pik4, method = "poisson")
   pikl <- joint_inclusion_prob(s)
@@ -198,7 +198,7 @@ test_that("Poisson has independent selections (pi_ij = pi_i * pi_j)", {
 })
 
 
-# ---- Property 9: Marginal constraints on joint inclusion probabilities ----
+# Property 9: Marginal constraints on joint inclusion probabilities
 test_that("Joint prob marginal constraint for fixed-size WOR", {
   n <- round(sum(pik4))
   for (method in exact_jip_methods) {
@@ -217,7 +217,7 @@ test_that("Joint prob marginal constraint for fixed-size WOR", {
 })
 
 
-# ---- Property 10: WR covariance matrix properties ----
+# Property 10: WR covariance matrix properties
 test_that("Multinomial covariance matches known formula", {
   s <- unequal_prob_wr(hits5, method = "multinomial")
   cov_mat <- sampling_cov(s)
@@ -242,7 +242,7 @@ test_that("Multinomial covariance matches known formula", {
 })
 
 
-# ---- Property 11: SRS known variance formula ----
+# Property 11: SRS known variance formula
 test_that("SRS HT variance matches formula", {
   skip_on_cran()
   N <- 20L
