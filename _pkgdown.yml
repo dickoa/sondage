@@ -1,4 +1,6 @@
 url: https://dickoa.gitlab.io/sondage
+template:
+  bootstrap: 5
 
 articles:
 - title: Articles
