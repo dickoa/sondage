@@ -30,7 +30,7 @@
 print.unequal_prob <- function(x, ...) {
   wr <- inherits(x, "wr")
   label <- if (wr) "Unequal prob WR" else "Unequal prob WOR"
-  cat(sprintf("%s [%s] (n=%d, N=%d): ", label, x$method, x$n, x$N))
+  cat(sprintf("%s [%s] (n=%g, N=%d): ", label, x$method, x$n, x$N))
   .print_sample(x$sample)
   invisible(x)
 }
@@ -39,7 +39,7 @@ print.unequal_prob <- function(x, ...) {
 print.equal_prob <- function(x, ...) {
   wr <- inherits(x, "wr")
   label <- if (wr) "Equal prob WR" else "Equal prob WOR"
-  cat(sprintf("%s [%s] (n=%d, N=%d): ", label, x$method, x$n, x$N))
+  cat(sprintf("%s [%s] (n=%g, N=%d): ", label, x$method, x$n, x$N))
   .print_sample(x$sample)
   invisible(x)
 }

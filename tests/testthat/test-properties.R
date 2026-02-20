@@ -280,7 +280,34 @@ test_that("WR sampling covariance has non-negative diagonal (variance)", {
 })
 
 
-# Property 13: Joint probability functions reject large N
+# Property 13: print works for non-integer expected n
+test_that("print works for Poisson/Bernoulli with non-integer n", {
+  s1 <- unequal_prob_wor(c(0.2, 0.3, 0.4), method = "poisson")
+  expect_output(print(s1), "n=0.9")
+
+  s2 <- equal_prob_wor(10, 3.5, method = "bernoulli")
+  expect_output(print(s2), "n=3.5")
+
+  # Integer n still prints cleanly
+  s3 <- equal_prob_wor(10, 3, method = "srs")
+  expect_output(print(s3), "n=3,")
+})
+
+
+# Property 14: sampling_cov.wr weighted handles zero-prob units
+test_that("sampling_cov.wr weighted returns NA (not NaN) for zero-prob units", {
+  s <- unequal_prob_wr(c(0, 1, 1), method = "multinomial")
+  m <- sampling_cov(s, weighted = TRUE)
+  # NA for zero-prob unit, not NaN
+  expect_true(all(is.na(m[1, ])))
+  expect_true(all(is.na(m[, 1])))
+  expect_false(any(is.nan(m)))
+  # Non-zero prob entries should be finite
+  expect_true(all(is.finite(m[2:3, 2:3])))
+})
+
+
+# Property 16: Joint probability functions reject large N
 test_that("joint probability functions reject large N", {
   pik <- rep(0.5, 10001)
   expect_error(

@@ -44,11 +44,22 @@ object. Not all methods yield exact joint probabilities:
 (\eqn{\pi_{ij} = \pi_i \pi_j}, independent selections),
 \code{srs}, and \code{bernoulli}.}
 \item{Approximation}{\code{brewer}, \code{sps}, and \code{pareto} use the
-\strong{high-entropy approximation}:
-\eqn{\pi_{ij} \approx \pi_i \pi_j
-      (1 - (1-\pi_i)(1-\pi_j) / \sum_k \pi_k(1-\pi_k))}.
-This is very accurate for these high-entropy designs
-(Hajek, 1964; Brewer & Donadio, 2003).}
+\strong{high-entropy approximation} (Brewer & Donadio, 2003,
+eq. 18):
+\eqn{\pi_{ij} \approx \pi_i \pi_j (c_i + c_j) / 2}
+where \eqn{c_k = (n-1) / (n - (2n-1)\pi_k/(n-1) +
+    \sum_l \pi_l^2/(n-1))}.
+This approximation guarantees symmetry,
+\eqn{0 \le \pi_{ij} \le \min(\pi_i, \pi_j)}, and correct
+diagonal (\eqn{\pi_{ii} = \pi_i}), but does \strong{not}
+guarantee the fixed-size marginal identity
+\eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}. The marginal
+defect is typically small for well-spread inclusion
+probabilities but can become non-trivial for highly skewed
+\eqn{\pi_k} vectors, especially when \eqn{n} is small
+(e.g. \eqn{n = 2}). A warning is issued when the defect
+exceeds 5\\% of \eqn{n}. Use \code{method = "cps"} when exact
+second-order inclusion probabilities are required.}
 }
 
 For \strong{systematic PPS} sampling, some off-diagonal entries may be

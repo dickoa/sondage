@@ -213,7 +213,7 @@ props <- data.frame(
     "Yes", "Yes"
   ),
   `Joint probs` = c(
-    "Exact", "SRS approx", "Exact",
+    "Exact", "Exact (zeros)", "Exact",
     "Exact",
     "Exact", "HE approx", "Exact (zeros)", "Exact",
     "HE approx", "HE approx",
@@ -223,9 +223,8 @@ props <- data.frame(
 )
 knitr::kable(props, align = "llccl",
   caption = paste(
-    "HE approx = high-entropy (Hajek) approximation.",
+    "HE approx = high-entropy approximation (Brewer & Donadio, 2003).",
     "Approx* = target probabilities, exact asymptotically.",
-    "SRS approx = treated as SRS (see text).",
     "Simulated = Monte Carlo via nsim parameter."
   )
 )
@@ -233,7 +232,7 @@ knitr::kable(props, align = "llccl",
 
 ### Notes on specific methods
 
-**Equal-probability systematic sampling.** In `sondage`, `joint_inclusion_prob()` returns the SRS formula $\pi_{ij} = n(n-1)/[N(N-1)]$ for this design. This is appropriate when the frame order is unrelated to the study variable (effectively random). For frames with structure, the true joint probabilities depend on the ordering and some may be zero; in that case, consider replication or successive-differences variance estimators.
+**Equal-probability systematic sampling.** In `sondage`, `joint_inclusion_prob()` returns exact joint inclusion probabilities computed via C code, using the same algorithm as systematic PPS with uniform $\pi_k = n/N$. Some $\pi_{ij}$ are structurally zero (pairs of units that can never co-occur in the same systematic sample), so the SYG estimator is generally inapplicable. Consider replication or successive-differences variance estimators for systematic designs.
 
 **SPS and Pareto (order sampling).** Both are implemented via @rosen1997's order sampling framework. SPS uses ranking key $\xi_k = u_k / \pi_k$ [equivalent to @ohlsson1998's sequential threshold adjustment]; Pareto uses $\xi_k = [u_k/(1-u_k)] / [\pi_k/(1-\pi_k)]$. The $n$ units with the smallest $\xi_k$ are selected. First-order inclusion probabilities are approximately (not exactly) equal to the target $\pi_k$ for finite populations; the discrepancy vanishes as $N$ grows. Both support permanent random numbers (PRN) for sample coordination.
 
@@ -247,7 +246,7 @@ simulation in `joint_expected_hits()` (controlled by `nsim`, default 10 000).
 ### Choosing a variance strategy
 
 - **SYG with exact $\pi_{ij}$**: CPS and SRS WOR provide exact joint probabilities, so the Sen--Yates--Grundy variance estimator [@sen1953; @yatesandgrundy1953] is unbiased.
-- **SYG with approximate $\pi_{ij}$**: For Brewer, SPS, and Pareto, joint probabilities use the high-entropy approximation. The resulting SYG estimate is very accurate but not exactly unbiased [@hajek1964; @brewer2003].
+- **SYG with approximate $\pi_{ij}$**: For Brewer, SPS, and Pareto, joint probabilities use the high-entropy approximation [@brewer2003, eq. 18]. This guarantees symmetry, non-negativity, and $\pi_{ij} \le \min(\pi_i, \pi_j)$, but does *not* satisfy the fixed-size marginal identity $\sum_{j \neq i}\pi_{ij} = (n-1)\pi_i$ exactly. The marginal defect is typically small but can be non-trivial for highly skewed $\pi_k$ vectors when $n$ is small (e.g., $n = 2$); a warning is issued when it exceeds 5% of $n$. Use `method = "cps"` when exact second-order structure is required.
 - **Independent designs** (Poisson, Bernoulli): The covariance $\Delta_{ij} = 0$ for $i \neq j$, so the variance simplifies to $\text{Var}(\hat{Y}_{HT}) = \sum_i (1 - \pi_i)\, y_i^2 / \pi_i$.
 - **Systematic designs with $\pi_{ij} = 0$**: The SYG estimator is undefined. Use successive-differences, Hartley--Rao approximations, or replication methods.
 - **With-replacement designs** (Chromy, multinomial): Use the @hansen1943 estimator, or the generalised Horvitz--Thompson framework of @chromy2009 which unifies WOR and WR variance estimation via `sampling_cov()`.

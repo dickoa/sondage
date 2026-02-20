@@ -12,7 +12,7 @@ extern SEXP C_up_chromy(SEXP x, SEXP n);
 extern SEXP C_chromy_joint_exp(SEXP x, SEXP n, SEXP nsim);
 extern SEXP C_cps_jip(SEXP pik, SEXP eps);
 extern SEXP C_up_systematic_jip(SEXP pik, SEXP eps);
-extern SEXP C_high_entropy_jip(SEXP pik);
+extern SEXP C_high_entropy_jip(SEXP pik, SEXP eps);
 
 static const R_CallMethodDef CallEntries[] = {
     {"C_up_brewer",               (DL_FUNC) &C_up_brewer,               2},
@@ -24,7 +24,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"C_chromy_joint_exp",        (DL_FUNC) &C_chromy_joint_exp,        3},
     {"C_cps_jip",                 (DL_FUNC) &C_cps_jip,                 2},
     {"C_up_systematic_jip",     (DL_FUNC) &C_up_systematic_jip,     2},
-    {"C_high_entropy_jip",      (DL_FUNC) &C_high_entropy_jip,      1},
+    {"C_high_entropy_jip",      (DL_FUNC) &C_high_entropy_jip,      2},
     {NULL, NULL, 0}
 };
 

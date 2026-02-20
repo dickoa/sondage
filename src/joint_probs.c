@@ -214,48 +214,91 @@ SEXP C_up_systematic_jip(SEXP pik_sexp, SEXP eps_sexp) {
     return result;
 }
 
-SEXP C_high_entropy_jip(SEXP pik_sexp) {
-    const int N = LENGTH(pik_sexp);
-    const double *pik = REAL(pik_sexp);
+SEXP C_high_entropy_jip(SEXP pik_sexp, SEXP eps_sexp) {
+    const int N_full = LENGTH(pik_sexp);
+    const double *pik_full = REAL(pik_sexp);
+    const double eps = REAL(eps_sexp)[0];
 
-    double n = 0.0;
-    double sum_pik2 = 0.0;
-    for (int k = 0; k < N; k++) {
-        n += pik[k];
-        sum_pik2 += pik[k] * pik[k];
+    SEXP result = PROTECT(allocMatrix(REALSXP, N_full, N_full));
+    double *pikl = REAL(result);
+    memset(pikl, 0, (size_t)N_full * N_full * sizeof(double));
+
+    /* Diagonal = first-order inclusion probabilities */
+    for (int k = 0; k < N_full; k++) {
+        pikl[k * N_full + k] = pik_full[k];
     }
 
-    SEXP result = PROTECT(allocMatrix(REALSXP, N, N));
-    double *pikl = REAL(result);
-
-    if (n <= 1.0 + 1e-10) {
-        memset(pikl, 0, (size_t)N * N * sizeof(double));
-        for (int k = 0; k < N; k++) {
-            pikl[k * N + k] = pik[k];
+    /* Handle certainty units: pi_ij = pik[other] */
+    for (int k = 0; k < N_full; k++) {
+        if (pik_full[k] >= 1.0 - eps) {
+            for (int l = 0; l < N_full; l++) {
+                pikl[k * N_full + l] = pik_full[l];
+                pikl[l * N_full + k] = pik_full[l];
+            }
+            pikl[k * N_full + k] = pik_full[k];
         }
+    }
+
+    /* Count valid (non-certainty, non-zero) units */
+    int N_valid = 0;
+    for (int k = 0; k < N_full; k++) {
+        if (pik_full[k] > eps && pik_full[k] < 1.0 - eps) {
+            N_valid++;
+        }
+    }
+
+    if (N_valid < 2) {
         UNPROTECT(1);
         return result;
     }
 
-    double *c = (double *) R_alloc(N, sizeof(double));
+    /* Extract valid subset */
+    int *valid_idx = (int *) R_alloc(N_valid, sizeof(int));
+    double *pik_valid = (double *) R_alloc(N_valid, sizeof(double));
+
+    int j = 0;
+    double n = 0.0;
+    double sum_pik2 = 0.0;
+    for (int k = 0; k < N_full; k++) {
+        if (pik_full[k] > eps && pik_full[k] < 1.0 - eps) {
+            valid_idx[j] = k;
+            pik_valid[j] = pik_full[k];
+            n += pik_full[k];
+            sum_pik2 += pik_full[k] * pik_full[k];
+            j++;
+        }
+    }
+
+    if (n <= 1.0 + eps) {
+        UNPROTECT(1);
+        return result;
+    }
+
+    /* Compute high-entropy coefficients on valid subset */
+    double *c = (double *) R_alloc(N_valid, sizeof(double));
     const double nm1 = n - 1.0;
     const double coef1 = (2.0 * n - 1.0) / nm1;
     const double coef2 = sum_pik2 / nm1;
 
-    for (int k = 0; k < N; k++) {
-        double denom = n - coef1 * pik[k] + coef2;
+    for (int k = 0; k < N_valid; k++) {
+        double denom = n - coef1 * pik_valid[k] + coef2;
         c[k] = nm1 / denom;
     }
 
-    for (int i = 0; i < N; i++) {
-        for (int j = i; j < N; j++) {
-            if (i == j) {
-                pikl[i * N + i] = pik[i];
-            } else {
-                double pi_ij = pik[i] * pik[j] * (c[i] + c[j]) / 2.0;
-                pikl[j * N + i] = pi_ij;
-                pikl[i * N + j] = pi_ij;
-            }
+    /* Compute joint probabilities for valid pairs, with clamping */
+    for (int i = 0; i < N_valid; i++) {
+        for (int jj = i + 1; jj < N_valid; jj++) {
+            double pi_ij = pik_valid[i] * pik_valid[jj] *
+                           (c[i] + c[jj]) / 2.0;
+
+            if (pi_ij < 0.0) pi_ij = 0.0;
+            if (pi_ij > pik_valid[i]) pi_ij = pik_valid[i];
+            if (pi_ij > pik_valid[jj]) pi_ij = pik_valid[jj];
+
+            int k = valid_idx[i];
+            int l = valid_idx[jj];
+            pikl[l * N_full + k] = pi_ij;
+            pikl[k * N_full + l] = pi_ij;
         }
     }
 

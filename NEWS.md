@@ -1,6 +1,4 @@
-# sondage 0.1.0
-
-Initial CRAN release.
+# sondage 0.2.9999
 
 ## Sampling dispatchers
 
@@ -9,10 +7,11 @@ Four dispatchers returning S3 design objects with class
 
 * `equal_prob_wor(N, n, method=)` - SRS, systematic, Bernoulli
 * `equal_prob_wr(N, n, method=)` - SRS with replacement
-* `unequal_prob_wor(pik, method=)` - CPS (max entropy), Brewer, systematic PPS, Poisson
+* `unequal_prob_wor(pik, method=)` - CPS (max entropy), Brewer, systematic PPS, Poisson, SPS, Pareto
 * `unequal_prob_wr(hits, method=)` - Chromy (minimum replacement), multinomial PPS
 
-All dispatchers support `nrep` for batch sampling and `u` for sample coordination.
+All dispatchers support `nrep` for batch sampling and `prn` for sample coordination
+(Bernoulli, Poisson, SPS, Pareto).
 
 ## Generics
 
@@ -29,3 +28,16 @@ All dispatchers support `nrep` for batch sampling and `u` for sample coordinatio
 * Batch sampling via `nrep` argument for simulations
 * C implementations for performance-critical algorithms
 * Unified variance estimation framework following Chromy (2009)
+* High-entropy joint inclusion probabilities (Brewer & Donadio, 2003)
+  handle certainty units correctly and clamp to valid bounds;
+  a warning is issued when the marginal defect exceeds 5% of n
+* Equal-probability systematic sampling returns exact joint inclusion
+  probabilities (with structural zeros), not the SRS approximation
+* N-size guard on dense joint probability matrices (N > 10,000)
+* `joint_expected_hits()` diagonal is E(n_i^2), consistent with
+  the WOR convention where diagonal is pi_i
+* `sampling_cov(weighted = TRUE)` returns `NA` (not `NaN`) for
+  undefined entries (zero joint probabilities or zero selection
+  probabilities)
+* `print()` handles non-integer expected sample sizes
+  (Poisson, Bernoulli)

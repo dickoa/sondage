@@ -141,11 +141,22 @@ expected_hits.wor <- function(x, ...) {
 #'     (\eqn{\pi_{ij} = \pi_i \pi_j}, independent selections),
 #'     `srs`, and `bernoulli`.}
 #'   \item{Approximation}{`brewer`, `sps`, and `pareto` use the
-#'     \strong{high-entropy approximation}:
-#'     \eqn{\pi_{ij} \approx \pi_i \pi_j
-#'       (1 - (1-\pi_i)(1-\pi_j) / \sum_k \pi_k(1-\pi_k))}.
-#'     This is very accurate for these high-entropy designs
-#'     (Hajek, 1964; Brewer & Donadio, 2003).}
+#'     \strong{high-entropy approximation} (Brewer & Donadio, 2003,
+#'     eq. 18):
+#'     \eqn{\pi_{ij} \approx \pi_i \pi_j (c_i + c_j) / 2}
+#'     where \eqn{c_k = (n-1) / (n - (2n-1)\pi_k/(n-1) +
+#'     \sum_l \pi_l^2/(n-1))}.
+#'     This approximation guarantees symmetry,
+#'     \eqn{0 \le \pi_{ij} \le \min(\pi_i, \pi_j)}, and correct
+#'     diagonal (\eqn{\pi_{ii} = \pi_i}), but does \strong{not}
+#'     guarantee the fixed-size marginal identity
+#'     \eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}. The marginal
+#'     defect is typically small for well-spread inclusion
+#'     probabilities but can become non-trivial for highly skewed
+#'     \eqn{\pi_k} vectors, especially when \eqn{n} is small
+#'     (e.g. \eqn{n = 2}). A warning is issued when the defect
+#'     exceeds 5\% of \eqn{n}. Use `method = "cps"` when exact
+#'     second-order inclusion probabilities are required.}
 #' }
 #'
 #' For \strong{systematic PPS} sampling, some off-diagonal entries may be
@@ -186,37 +197,52 @@ joint_inclusion_prob.wor <- function(x, eps = 1e-6, ...) {
     )
   }
 
-  switch(
+  pikl <- switch(
     x$method,
     cps = .Call(C_cps_jip, as.double(pik), as.double(eps)),
-    brewer = .Call(C_high_entropy_jip, as.double(pik)),
-    systematic = {
-      if (inherits(x, "equal_prob")) {
-        # Equal prob systematic: same as SRS
-        .jip_srs(n, N)
-      } else {
-        .Call(C_up_systematic_jip, as.double(pik), as.double(eps))
-      }
-    },
-    sps = .Call(C_high_entropy_jip, as.double(pik)),
-    pareto = .Call(C_high_entropy_jip, as.double(pik)),
+    brewer = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
+    systematic = .Call(C_up_systematic_jip, as.double(pik), as.double(eps)),
+    sps = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
+    pareto = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
     poisson = {
-      pikl <- outer(pik, pik)
-      diag(pikl) <- pik
-      pikl
+      J <- outer(pik, pik)
+      diag(J) <- pik
+      J
     },
     srs = .jip_srs(n, N),
     bernoulli = {
       p <- pik[1]
-      pikl <- matrix(p * p, N, N)
-      diag(pikl) <- p
-      pikl
+      J <- matrix(p * p, N, N)
+      diag(J) <- p
+      J
     },
     stop(
       sprintf("joint_inclusion_prob not implemented for method '%s'", x$method),
       call. = FALSE
     )
   )
+
+  # Marginal defect diagnostic for high-entropy approximation
+  if (x$method %in% c("brewer", "sps", "pareto")) {
+    n_round <- round(n)
+    if (n_round >= 2L) {
+      defect <- max(abs(rowSums(pikl) - n * pik))
+      if (defect / n > 0.05) {
+        warning(
+          sprintf(
+            "High-entropy approximation: marginal defect = %.4f (%.1f%% of n). ",
+            defect, 100 * defect / n
+          ),
+          "The marginal identity sum(pi_ij, j!=i) = (n-1)*pi_i is not well ",
+          "satisfied for this pik vector. Consider using method = \"cps\" for ",
+          "exact joint inclusion probabilities.",
+          call. = FALSE
+        )
+      }
+    }
+  }
+
+  pikl
 }
 
 #' @rdname joint_inclusion_prob
@@ -449,8 +475,23 @@ sampling_cov.wr <- function(x, weighted = FALSE, ...) {
   pikl <- joint_expected_hits(x, ...)
   ehits <- expected_hits(x)
   if (weighted) {
-    m <- 1 - outer(ehits, ehits) / pikl
-    diag(m) <- 1 - ehits / diag(pikl)
+    eep <- outer(ehits, ehits)
+    zero <- pikl == 0 & eep > 0
+    if (any(zero[lower.tri(zero)])) {
+      warning(
+        "Some pairwise expected hits are zero while marginal expected ",
+        "hits are positive. The weighted covariance is undefined for ",
+        "these entries. Affected entries are set to NA.",
+        call. = FALSE
+      )
+    }
+    # Handle 0/0 case (both pikl and eep are zero)
+    both_zero <- pikl == 0 & eep == 0
+    m <- 1 - eep / pikl
+    m[zero] <- NA_real_
+    m[both_zero] <- NA_real_
+    d <- diag(pikl)
+    diag(m) <- ifelse(d == 0, NA_real_, 1 - ehits / d)
     m
   } else {
     pikl - outer(ehits, ehits)

@@ -226,6 +226,70 @@ test_that("all joint methods produce symmetric matrices", {
   expect_equal(pikl_brewer, t(pikl_brewer))
 })
 
+test_that("equal-prob systematic JIP differs from SRS", {
+  N <- 12; n <- 3
+  s <- equal_prob_wor(N, n, method = "systematic")
+  pikl <- joint_inclusion_prob(s)
+
+  # Should NOT be uniform (SRS would be n(n-1)/(N(N-1)) = 1/22 for all pairs)
+  off_diag <- pikl[row(pikl) != col(pikl)]
+  expect_true(length(unique(round(off_diag, 8))) > 1)
+
+  # Some pairs should have pi_ij = 0 (never co-occur in systematic)
+  expect_true(any(off_diag == 0))
+  # Some pairs should have pi_ij = n/N = 0.25 (always co-occur)
+  expect_true(any(abs(off_diag - n / N) < 1e-10))
+
+  # Diagonal should still be n/N
+  expect_equal(diag(pikl), rep(n / N, N))
+})
+
+test_that("high-entropy JIP warns on large marginal defect", {
+  # Skewed pik with n=2 → defect/n ≈ 6.9%, should warn
+  pik_skewed <- c(0.190194, 0.702073, 0.168549, 0.026420,
+                  0.441842, 0.304860, 0.109806, 0.056257)
+  s <- unequal_prob_wor(pik_skewed, method = "brewer")
+  expect_warning(joint_inclusion_prob(s), "marginal defect")
+})
+
+test_that("high-entropy JIP does not warn for well-spread pik", {
+  # Tille pik → defect/n ≈ 1.7%, should not warn
+  pik_tille <- c(0.07, 0.17, 0.41, 0.61, 0.83, 0.91)
+  s <- unequal_prob_wor(pik_tille, method = "brewer")
+  expect_no_warning(joint_inclusion_prob(s))
+})
+
+test_that("high-entropy JIP handles certainty units correctly", {
+  pik <- c(
+    1, 1, 0.191473, 1, 0.636845, 0.653934, 0.292246, 1, 1,
+    0.214227, 0.846962, 0.224352, 1, 0.437642, 0.758233,
+    0.618972, 0.178129, 0.795222, 1, 0.87704, 0.452308,
+    0.703438, 1, 0.423387, 0.69559
+  )
+  upper <- outer(pik, pik, pmin)
+  cert <- which(pik == 1)
+
+  for (m in c("brewer", "sps", "pareto")) {
+    s <- unequal_prob_wor(pik, method = m)
+    J <- joint_inclusion_prob(s)
+
+    # No entry exceeds 1
+    expect_true(all(J <= 1 + 1e-10), info = paste(m, "entries > 1"))
+    # No entry exceeds min(pi_i, pi_j)
+    expect_true(all(J <= upper + 1e-10), info = paste(m, "entries > upper"))
+    # No negative entries
+    expect_true(all(J >= -1e-10), info = paste(m, "negative entries"))
+    # Certainty-certainty pairs = 1
+    expect_true(all(J[cert, cert] == 1), info = paste(m, "cert-cert"))
+    # Certainty-other pairs = pik[other]
+    for (ci in cert) {
+      others <- setdiff(seq_along(pik), ci)
+      expect_equal(J[ci, others], pik[others], tolerance = 1e-10,
+                   info = paste(m, "cert-other for unit", ci))
+    }
+  }
+})
+
 test_that("joint methods work with larger populations", {
   set.seed(1)
   N <- 50
