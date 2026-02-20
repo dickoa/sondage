@@ -37,7 +37,10 @@ see \code{\link[=sampling_cov]{sampling_cov()}}. Complexity: O(N).}
 (expected size \eqn{n = \sum \pi_k}). Each unit is selected
 independently with probability \eqn{\pi_k}, so joint inclusion
 probabilities are exact: \eqn{\pi_{ij} = \pi_i \pi_j}.
-Supports PRN for sample coordination. Complexity: O(N).}
+Supports PRN for sample coordination. Complexity: O(N).
+Note: the realized sample size varies across draws and may
+occasionally be zero, particularly when inclusion probabilities
+are small.}
 \item{\code{"sps"}}{Sequential Poisson Sampling (Ohlsson, 1998).
 Implemented as order sampling (Rosen, 1997) with ranking key
 \eqn{\xi_k = u_k / \pi_k}: the \eqn{n} units with the smallest
@@ -76,7 +79,7 @@ boundary tolerance).}
 An object of class \code{c("unequal_prob", "wor", "sondage_sample")}.
 When \code{nrep = 1}, \verb{$sample} is an integer vector of selected unit indices.
 When \code{nrep > 1}, \verb{$sample} is a matrix (n x nrep) for fixed-size methods,
-or a list of integer vectors for random-size methods (\code{"poisson"}).
+or a list of integer vectors of varying lengths for random-size methods (\code{"poisson"}).
 }
 \description{
 Draws a sample with unequal inclusion probabilities, without replacement.

@@ -177,6 +177,15 @@ joint_inclusion_prob.wor <- function(x, eps = 1e-6, ...) {
   N <- x$N
   n <- x$n
 
+  if (N > 10000L) {
+    stop(
+      sprintf("N = %d is too large for dense joint probability computation (N x N = %.1f GB). ",
+              N, N^2 * 8 / 1e9),
+      "Consider using approximation-based variance estimators for large populations.",
+      call. = FALSE
+    )
+  }
+
   switch(
     x$method,
     cps = .Call(C_cps_jip, as.double(pik), as.double(eps)),
@@ -279,6 +288,15 @@ joint_expected_hits.wr <- function(x, nsim = 10000L, ...) {
   n <- x$n
   N <- x$N
 
+  if (N > 10000L) {
+    stop(
+      sprintf("N = %d is too large for dense joint probability computation (N x N = %.1f GB). ",
+              N, N^2 * 8 / 1e9),
+      "Consider using approximation-based variance estimators for large populations.",
+      call. = FALSE
+    )
+  }
+
   switch(
     x$method,
     chromy = {
@@ -290,13 +308,13 @@ joint_expected_hits.wr <- function(x, nsim = 10000L, ...) {
     },
     multinomial = {
       pikl <- n * (n - 1) * outer(prob, prob)
-      diag(pikl) <- n * prob
+      diag(pikl) <- n * prob * (1 - prob) + (n * prob)^2
       pikl
     },
     srs = {
       p <- 1 / N
       pikl <- matrix(n * (n - 1) * p * p, N, N)
-      diag(pikl) <- n * p
+      diag(pikl) <- n * p * (1 - p) + (n * p)^2
       pikl
     },
     stop(

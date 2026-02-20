@@ -115,8 +115,8 @@ test_that("joint_expected_hits.multinomial returns correct values", {
   n <- 5
   # Off-diagonal: n*(n-1)*p_i*p_j
   expect_equal(pikl[1, 2], n * (n - 1) * p[1] * p[2])
-  # Diagonal: n*p_k
-  expect_equal(diag(pikl), n * p)
+  # Diagonal: E(n_k^2) = n*p_k*(1-p_k) + (n*p_k)^2
+  expect_equal(diag(pikl), n * p * (1 - p) + (n * p)^2)
 })
 
 test_that("joint_expected_hits.srs_wr returns correct values", {
@@ -124,7 +124,7 @@ test_that("joint_expected_hits.srs_wr returns correct values", {
   pikl <- joint_expected_hits(s)
   expect_equal(dim(pikl), c(10, 10))
   p <- 1 / 10
-  expect_equal(diag(pikl), rep(5 * p, 10))
+  expect_equal(diag(pikl), rep(5 * p * (1 - p) + (5 * p)^2, 10))
   expect_equal(pikl[1, 2], 5 * 4 * p * p)
 })
 

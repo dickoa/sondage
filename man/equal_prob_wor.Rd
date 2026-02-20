@@ -28,7 +28,8 @@ has equal probability. Fixed sample size.}
 A random start is drawn from \verb{(0, k]}. Fixed sample size.
 Implicit stratification based on unit ordering.}
 \item{\code{"bernoulli"}}{Bernoulli sampling. Each unit selected
-independently with probability \code{p = n/N}. Random sample size.}
+independently with probability \code{p = n/N}. Random sample size.
+Note: the realized sample size varies across draws.}
 }}
 
 \item{nrep}{Number of replicate samples (default 1). When \code{nrep > 1},
@@ -45,7 +46,7 @@ Only supported by \code{"bernoulli"} method.}
 An object of class \code{c("equal_prob", "wor", "sondage_sample")}.
 When \code{nrep = 1}, \verb{$sample} is an integer vector. When \code{nrep > 1},
 \verb{$sample} is a matrix (n x nrep) for fixed-size methods, or a list
-of integer vectors for \code{"bernoulli"}.
+of integer vectors of varying lengths for \code{"bernoulli"}.
 }
 \description{
 Draws a sample with equal inclusion probabilities, without replacement.

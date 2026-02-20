@@ -234,10 +234,9 @@ test_that("Multinomial covariance matches known formula", {
     }
   }
 
-  # Diagonal: E(n_i) * (1 - E(n_i)), matching the joint_expected_hits
-  # convention where diagonal stores E(n_i) (parallels WOR pi_i convention)
+  # Diagonal: Var(n_i) = n * p_i * (1 - p_i)
   for (i in seq_along(prob)) {
-    expect_equal(cov_mat[i, i], ehits[i] * (1 - ehits[i]), tolerance = 1e-10)
+    expect_equal(cov_mat[i, i], n * prob[i] * (1 - prob[i]), tolerance = 1e-10)
   }
 })
 
@@ -261,5 +260,31 @@ test_that("SRS HT variance matches formula", {
     var(ht_estimates),
     theoretical_var,
     tolerance = 0.1 * theoretical_var
+  )
+})
+
+
+# Property 12: WR sampling covariance has non-negative diagonal (variance)
+test_that("WR sampling covariance has non-negative diagonal (variance)", {
+  # Multinomial with E(n_i) > 1
+  prob <- c(0.05, 0.15, 0.30, 0.50)
+  hits <- 10 * prob
+  s <- unequal_prob_wr(hits, method = "multinomial")
+  cov_mat <- sampling_cov(s)
+  expect_true(all(diag(cov_mat) >= 0))
+
+  # SRS WR with E(n_i) > 1
+  s2 <- equal_prob_wr(5, 10)
+  cov_mat2 <- sampling_cov(s2)
+  expect_true(all(diag(cov_mat2) >= 0))
+})
+
+
+# Property 13: Joint probability functions reject large N
+test_that("joint probability functions reject large N", {
+  pik <- rep(0.5, 10001)
+  expect_error(
+    joint_inclusion_prob(unequal_prob_wor(pik, method = "poisson")),
+    "too large"
   )
 })

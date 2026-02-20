@@ -14,7 +14,8 @@
 #'       A random start is drawn from `(0, k]`. Fixed sample size.
 #'       Implicit stratification based on unit ordering.}
 #'     \item{`"bernoulli"`}{Bernoulli sampling. Each unit selected
-#'       independently with probability `p = n/N`. Random sample size.}
+#'       independently with probability `p = n/N`. Random sample size.
+#'       Note: the realized sample size varies across draws.}
 #'   }
 #' @param nrep Number of replicate samples (default 1). When `nrep > 1`,
 #'   `$sample` holds a matrix (fixed-size) or list (random-size) of all
@@ -27,7 +28,7 @@
 #' @return An object of class `c("equal_prob", "wor", "sondage_sample")`.
 #'   When `nrep = 1`, `$sample` is an integer vector. When `nrep > 1`,
 #'   `$sample` is a matrix (n x nrep) for fixed-size methods, or a list
-#'   of integer vectors for `"bernoulli"`.
+#'   of integer vectors of varying lengths for `"bernoulli"`.
 #'
 #' @seealso [equal_prob_wr()] for with-replacement designs,
 #'   [unequal_prob_wor()] for unequal probability designs.
