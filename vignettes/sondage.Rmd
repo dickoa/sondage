@@ -24,12 +24,13 @@ set.seed(1)
 
 `sondage` provides fast implementations of survey sampling algorithms for finite populations. Every sampling function returns a *design object* that carries the selected sample alongside the design metadata (inclusion probabilities or expected hits, sample size, method). A set of generics then operates on these objects to compute quantities needed for variance estimation.
 
-The four entry-point functions are organised by two dimensions:
+The five entry-point functions are organised by two dimensions, plus a dedicated dispatcher for balanced sampling:
 
 |                | Without replacement | With replacement |
 |----------------|---------------------|------------------|
 | Equal prob.    | `equal_prob_wor()`  | `equal_prob_wr()`  |
 | Unequal prob.  | `unequal_prob_wor()`| `unequal_prob_wr()`|
+| Balanced       | `balanced_wor()`    |                    |
 
 ## Equal probability sampling
 
@@ -126,6 +127,42 @@ s_wr$hits  # realized selection counts
 
 The `"multinomial"` method draws each selection independently.
 
+## Balanced sampling
+
+When auxiliary information is available at the design stage, balanced sampling ensures that Horvitz--Thompson estimates of auxiliary totals are (approximately) exact: $\sum_{k \in S} x_k / \pi_k \approx \sum_{k \in U} x_k$. This reduces variance for any study variable correlated with the balancing variables.
+
+The `balanced_wor()` function implements the cube method [@deville2004]:
+
+```{r}
+pik <- inclusion_prob(c(10, 20, 5, 40, 25), n = 3)
+x <- matrix(c(10, 20, 5, 40, 25))  # auxiliary variable to balance on
+s_bal <- balanced_wor(pik, aux = x)
+s_bal
+```
+
+The cube method proceeds in two phases: a *flight phase* that moves probabilities toward 0 or 1 while maintaining all balancing constraints, and a *landing phase* that resolves the remaining undecided units by progressively relaxing constraints (starting from the last column of `aux`). The sample size constraint is always placed first and never relaxed.
+
+Users should order auxiliary variables by importance (most important first) in the `aux` matrix.
+
+### Stratified balanced sampling
+
+When strata are known, the stratified cube method [@chauvet2009] preserves exact within-stratum sample sizes while balancing on auxiliary variables:
+
+```{r}
+N <- 20
+pik_strat <- rep(0.4, N)
+x_strat <- matrix(as.double(1:N), ncol = 1)
+strata <- rep(1:4, each = 5)
+
+s_strat <- balanced_wor(pik_strat, aux = x_strat, strata = strata)
+s_strat
+
+# Check per-stratum sample sizes
+table(strata[s_strat$sample])
+```
+
+Joint inclusion probabilities for the cube use the high-entropy approximation, since the cube produces a near-maximum-entropy design.
+
 ## Design queries
 
 Once you have a design object, generics compute the quantities needed for variance estimation.
@@ -191,33 +228,38 @@ props <- data.frame(
     "SRS WR",
     "CPS", "Brewer", "Systematic PPS", "Poisson",
     "SPS", "Pareto",
-    "Chromy", "Multinomial"
+    "Chromy", "Multinomial",
+    "Cube"
   ),
   Type = c(
     rep("EP WOR", 3), "EP WR",
     rep("UP WOR", 6),
-    rep("UP WR", 2)
+    rep("UP WR", 2),
+    "Balanced"
   ),
   `Fixed n` = c(
     "Yes", "Yes", "No",
     "Yes",
     "Yes", "Yes", "Yes", "No",
     "Yes", "Yes",
-    "Yes", "Yes"
+    "Yes", "Yes",
+    "Yes"
   ),
   `Exact 1st order` = c(
     "Yes", "Yes", "Yes",
     "Yes",
     "Yes", "Yes", "Yes", "Yes",
     "Approx*", "Approx*",
-    "Yes", "Yes"
+    "Yes", "Yes",
+    "Yes"
   ),
   `Joint probs` = c(
     "Exact", "Exact (zeros)", "Exact",
     "Exact",
     "Exact", "HE approx", "Exact (zeros)", "Exact",
     "HE approx", "HE approx",
-    "Simulated", "Exact"
+    "Simulated", "Exact",
+    "HE approx"
   ),
   check.names = FALSE
 )
@@ -243,10 +285,12 @@ for such pairs. Consider successive-differences, Hartley--Rao, or replication me
 **Chromy.** Pairwise expectations $E(n_i n_j)$ are estimated by Monte Carlo
 simulation in `joint_expected_hits()` (controlled by `nsim`, default 10 000).
 
+**Cube (balanced sampling).** The cube method [@deville2004] produces near-maximum-entropy samples, so `joint_inclusion_prob()` uses the high-entropy approximation. The stratified variant [@chauvet2009] preserves exact within-stratum sample sizes. Order auxiliary variables by importance (most important first) since the landing phase relaxes constraints from last to first.
+
 ### Choosing a variance strategy
 
 - **SYG with exact $\pi_{ij}$**: CPS and SRS WOR provide exact joint probabilities, so the Sen--Yates--Grundy variance estimator [@sen1953; @yatesandgrundy1953] is unbiased.
-- **SYG with approximate $\pi_{ij}$**: For Brewer, SPS, and Pareto, joint probabilities use the high-entropy approximation [@brewer2003, eq. 18]. This guarantees symmetry, non-negativity, and $\pi_{ij} \le \min(\pi_i, \pi_j)$, but does *not* satisfy the fixed-size marginal identity $\sum_{j \neq i}\pi_{ij} = (n-1)\pi_i$ exactly. The marginal defect is typically small but can be non-trivial for highly skewed $\pi_k$ vectors when $n$ is small (e.g., $n = 2$); a warning is issued when it exceeds 5% of $n$. Use `method = "cps"` when exact second-order structure is required.
+- **SYG with approximate $\pi_{ij}$**: For Brewer, SPS, Pareto, and cube, joint probabilities use the high-entropy approximation [@brewer2003, eq. 18]. This guarantees symmetry, non-negativity, and $\pi_{ij} \le \min(\pi_i, \pi_j)$, but does *not* satisfy the fixed-size marginal identity $\sum_{j \neq i}\pi_{ij} = (n-1)\pi_i$ exactly. The marginal defect is typically small but can be non-trivial for highly skewed $\pi_k$ vectors when $n$ is small (e.g., $n = 2$); a warning is issued when it exceeds 5% of $n$. Use `method = "cps"` when exact second-order structure is required.
 - **Independent designs** (Poisson, Bernoulli): The covariance $\Delta_{ij} = 0$ for $i \neq j$, so the variance simplifies to $\text{Var}(\hat{Y}_{HT}) = \sum_i (1 - \pi_i)\, y_i^2 / \pi_i$.
 - **Systematic designs with $\pi_{ij} = 0$**: The SYG estimator is undefined. Use successive-differences, Hartley--Rao approximations, or replication methods.
 - **With-replacement designs** (Chromy, multinomial): Use the @hansen1943 estimator, or the generalised Horvitz--Thompson framework of @chromy2009 which unifies WOR and WR variance estimation via `sampling_cov()`.

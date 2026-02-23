@@ -43,7 +43,7 @@ object. Not all methods yield exact joint probabilities:
 (combinatorial enumeration via C code), \code{poisson}
 (\eqn{\pi_{ij} = \pi_i \pi_j}, independent selections),
 \code{srs}, and \code{bernoulli}.}
-\item{Approximation}{\code{brewer}, \code{sps}, and \code{pareto} use the
+\item{Approximation}{\code{brewer}, \code{sps}, \code{pareto}, and \code{cube} use the
 \strong{high-entropy approximation} (Brewer & Donadio, 2003,
 eq. 18):
 \eqn{\pi_{ij} \approx \pi_i \pi_j (c_i + c_j) / 2}

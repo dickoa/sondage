@@ -1,7 +1,7 @@
 Package: sondage
 Type: Package
 Title: Fast Survey Sampling Algorithms
-Version: 0.2.9999
+Version: 0.3.9999
 Authors@R: c(person(given = "Ahmadou",
                     family = "Dicko",
 	            email = "mail@ahmadoudicko.com",
@@ -14,14 +14,15 @@ Authors@R: c(person(given = "Ahmadou",
 Description: Fast implementations of survey sampling algorithms for
     single-stage probability sampling from finite populations.
     Provides equal probability methods (simple random sampling,
-    systematic, Bernoulli) and unequal probability methods (conditional
+    systematic, Bernoulli), unequal probability methods (conditional
     Poisson / maximum entropy, Brewer, systematic PPS, Pareto piPS,
     sequential Poisson, Poisson, Chromy's minimum replacement,
-    multinomial). All sampling functions return design objects carrying
-    sample indices, inclusion probabilities, and design metadata.
-    Generics compute joint inclusion probabilities, pairwise
-    expectations, and sampling covariances for variance estimation.
-    Mostly based on algorithms from Tille (2006, <doi:10.1007/0-387-34240-0>).
+    multinomial), and balanced sampling via the cube method.
+    All sampling functions return design objects carrying sample
+    indices, inclusion probabilities, and design metadata. Generics
+    compute joint inclusion probabilities, pairwise expectations, and
+    sampling covariances for variance estimation. Mostly based on
+    algorithms from Tille (2006, <doi:10.1007/0-387-34240-0>).
 Depends: R (>= 4.1.0)
 License: GPL (>= 2)
 Encoding: UTF-8

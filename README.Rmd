@@ -1,0 +1,144 @@
+---
+output: github_document
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-"
+)
+set.seed(1)
+```
+
+# sondage
+
+Fast survey sampling algorithms for R. Sampling functions return **design objects** with generics for extracting inclusion probabilities, joint inclusion probabilities, and variance estimation quantities.
+
+## Installation
+
+```r
+# From GitLab
+remotes::install_gitlab("dickoa/sondage")
+```
+
+## Usage
+
+```{r}
+library(sondage)
+
+# Use built-in US state data
+data(state)
+states <- as.data.frame(state.x77)
+
+# Compute inclusion probabilities from population size
+pik <- inclusion_prob(states$Population, n = 10)
+
+# Draw a sample (Conditional Poisson Sampling)
+s <- unequal_prob_wor(pik, method = "cps")
+states[s$sample, ]
+```
+
+```{r}
+# Joint inclusion probabilities for variance estimation
+pikl  <- joint_inclusion_prob(s)
+delta <- sampling_cov(s)                # pi_ij - pi_i * pi_j
+chk   <- sampling_cov(s, weighted = TRUE) # 1 - pi_i * pi_j / pi_ij
+```
+
+```{r}
+# Equal probability sampling
+s <- equal_prob_wor(nrow(states), 10)
+states[s$sample, ]
+```
+
+```{r}
+# PPS with minimum replacement (Chromy)
+hits <- expected_hits(states$Population, n = 10)
+s <- unequal_prob_wr(hits, method = "chromy")
+```
+
+```{r}
+# Balanced sampling (cube method)
+pik <- inclusion_prob(states$Population, n = 10)
+x <- matrix(states$Income)
+s_bal <- balanced_wor(pik, aux = x)
+s_bal
+```
+
+```{r}
+# Batch sampling for simulations (design object with matrix $sample)
+sim <- unequal_prob_wor(pik, method = "cps", nrep = 1000)
+dim(sim$sample)   # 10 x 1000
+inclusion_prob(sim) # generics still work
+```
+
+## Sampling functions
+
+**Equal probability without replacement** (`equal_prob_wor`):
+
+- `equal_prob_wor(N, n, method = "srs")` - Simple random sampling
+- `equal_prob_wor(N, n, method = "systematic")` - Systematic sampling
+- `equal_prob_wor(N, n, method = "bernoulli")` - Bernoulli sampling (random size)
+
+**Equal probability with replacement** (`equal_prob_wr`):
+
+- `equal_prob_wr(N, n, method = "srs")` - Simple random sampling with replacement
+
+**Unequal probability without replacement** (`unequal_prob_wor`):
+
+- `unequal_prob_wor(pik, method = "cps")` - Conditional Poisson / maximum entropy
+- `unequal_prob_wor(pik, method = "brewer")` - Brewer's method
+- `unequal_prob_wor(pik, method = "systematic")` - Systematic PPS
+- `unequal_prob_wor(pik, method = "poisson")` - Poisson sampling (random size)
+- `unequal_prob_wor(pik, method = "sps")` - Sequential Poisson sampling (order sampling)
+- `unequal_prob_wor(pik, method = "pareto")` - Pareto sampling (order sampling)
+
+**Unequal probability with replacement** (`unequal_prob_wr`):
+
+- `unequal_prob_wr(hits, method = "chromy")` - PPS with minimum replacement
+- `unequal_prob_wr(hits, method = "multinomial")` - Multinomial PPS
+
+**Balanced sampling without replacement** (`balanced_wor`):
+
+- `balanced_wor(pik, aux, method = "cube")` - Cube method (Deville & Tille, 2004)
+- `balanced_wor(pik, aux, strata, method = "cube")` - Stratified cube (Chauvet, 2009)
+
+## Design queries
+
+- `inclusion_prob(x, n)` - Compute inclusion probabilities from size measures
+- `inclusion_prob(s)` - Extract inclusion probabilities from a WOR design
+- `expected_hits(x, n)` - Compute expected hits from size measures
+- `expected_hits(s)` - Extract expected hits from a WR design
+- `joint_inclusion_prob(s)` - Joint inclusion probabilities (WOR)
+- `joint_expected_hits(s)` - Pairwise expectations E(n_i n_j) (WR)
+- `sampling_cov(s)` - Sampling covariance matrix
+- `sampling_cov(s, weighted = TRUE)` - Check quantities for SYG variance estimator
+
+## Method comparison
+
+| Method         | Fixed n | Exact pi_i | Exact pi_ij      | PRN support |
+|----------------|---------|------------|------------------|-------------|
+| `cps`          | yes     | yes        | yes              | no          |
+| `brewer`       | yes     | yes        | approx (HE)     | no          |
+| `systematic`   | yes     | yes        | yes (some = 0)   | no          |
+| `poisson`      | no      | yes        | yes (independent)| yes         |
+| `sps`          | yes     | approx*    | approx (HE)     | yes         |
+| `pareto`       | yes     | approx*    | approx (HE)     | yes         |
+| `multinomial`  | yes     | yes        | yes (analytic)   | no          |
+| `chromy`       | yes     | yes        | simulated        | no          |
+| `cube`         | yes     | yes        | approx (HE)     | no          |
+
+\*approx = target probabilities, exact asymptotically. HE = high-entropy approximation.
+
+## References
+
+Brewer, K.R.W. and Donadio, M.E. (2003). The High Entropy Variance of the Horvitz-Thompson Estimator. *Survey Methodology*, 29(2), 189-196.
+
+Chauvet, G. (2009). Stratified balanced sampling. *Survey Methodology*, 35, 115-119.
+
+Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson estimator. *Memorial JSM*.
+
+Deville, J.C. and Tille, Y. (2004). Efficient balanced sampling: the cube method. *Biometrika*, 91(4), 893-912.
+
+Tille, Y. (2006). *Sampling Algorithms*. Springer.

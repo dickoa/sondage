@@ -1,4 +1,4 @@
-# sondage 0.2.9999
+# sondage 0.3.9999
 
 ## Sampling dispatchers
 
@@ -9,6 +9,7 @@ Four dispatchers returning S3 design objects with class
 * `equal_prob_wr(N, n, method=)` - SRS with replacement
 * `unequal_prob_wor(pik, method=)` - CPS (max entropy), Brewer, systematic PPS, Poisson, SPS, Pareto
 * `unequal_prob_wr(hits, method=)` - Chromy (minimum replacement), multinomial PPS
+* `balanced_wor(pik, aux, strata, method=)` - Balanced sampling, currently support cube and stratified cube method.
 
 All dispatchers support `nrep` for batch sampling and `prn` for sample coordination
 (Bernoulli, Poisson, SPS, Pareto).

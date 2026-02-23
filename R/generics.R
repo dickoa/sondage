@@ -140,7 +140,7 @@ expected_hits.wor <- function(x, ...) {
 #'     (combinatorial enumeration via C code), `poisson`
 #'     (\eqn{\pi_{ij} = \pi_i \pi_j}, independent selections),
 #'     `srs`, and `bernoulli`.}
-#'   \item{Approximation}{`brewer`, `sps`, and `pareto` use the
+#'   \item{Approximation}{`brewer`, `sps`, `pareto`, and `cube` use the
 #'     \strong{high-entropy approximation} (Brewer & Donadio, 2003,
 #'     eq. 18):
 #'     \eqn{\pi_{ij} \approx \pi_i \pi_j (c_i + c_j) / 2}
@@ -204,6 +204,7 @@ joint_inclusion_prob.wor <- function(x, eps = 1e-6, ...) {
     systematic = .Call(C_up_systematic_jip, as.double(pik), as.double(eps)),
     sps = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
     pareto = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
+    cube = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
     poisson = {
       J <- outer(pik, pik)
       diag(J) <- pik
@@ -223,7 +224,7 @@ joint_inclusion_prob.wor <- function(x, eps = 1e-6, ...) {
   )
 
   # Marginal defect diagnostic for high-entropy approximation
-  if (x$method %in% c("brewer", "sps", "pareto")) {
+  if (x$method %in% c("brewer", "sps", "pareto", "cube")) {
     n_round <- round(n)
     if (n_round >= 2L) {
       defect <- max(abs(rowSums(pikl) - n * pik))
