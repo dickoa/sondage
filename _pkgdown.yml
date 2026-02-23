@@ -20,6 +20,7 @@ reference:
   - equal_prob_wr
   - unequal_prob_wor
   - unequal_prob_wr
+  - balanced_wor
 
 - title: Design queries
   desc: Compute design quantities for variance estimation.
