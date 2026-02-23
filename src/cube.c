@@ -27,10 +27,6 @@
 #include <math.h>
 #include <float.h>
 
-/* =========================================================================
- * Utility macros
- * ========================================================================= */
-
 /* Row-major indexing (for RREF working matrix) */
 #define IDX_RM(row, col, ncols) ((row) * (ncols) + (col))
 
@@ -44,10 +40,6 @@
 
 /* Tolerance for RREF pivoting (relative to eps) */
 #define RREF_TOL(eps) ((eps) * 0.01)
-
-/* =========================================================================
- * Internal types
- * ========================================================================= */
 
 typedef struct {
     int *list;      /* Active indices: list[0..len-1] are valid */
@@ -67,10 +59,6 @@ typedef struct {
     int *candidates;    /* Current candidate indices [p+1] */
     IndexList *idx;     /* Active index list */
 } CubeWorkspace;
-
-/* =========================================================================
- * IndexList: swap-and-pop structure for maintaining active indices
- * ========================================================================= */
 
 static IndexList *indexlist_alloc(int capacity) {
     IndexList *il = (IndexList *)R_alloc(1, sizeof(IndexList));
@@ -122,10 +110,6 @@ static void indexlist_shuffle(IndexList *il) {
     }
 }
 
-/* =========================================================================
- * RREF with partial pivoting
- * ========================================================================= */
-
 static void cube_rref(double *mat, int nrows, int ncols, double tol) {
     int lead = 0;
 
@@ -133,7 +117,6 @@ static void cube_rref(double *mat, int nrows, int ncols, double tol) {
         if (lead >= ncols)
             return;
 
-        /* Partial pivoting: find row with largest absolute value in column */
         int best = r;
         double best_val = fabs(mat[IDX_RM(r, lead, ncols)]);
         for (int i = r + 1; i < nrows; i++) {
@@ -151,7 +134,6 @@ static void cube_rref(double *mat, int nrows, int ncols, double tol) {
             continue;
         }
 
-        /* Swap rows if needed */
         if (best != r) {
             for (int k = 0; k < ncols; k++) {
                 double tmp = mat[IDX_RM(best, k, ncols)];
@@ -160,14 +142,12 @@ static void cube_rref(double *mat, int nrows, int ncols, double tol) {
             }
         }
 
-        /* Scale pivot row */
         double pivot = mat[IDX_RM(r, lead, ncols)];
         mat[IDX_RM(r, lead, ncols)] = 1.0;
         for (int k = lead + 1; k < ncols; k++) {
             mat[IDX_RM(r, k, ncols)] /= pivot;
         }
 
-        /* Eliminate column from other rows */
         for (int j = 0; j < nrows; j++) {
             if (j == r) continue;
 
@@ -186,26 +166,15 @@ static void cube_rref(double *mat, int nrows, int ncols, double tol) {
     }
 }
 
-/* =========================================================================
- * Null vector extraction from RREF matrix
- *
- * The matrix is (ncols-1) x ncols after RREF, so generically has a
- * 1-dimensional null space. Two cases:
- *   1. Full rank (nrows-1): standard back-substitution from last column
- *   2. Rank-deficient: assign alternating values to free variables
- * ========================================================================= */
-
 static void cube_null_vector(double *uvec, const double *mat, int ncols,
                              double tol) {
     int nrows = ncols - 1;
 
-    /* Guard: degenerate case with 2 candidates (1 row, 2 cols) or fewer */
     if (nrows <= 0) {
         uvec[0] = 1.0;
         return;
     }
 
-    /* Standard case: last diagonal is a pivot → free variable is last column */
     if (fabs(mat[IDX_RM(nrows - 1, nrows - 1, ncols)] - 1.0) < tol) {
         uvec[ncols - 1] = 1.0;
         for (int i = 0; i < nrows; i++) {
@@ -214,8 +183,6 @@ static void cube_null_vector(double *uvec, const double *mat, int ncols,
         return;
     }
 
-    /* Rank-deficient: assign alternating values to free variables,
-     * then back-solve bound variables */
     for (int k = 1; k < ncols; k++) {
         uvec[k] = (k % 2 == 0) ? -1.0 : 1.0;
     }
@@ -235,10 +202,6 @@ static void cube_null_vector(double *uvec, const double *mat, int ncols,
         }
     }
 }
-
-/* =========================================================================
- * Workspace allocation and initialization
- * ========================================================================= */
 
 static CubeWorkspace *cube_workspace_alloc(int N, int p, double eps) {
     CubeWorkspace *ws = (CubeWorkspace *)R_alloc(1, sizeof(CubeWorkspace));
@@ -287,15 +250,6 @@ static void cube_workspace_init(CubeWorkspace *ws, const double *prob,
     indexlist_shuffle(ws->idx);
 }
 
-/* =========================================================================
- * Core cube step: update probabilities along null vector direction
- *
- * For n_cand candidates, builds the (n_cand-1) x n_cand sub-matrix from
- * the first n_cand-1 balancing variables, finds the null vector via RREF,
- * computes the maximum step sizes (lambda1, lambda2), and randomly selects
- * a direction to move probabilities toward 0 or 1.
- * ========================================================================= */
-
 static void cube_update(CubeWorkspace *ws, int n_cand) {
     double eps = ws->eps;
     double tol = RREF_TOL(eps);
@@ -303,8 +257,6 @@ static void cube_update(CubeWorkspace *ws, int n_cand) {
     int nrows = n_cand - 1;
     int ncols = n_cand;
 
-    /* Build sub-matrix: rows = first nrows balancing variables,
-     * cols = candidate units */
     for (int i = 0; i < nrows; i++) {
         for (int j = 0; j < ncols; j++) {
             int id = ws->candidates[j];
@@ -315,7 +267,6 @@ static void cube_update(CubeWorkspace *ws, int n_cand) {
     cube_rref(ws->bmat, nrows, ncols, tol);
     cube_null_vector(ws->uvec, ws->bmat, ncols, tol);
 
-    /* Find maximum step sizes in both directions */
     double lambda1 = DBL_MAX;
     double lambda2 = DBL_MAX;
 
@@ -324,7 +275,6 @@ static void cube_update(CubeWorkspace *ws, int n_cand) {
         double pi = ws->prob[id];
         double u = ws->uvec[i];
 
-        /* Skip near-zero components (probability unchanged by this step) */
         if (fabs(u) < tol) continue;
 
         double lval1 = fabs(pi / u);
@@ -339,14 +289,11 @@ static void cube_update(CubeWorkspace *ws, int n_cand) {
         }
     }
 
-    /* Degenerate: null vector has no usable components */
     if (lambda1 + lambda2 < tol) return;
 
-    /* Martingale step: E[lambda] = 0 */
     double lambda = (unif_rand() * (lambda1 + lambda2) < lambda2)
                     ? lambda1 : -lambda2;
 
-    /* Update probabilities and clamp to {0, 1} when close */
     for (int i = 0; i < n_cand; i++) {
         int id = ws->candidates[i];
         ws->prob[id] += lambda * ws->uvec[i];
@@ -355,12 +302,6 @@ static void cube_update(CubeWorkspace *ws, int n_cand) {
         if (ws->prob[id] > 1.0 - eps) ws->prob[id] = 1.0;
     }
 }
-
-/* =========================================================================
- * Flight phase: repeatedly select p+1 candidates and update until
- * fewer than p+1 undecided units remain (Algorithm 9 in Deville & Tillé).
- * Each step resolves at least one probability to 0 or 1.
- * ========================================================================= */
 
 static void cube_flight(CubeWorkspace *ws) {
     int max_cand = ws->p + 1;
@@ -389,12 +330,6 @@ static void cube_flight(CubeWorkspace *ws) {
         }
     }
 }
-
-/* =========================================================================
- * Landing phase: resolve remaining undecided units (fewer than p+1).
- * Balancing constraints are progressively relaxed (last variables first).
- * A single remaining unit is resolved by coin flip.
- * ========================================================================= */
 
 static void cube_landing(CubeWorkspace *ws) {
     double eps = ws->eps;
@@ -431,13 +366,6 @@ static void cube_landing(CubeWorkspace *ws) {
     }
 }
 
-/* =========================================================================
- * Stratified cube helpers
- * ========================================================================= */
-
-/* Build A matrix for within-stratum flight/landing:
- * Column 0: constant 1 (within-stratum sample size constraint)
- * Columns 1..p-1: X[,j-1] / pi (balancing variables) */
 static void build_amat_stratum(CubeWorkspace *ws, const double *prob,
                                const double *X, const int *subset,
                                int n_subset) {
@@ -492,19 +420,6 @@ static void build_amat_global(CubeWorkspace *ws, const double *prob,
     }
 }
 
-/* =========================================================================
- * R entry points
- * ========================================================================= */
-
-/*
- * C_cube: Non-stratified cube method
- *
- * Args: prob (numeric N), X (matrix N x p), eps (double)
- * Returns: integer vector of selected unit indices (1-indexed)
- *
- * The R wrapper should prepend a column of pik to X to enforce
- * fixed sample size (the cube's A matrix then has a column of 1s).
- */
 SEXP C_cube(SEXP prob_sexp, SEXP X_sexp, SEXP eps_sexp) {
     int N = length(prob_sexp);
     SEXP dim = getAttrib(X_sexp, R_DimSymbol);
@@ -596,11 +511,9 @@ SEXP C_cube_stratified(SEXP prob_sexp, SEXP X_sexp, SEXP strata_sexp,
     double *work_prob = (double *)R_alloc(N, sizeof(double));
     memcpy(work_prob, prob, N * sizeof(double));
 
-    /* Build stratum unit lists efficiently: two-pass O(N) allocation */
     int *stratum_sizes = (int *)R_alloc(n_strata, sizeof(int));
     memset(stratum_sizes, 0, n_strata * sizeof(int));
 
-    /* Pass 1: count non-integer-prob units per stratum */
     for (int i = 0; i < N; i++) {
         if (PROB_IS_ONE(work_prob[i], eps)) {
             work_prob[i] = 1.0;
@@ -611,7 +524,6 @@ SEXP C_cube_stratified(SEXP prob_sexp, SEXP X_sexp, SEXP strata_sexp,
         }
     }
 
-    /* Compute offsets into a single array */
     int *offsets = (int *)R_alloc(n_strata, sizeof(int));
     offsets[0] = 0;
     for (int h = 1; h < n_strata; h++) {
@@ -626,7 +538,6 @@ SEXP C_cube_stratified(SEXP prob_sexp, SEXP X_sexp, SEXP strata_sexp,
         stratum_units[h] = all_units + offsets[h];
     }
 
-    /* Pass 2: fill the unit lists */
     int *fill_pos = (int *)R_alloc(n_strata, sizeof(int));
     memset(fill_pos, 0, n_strata * sizeof(int));
     for (int i = 0; i < N; i++) {
@@ -658,7 +569,6 @@ SEXP C_cube_stratified(SEXP prob_sexp, SEXP X_sexp, SEXP strata_sexp,
 
         cube_flight(ws);
 
-        /* Compact: keep only still-undecided units */
         int new_size = 0;
         for (int i = 0; i < stratum_sizes[h]; i++) {
             int id = stratum_units[h][i];
