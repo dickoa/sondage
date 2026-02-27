@@ -27,12 +27,17 @@ unbalanced fixed-size design).}
 \item{strata}{An optional integer vector (length N) of stratum
 indicators (positive integers). When provided, uses the stratified
 cube method (Chauvet & Tille, 2006; Chauvet, 2009) which preserves
-within-stratum sample sizes exactly while balancing on \code{aux}.}
+within-stratum sample sizes while balancing on \code{aux}. Exact
+preservation requires \code{sum(pik)} within each stratum to be close
+to an integer; otherwise sizes will vary around the target and a
+warning is issued and the design is marked as random-size
+(\code{fixed_size = FALSE}), so batch replicates are returned as a list.}
 
 \item{method}{The sampling method. Currently only \code{"cube"}.}
 
 \item{nrep}{Number of replicate samples (default 1). When \code{nrep > 1},
-\verb{$sample} holds a matrix (n x nrep) of all replicates.}
+\verb{$sample} holds a matrix (n x nrep) for fixed-size designs, or a
+list of integer vectors when within-stratum sizes are not exact.}
 
 \item{...}{Additional arguments passed to methods (e.g., \code{eps} for
 boundary tolerance).}

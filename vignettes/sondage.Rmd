@@ -146,7 +146,7 @@ Users should order auxiliary variables by importance (most important first) in t
 
 ### Stratified balanced sampling
 
-When strata are known, the stratified cube method [@chauvet2009] preserves exact within-stratum sample sizes while balancing on auxiliary variables:
+When strata are known, the stratified cube method [@chauvet2009] preserves within-stratum sample sizes while balancing on auxiliary variables. Exact preservation requires `sum(pik)` within each stratum to be close to an integer; when this condition is not met, within-stratum and total sample sizes will vary around their targets and the design is treated as random-size (`fixed_size = FALSE`):
 
 ```{r}
 N <- 20

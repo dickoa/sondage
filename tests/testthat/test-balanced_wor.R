@@ -374,3 +374,54 @@ test_that("balanced_wor rejects invalid strata", {
 test_that("balanced_wor rejects invalid method", {
   expect_error(balanced_wor(c(0.5, 0.5), method = "foo"))
 })
+
+test_that("stratified cube warns and sets fixed_size=FALSE for non-integer stratum sums", {
+  strata <- rep(1:3, each = 4)
+  pik <- c(rep(0.35, 4), rep(0.40, 4), rep(0.50, 4))
+  # per-stratum sums: 1.4, 1.6, 2.0
+  expect_warning(
+    balanced_wor(pik, strata = strata),
+    "per-stratum sum\\(pik\\) is not close to an integer"
+  )
+  s <- suppressWarnings(balanced_wor(pik, strata = strata))
+  expect_false(s$fixed_size)
+})
+
+test_that("stratified cube batch returns list for non-integer stratum sums", {
+  strata <- rep(1:3, each = 4)
+  pik <- c(rep(0.35, 4), rep(0.40, 4), rep(0.50, 4))
+  nrep <- 20
+  suppressWarnings(
+    s <- balanced_wor(pik, strata = strata, nrep = nrep)
+  )
+  expect_false(s$fixed_size)
+  expect_true(is.list(s$sample))
+  expect_length(s$sample, nrep)
+  # Each replicate is an integer vector of valid indices
+  for (i in seq_len(nrep)) {
+    expect_true(all(s$sample[[i]] >= 1L & s$sample[[i]] <= length(pik)))
+  }
+})
+
+test_that("stratified cube does not warn when per-stratum sums are integer", {
+  strata <- rep(1:3, each = 4)
+  pik <- rep(0.50, 12)
+  # per-stratum sums: 2, 2, 2
+  expect_no_warning(balanced_wor(pik, strata = strata))
+})
+
+test_that("stratified cube handles sparse stratum labels", {
+  set.seed(42)
+  N <- 80
+  pik <- rep(0.40, N)
+  aux <- matrix(rnorm(N), ncol = 1)
+  strata <- c(rep(1L, 40), rep(1000000L, 40))
+
+  s <- balanced_wor(pik, aux = aux, strata = strata)
+  expect_equal(s$n, 32L)
+  expect_length(s$sample, 32)
+
+  # Both strata should be represented
+  tab <- table(strata[s$sample])
+  expect_equal(length(tab), 2L)
+})

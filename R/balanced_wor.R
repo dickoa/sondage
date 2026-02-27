@@ -16,10 +16,15 @@
 #' @param strata An optional integer vector (length N) of stratum
 #'   indicators (positive integers). When provided, uses the stratified
 #'   cube method (Chauvet & Tille, 2006; Chauvet, 2009) which preserves
-#'   within-stratum sample sizes exactly while balancing on `aux`.
+#'   within-stratum sample sizes while balancing on `aux`. Exact
+#'   preservation requires `sum(pik)` within each stratum to be close
+#'   to an integer; otherwise sizes will vary around the target and a
+#'   warning is issued and the design is marked as random-size
+#'   (`fixed_size = FALSE`), so batch replicates are returned as a list.
 #' @param method The sampling method. Currently only `"cube"`.
 #' @param nrep Number of replicate samples (default 1). When `nrep > 1`,
-#'   `$sample` holds a matrix (n x nrep) of all replicates.
+#'   `$sample` holds a matrix (n x nrep) for fixed-size designs, or a
+#'   list of integer vectors when within-stratum sizes are not exact.
 #' @param ... Additional arguments passed to methods (e.g., `eps` for
 #'   boundary tolerance).
 #'
@@ -106,11 +111,13 @@ balanced_wor <- function(
 .cube_sample <- function(pik, aux = NULL, strata = NULL, eps = 1e-10, ...) {
   N <- length(pik)
 
+  strata_fixed <- TRUE
   if (is.null(strata)) {
     X <- .build_cube_aux(pik, aux, N, prepend_pik = TRUE)
     idx <- .Call(C_cube, as.double(pik), X, as.double(eps))
   } else {
     strata_int <- .check_strata(strata, N)
+    strata_fixed <- .check_stratum_sizes(pik, strata_int)
     X <- .build_cube_aux(pik, aux, N, prepend_pik = FALSE)
     idx <- .Call(C_cube_stratified, as.double(pik), X, strata_int, as.double(eps))
   }
@@ -118,10 +125,10 @@ balanced_wor <- function(
   .new_wor_sample(
     sample = idx,
     pik = pik,
-    n = as.integer(round(sum(pik))),
+    n = if (strata_fixed) as.integer(round(sum(pik))) else sum(pik),
     N = N,
     method = "cube",
-    fixed_size = TRUE,
+    fixed_size = strata_fixed,
     prob_class = "unequal_prob"
   )
 }
@@ -172,26 +179,60 @@ balanced_wor <- function(
   if (any(strata < 1L)) {
     stop("'strata' values must be positive integers", call. = FALSE)
   }
-  strata
+  # Remap to dense 1:H so the C code doesn't over-allocate for sparse labels
+  as.integer(factor(strata))
+}
+
+#' Check per-stratum sum(pik). Warns and returns FALSE if any is non-integer.
+#' @return TRUE if all per-stratum sums are close to an integer, FALSE otherwise.
+#' @noRd
+.check_stratum_sizes <- function(pik, strata, tol = 1e-4) {
+  stratum_sums <- tapply(pik, strata, sum)
+  not_int <- abs(stratum_sums - round(stratum_sums)) > tol
+  if (any(not_int)) {
+    bad <- names(stratum_sums)[not_int]
+    warning(
+      "per-stratum sum(pik) is not close to an integer for stratum ",
+      paste(bad, collapse = ", "),
+      "; within-stratum sample sizes will not be exact",
+      call. = FALSE
+    )
+    return(FALSE)
+  }
+  TRUE
 }
 
 #' @noRd
 .batch_balanced_wor <- function(pik, aux, strata, method, nrep, ...) {
   N <- length(pik)
-  n <- as.integer(round(sum(pik)))
+  n <- sum(pik)
 
-  mat <- matrix(0L, n, nrep)
-  for (i in seq_len(nrep)) {
-    mat[, i] <- .cube_sample(pik, aux = aux, strata = strata, ...)$sample
+  first <- .cube_sample(pik, aux = aux, strata = strata, ...)
+  fixed_size <- first$fixed_size
+
+  if (fixed_size) {
+    n_int <- as.integer(round(n))
+    mat <- matrix(0L, n_int, nrep)
+    mat[, 1L] <- first$sample
+    for (i in seq_len(nrep - 1L) + 1L) {
+      mat[, i] <- .cube_sample(pik, aux = aux, strata = strata, ...)$sample
+    }
+    sample_data <- mat
+  } else {
+    sample_data <- vector("list", nrep)
+    sample_data[[1L]] <- first$sample
+    for (i in seq_len(nrep - 1L) + 1L) {
+      sample_data[[i]] <- .cube_sample(pik, aux = aux, strata = strata, ...)$sample
+    }
   }
 
   .new_wor_sample(
-    sample = mat,
+    sample = sample_data,
     pik = pik,
-    n = n,
+    n = if (fixed_size) as.integer(round(n)) else n,
     N = N,
     method = "cube",
-    fixed_size = TRUE,
+    fixed_size = fixed_size,
     prob_class = "unequal_prob"
   )
 }
