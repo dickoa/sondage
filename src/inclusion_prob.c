@@ -1,5 +1,6 @@
 #include <R.h>
 #include <Rinternals.h>
+#include <R_ext/Utils.h>
 #include <math.h>
 
 SEXP C_inclusion_prob(SEXP a, SEXP n) {
@@ -8,7 +9,9 @@ SEXP C_inclusion_prob(SEXP a, SEXP n) {
     const double *a_ptr = REAL(a);
 
     if (len == 0) {
-        return allocVector(REALSXP, 0);
+        SEXP res = PROTECT(allocVector(REALSXP, 0));
+        UNPROTECT(1);
+        return res;
     }
     if (ISNA(n_val) || ISNAN(n_val)) {
         error("n must not be NA or NaN");
@@ -66,6 +69,7 @@ SEXP C_inclusion_prob(SEXP a, SEXP n) {
     }
 
     while (n_capped > 0 && sum_uncapped > 0.0) {
+        R_CheckUserInterrupt();
         double remaining_n = n_val - (double)n_capped;
         double rescale = remaining_n / sum_uncapped;
 

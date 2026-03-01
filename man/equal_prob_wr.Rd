@@ -4,12 +4,12 @@
 \alias{equal_prob_wr}
 \title{Equal Probability Sampling With Replacement}
 \usage{
-equal_prob_wr(N, n, method = c("srs"), nrep = 1L, prn = NULL, ...)
+equal_prob_wr(N, n, method = "srs", nrep = 1L, prn = NULL, ...)
 }
 \arguments{
 \item{N}{Population size (positive integer).}
 
-\item{n}{Sample size (positive integer).}
+\item{n}{Sample size (non-negative integer).}
 
 \item{method}{The sampling method. Currently only \code{"srs"}.}
 

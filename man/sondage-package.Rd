@@ -4,12 +4,9 @@
 \name{sondage-package}
 \alias{sondage}
 \alias{sondage-package}
-\title{sondage: Survey Sampling Algorithms}
+\title{sondage: Fast Survey Sampling Algorithms}
 \description{
-Fast implementations of survey sampling algorithms for drawing samples
-from finite populations. All functions return design objects that carry
-sample indices, inclusion probabilities (or expected hits), and design
-metadata.
+Fast implementations of survey sampling algorithms for single-stage probability sampling from finite populations. Provides equal probability methods (simple random sampling, systematic, Bernoulli), unequal probability methods (conditional Poisson / maximum entropy, Brewer, systematic PPS, Pareto piPS, sequential Poisson, Poisson, Chromy's minimum replacement, multinomial), and balanced sampling via the cube method. All sampling functions return design objects carrying sample indices, inclusion probabilities, and design metadata. Generics compute joint inclusion probabilities, pairwise expectations, and sampling covariances for variance estimation. Mostly based on algorithms from Tille (2006, \doi{10.1007/0-387-34240-0}).
 }
 \section{Unequal Probability Sampling}{
 
@@ -28,6 +25,15 @@ replacement), multinomial PPS
 \item \code{\link[=equal_prob_wor]{equal_prob_wor()}} - Without replacement: SRS, systematic,
 Bernoulli (random size)
 \item \code{\link[=equal_prob_wr]{equal_prob_wr()}} - With replacement: SRS
+}
+}
+
+\section{Balanced Sampling}{
+
+\itemize{
+\item \code{\link[=balanced_wor]{balanced_wor()}} - Cube method (Deville & Tille, 2004) for
+balanced sampling with unequal probabilities, with optional
+stratification (Chauvet & Tille, 2006)
 }
 }
 

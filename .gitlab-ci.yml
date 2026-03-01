@@ -1,26 +1,44 @@
 stages:
   - check
+  - coverage
   - pkgdown
 
 variables:
   R_LIBS_USER: "$CI_PROJECT_DIR/ci/lib"
 
+# Cache R packages between jobs
+cache:
+  key: ${CI_JOB_NAME}
+  paths:
+    - $CI_PROJECT_DIR/ci/lib
+
 check-release:
   stage: check
   image: rocker/r-ver:4.5.0
   before_script:
-    - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev pandoc qpdf
+    - apt-get update && apt-get install -y
+        libcurl4-openssl-dev
+        libssl-dev
+        libxml2-dev
+        pandoc
+        qpdf
     - mkdir -p $R_LIBS_USER
+    # Install package dependencies including vignette builders
     - Rscript -e "install.packages(c('remotes', 'rcmdcheck'), repos='https://cloud.r-project.org')"
     - Rscript -e "remotes::install_deps(dependencies = TRUE)"
   script:
-    - Rscript -e "rcmdcheck::rcmdcheck(args = c('--no-manual', '--as-cran'), error_on = 'warning')"
+    - Rscript -e "rcmdcheck::rcmdcheck(args = c('--no-manual', '--as-cran'), error_on = 'error')"
 
 check-devel:
   stage: check
   image: rocker/r-devel:latest
   before_script:
-    - apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev pandoc qpdf
+    - apt-get update && apt-get install -y
+        libcurl4-openssl-dev
+        libssl-dev
+        libxml2-dev
+        pandoc
+        qpdf
     - mkdir -p $R_LIBS_USER
     - Rscript -e "install.packages(c('remotes', 'rcmdcheck'), repos='https://cloud.r-project.org')"
     - Rscript -e "remotes::install_deps(dependencies = TRUE)"
@@ -28,11 +46,44 @@ check-devel:
     - Rscript -e "rcmdcheck::rcmdcheck(args = c('--no-manual', '--as-cran'), error_on = 'error')"
   allow_failure: true
 
+coverage:
+  stage: coverage
+  image: rocker/r-ver:4.5.0
+  before_script:
+    - apt-get update && apt-get install -y
+        libcurl4-openssl-dev
+        libssl-dev
+        libxml2-dev
+        pandoc
+        qpdf
+        git
+    - mkdir -p $R_LIBS_USER
+    - Rscript -e "install.packages(c('remotes', 'covr', 'xml2'), repos='https://cloud.r-project.org')"
+    - Rscript -e "remotes::install_deps(dependencies = TRUE)"
+  script:
+    - Rscript -e "covr::codecov(quiet = FALSE, token = Sys.getenv('CODECOV_TOKEN'))"
+  coverage: '/Coverage:\s*\d+\.\d+%/'
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
 pages:
   stage: pkgdown
   image: rocker/r-ver:4.5.0
   before_script:
-    - apt-get update && apt-get install -y pandoc libcurl4-openssl-dev libssl-dev libxml2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev pandoc qpdf
+    - apt-get update && apt-get install -y
+        pandoc
+        qpdf
+        libcurl4-openssl-dev
+        libssl-dev
+        libxml2-dev
+        libfontconfig1-dev
+        libharfbuzz-dev
+        libfribidi-dev
+        libfreetype6-dev
+        libpng-dev
+        libtiff5-dev
+        libjpeg-dev
     - mkdir -p $R_LIBS_USER
     - Rscript -e "install.packages(c('remotes', 'pkgdown'), repos='https://cloud.r-project.org')"
     - Rscript -e "remotes::install_deps(dependencies = TRUE)"

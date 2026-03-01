@@ -1,6 +1,7 @@
 #include <R.h>
 #include <Rinternals.h>
 #include <Rmath.h>
+#include <R_ext/Utils.h>
 #include <string.h>
 
 #define CHROMY_EPS 1e-9
@@ -72,7 +73,7 @@ static int chromy_precompute(
 
     for (int k = 0; k < N; k++) {
         double pik_k = (double)n * x[k] / sum_x;
-        floor_hits[k] = (int)pik_k;
+        floor_hits[k] = (int)(pik_k + CHROMY_EPS);
         frac_pik[k] = pik_k - (double)floor_hits[k];
         total_certain += floor_hits[k];
 
@@ -195,6 +196,7 @@ SEXP C_chromy_joint_exp(SEXP r_x, SEXP r_n, SEXP r_nsim) {
     GetRNGstate();
 
     for (int sim = 0; sim < nsim; sim++) {
+        if (sim % 100 == 0) R_CheckUserInterrupt();
         int nsel = chromy_sample_once(N, frac_pik, floor_hits,
                                       active, n_active, sum_frac, n_frac,
                                       active_ord, frac_sel, sel);

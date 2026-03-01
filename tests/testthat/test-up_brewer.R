@@ -113,3 +113,24 @@ test_that("brewer handles all-certainty pik", {
   s <- unequal_prob_wor(c(1.0, 1.0, 1.0), method = "brewer")
   expect_equal(sort(s$sample), 1:3)
 })
+
+test_that("brewer denom clamp handles near-certainty units with tight eps", {
+  # With small eps, high-pik units enter the active pool and the Brewer
+
+  # denominator (m - pk*r) can become extremely small. A previous guard
+  # that zeroed the draw probability when denom < 1e-10 would incorrectly
+  # skip these units. The clamp to 1e-15 ensures they dominate selection.
+  delta <- 2e-11
+  pik <- c(1 - delta, 1 - delta, delta / 2, delta / 2 + delta)
+
+  set.seed(42)
+  counts <- integer(4)
+  nrep <- 200
+  for (i in seq_len(nrep)) {
+    s <- unequal_prob_wor(pik, method = "brewer", eps = 1e-12)
+    counts[s$sample] <- counts[s$sample] + 1L
+  }
+  # Near-certainty units must be selected every time
+  expect_equal(counts[1], nrep)
+  expect_equal(counts[2], nrep)
+})

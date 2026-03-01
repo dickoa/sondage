@@ -4,14 +4,7 @@
 \alias{balanced_wor}
 \title{Balanced Sampling Without Replacement}
 \usage{
-balanced_wor(
-  pik,
-  aux = NULL,
-  strata = NULL,
-  method = c("cube"),
-  nrep = 1L,
-  ...
-)
+balanced_wor(pik, aux = NULL, strata = NULL, method = "cube", nrep = 1L, ...)
 }
 \arguments{
 \item{pik}{A numeric vector of inclusion probabilities (length N).
@@ -39,13 +32,23 @@ warning is issued and the design is marked as random-size
 \verb{$sample} holds a matrix (n x nrep) for fixed-size designs, or a
 list of integer vectors when within-stratum sizes are not exact.}
 
-\item{...}{Additional arguments passed to methods (e.g., \code{eps} for
-boundary tolerance).}
+\item{...}{Additional arguments passed to methods:
+\describe{
+\item{\code{eps}}{Boundary tolerance for deciding 0/1 (default \code{1e-10}).}
+\item{\code{condition_aux}}{Logical; if \code{TRUE}, pre-conditions \code{aux} by
+weighted centering/scaling and QR-pivot rank pruning to improve
+numerical stability with ill-conditioned or collinear auxiliary
+variables (default \code{FALSE}).}
+\item{\code{qr_tol}}{Tolerance for QR rank detection when
+\code{condition_aux = TRUE} (default \code{sqrt(.Machine$double.eps)}).}
+}}
 }
 \value{
 An object of class \code{c("unequal_prob", "wor", "sondage_sample")}.
 When \code{nrep = 1}, \verb{$sample} is an integer vector of selected unit
-indices. When \code{nrep > 1}, \verb{$sample} is a matrix (n x nrep).
+indices. When \code{nrep > 1}, \verb{$sample} is a matrix (n x nrep) for
+fixed-size designs, or a list of integer vectors when \code{fixed_size}
+is \code{FALSE} (e.g., stratified with non-integer per-stratum sizes).
 }
 \description{
 Draws a balanced sample using the cube method (Deville & Tille, 2004).
@@ -81,6 +84,9 @@ x <- matrix(c(10, 20, 15, 25, 30))
 set.seed(1)
 s <- balanced_wor(pik, aux = x)
 s$sample
+
+# Check balancing: HT estimate of aux totals vs population totals
+colSums(x[s$sample, , drop = FALSE] / pik[s$sample]) - colSums(x)
 
 # Stratified balanced sample
 N <- 20

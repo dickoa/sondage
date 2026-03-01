@@ -313,3 +313,204 @@ test_that("joint methods work with larger populations", {
   expect_equal(pikl_sys, t(pikl_sys))
   expect_equal(pikl_chromy, t(pikl_chromy))
 })
+
+
+# ---- sampled_only = TRUE ----
+
+test_that("sampled_only returns n x n for CPS matching full[s,s]", {
+  pik <- tille_pik
+  s <- unequal_prob_wor(pik, method = "cps")
+  full <- joint_inclusion_prob(s)
+  sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx, drop = FALSE])
+})
+
+test_that("sampled_only returns n x n for systematic matching full[s,s]", {
+  pik <- c(0.2, 0.3, 0.5)
+  s <- unequal_prob_wor(pik, method = "systematic")
+  full <- joint_inclusion_prob(s)
+  sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx, drop = FALSE])
+})
+
+test_that("sampled_only returns n x n for HE methods matching full[s,s]", {
+  set.seed(1)
+  N <- 50
+  n <- 10
+  pik <- inclusion_prob(runif(N), n = n)
+
+  for (method in c("brewer", "sps", "pareto")) {
+    s <- unequal_prob_wor(pik, method = method)
+    full <- joint_inclusion_prob(s)
+    sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+    idx <- s$sample
+    expect_equal(dim(sub), c(length(idx), length(idx)),
+                 info = paste("dim for", method))
+    expect_equal(sub, full[idx, idx, drop = FALSE], tolerance = 1e-10,
+                 info = paste("values for", method))
+  }
+})
+
+test_that("sampled_only returns n x n for Poisson matching full[s,s]", {
+  set.seed(1)
+  pik <- c(0.5, 0.6, 0.7, 0.8, 0.9)
+  s <- unequal_prob_wor(pik, method = "poisson")
+  # Ensure at least 2 sampled units for meaningful test
+  while (length(s$sample) < 2) {
+    s <- unequal_prob_wor(pik, method = "poisson")
+  }
+  full <- joint_inclusion_prob(s)
+  sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx, drop = FALSE])
+})
+
+test_that("sampled_only returns n x n for SRS WOR matching full[s,s]", {
+  s <- equal_prob_wor(10, 3)
+  full <- joint_inclusion_prob(s)
+  sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(3, 3))
+  expect_equal(sub, full[idx, idx])
+})
+
+test_that("sampled_only returns n x n for Bernoulli matching full[s,s]", {
+  set.seed(42)
+  s <- equal_prob_wor(10, 3, method = "bernoulli")
+  full <- joint_inclusion_prob(s)
+  sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx])
+})
+
+test_that("sampled_only errors for batch WOR designs", {
+  pik <- c(0.2, 0.3, 0.5)
+  s <- unequal_prob_wor(pik, method = "cps", nrep = 3)
+  expect_error(
+    joint_inclusion_prob(s, sampled_only = TRUE),
+    "not supported for batch"
+  )
+})
+
+test_that("sampled_only errors for random-size batch WOR designs", {
+  pik <- c(0.3, 0.3, 0.4)
+  s <- unequal_prob_wor(pik, method = "poisson", nrep = 3)
+  expect_error(
+    joint_inclusion_prob(s, sampled_only = TRUE),
+    "not supported for batch"
+  )
+})
+
+test_that("sampled_only skips marginal defect warning for HE", {
+  # This pik vector triggers marginal defect warning when sampled_only=FALSE
+  pik_skewed <- c(0.190194, 0.702073, 0.168549, 0.026420,
+                  0.441842, 0.304860, 0.109806, 0.056257)
+  s <- unequal_prob_wor(pik_skewed, method = "brewer")
+  expect_warning(joint_inclusion_prob(s), "marginal defect")
+  expect_no_warning(joint_inclusion_prob(s, sampled_only = TRUE))
+})
+
+test_that("sampled_only works with HE certainty units", {
+  pik <- c(1, 0.5, 0.5, 1)
+  s <- unequal_prob_wor(pik, method = "brewer")
+  full <- joint_inclusion_prob(s)
+  sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx, drop = FALSE], tolerance = 1e-10)
+})
+
+test_that("N > 10K error suggests sampled_only", {
+  pik <- rep(0.5, 10001)
+  expect_error(
+    joint_inclusion_prob(unequal_prob_wor(pik, method = "poisson")),
+    "sampled_only = TRUE"
+  )
+})
+
+
+# ---- CPS JIP equal/near-equal weight regression ----
+
+test_that("cps jip is exact for equal-pik case", {
+  N <- 20
+  n <- 6
+  pik <- rep(n / N, N)
+
+  s <- unequal_prob_wor(pik, method = "cps")
+  J <- joint_inclusion_prob(s)
+
+  # Known exact off-diagonal for equal-pi fixed-size (SRS)
+  target <- n * (n - 1) / (N * (N - 1))
+  offdiag <- J[row(J) != col(J)]
+  expect_equal(offdiag, rep(target, N * (N - 1)), tolerance = 1e-10)
+
+  # Diagonal = pik
+  expect_equal(diag(J), pik, tolerance = 1e-14)
+})
+
+test_that("cps jip satisfies row-sum identity for equal-pik", {
+  N <- 20
+  n <- 6
+  pik <- rep(n / N, N)
+
+  J <- joint_inclusion_prob(unequal_prob_wor(pik, method = "cps"))
+
+  # Fixed-size identity: sum_{j != i} pi_ij = (n-1) * pi_i
+  for (i in seq_len(N)) {
+    row_sum <- sum(J[i, ]) - J[i, i]
+    expect_equal(row_sum, (n - 1) * pik[i], tolerance = 1e-10)
+  }
+})
+
+test_that("cps jip is exact for certainty + equal valid units", {
+  # 2 certainty units + 8 equal valid units
+  N <- 10
+  pik <- c(1.0, 1.0, rep(3 / 8, 8))
+
+  s <- unequal_prob_wor(pik, method = "cps")
+  J <- joint_inclusion_prob(s)
+
+  # Certainty-certainty: 1.0
+
+  expect_equal(J[1, 2], 1.0, tolerance = 1e-14)
+  # Certainty-valid: pik[valid]
+  for (i in 3:10) {
+    expect_equal(J[1, i], pik[i], tolerance = 1e-14)
+    expect_equal(J[2, i], pik[i], tolerance = 1e-14)
+  }
+
+  # Valid-valid off-diagonal: n_valid*(n_valid-1)/(N_valid*(N_valid-1))
+  N_valid <- 8
+  n_valid <- 3  # sum(pik[3:10])
+  target <- n_valid * (n_valid - 1) / (N_valid * (N_valid - 1))
+  for (i in 3:9) {
+    for (j in (i + 1):10) {
+      expect_equal(J[i, j], target, tolerance = 1e-10)
+    }
+  }
+})
+
+test_that("cps jip row-sum identity holds for skewed pik", {
+  # Non-equal pik — verify the fix doesn't break the general case
+  pik <- tille_pik
+  J <- joint_inclusion_prob(unequal_prob_wor(pik, method = "cps"))
+  n <- sum(pik)
+
+  for (i in seq_along(pik)) {
+    row_sum <- sum(J[i, ]) - J[i, i]
+    expect_equal(row_sum, (n - 1) * pik[i], tolerance = 1e-5)
+  }
+})

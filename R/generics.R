@@ -32,11 +32,15 @@
 #' inclusion_prob(s)
 #'
 #' @export
-inclusion_prob <- function(x, ...) UseMethod("inclusion_prob")
+inclusion_prob <- function(x, ...) {
+  UseMethod("inclusion_prob")
+}
 
 #' @rdname inclusion_prob
 #' @export
-inclusion_prob.wor <- function(x, ...) x$pik
+inclusion_prob.wor <- function(x, ...) {
+  x$pik
+}
 
 #' @rdname inclusion_prob
 #' @export
@@ -46,6 +50,73 @@ inclusion_prob.wr <- function(x, ...) {
     "For with-replacement designs, use 'expected_hits()' instead.",
     call. = FALSE
   )
+}
+
+#' @rdname inclusion_prob
+#'
+#' @details
+#' When `x` is a numeric vector of size measures and `n` is provided,
+#' computes \strong{exact} inclusion probabilities via an iterative
+#' algorithm: initial probabilities \eqn{\pi_k = n x_k / \sum x_k} are
+#' computed, then any unit with \eqn{\pi_k \ge 1} is set to 1 (certainty
+#' selection) and the remaining probabilities are recomputed with a reduced
+#' \eqn{n}. This process repeats until all probabilities are in \eqn{[0, 1]}.
+#' The result always sums to exactly \eqn{n}.
+#'
+#' This differs from [expected_hits()], which uses simple proportional
+#' allocation \eqn{n x_k / \sum x_k} without capping -- values can exceed 1.
+#'
+#' Negative values in `x` are treated as zero (with a warning).
+#'
+#' @examples
+#' # With certainty selections (large units)
+#' size <- c(1, 1, 1, 100)
+#' pik <- inclusion_prob(size, n = 2)
+#' pik  # Unit 4 gets probability 1
+#'
+#' @export
+inclusion_prob.default <- function(x, n, ...) {
+  if (missing(n)) {
+    stop("'n' is required when 'x' is not a design object", call. = FALSE)
+  }
+  if (!is.numeric(n) || length(n) != 1) {
+    stop("'n' must be a single numeric value", call. = FALSE)
+  }
+  if (is.na(n)) {
+    stop("'n' must not be NA", call. = FALSE)
+  }
+  if (!is.finite(n)) {
+    stop("'n' must be finite", call. = FALSE)
+  }
+  if (n < 0) {
+    stop("'n' must be non-negative", call. = FALSE)
+  }
+  n <- check_integer(n, "n")
+
+  if (!is.numeric(x)) {
+    stop("'x' must be a numeric vector", call. = FALSE)
+  }
+
+  if (n > length(x)) {
+    stop("'n' cannot exceed length of 'x'", call. = FALSE)
+  }
+
+  if (anyNA(x)) {
+    stop("there are missing values in 'x'", call. = FALSE)
+  }
+  if (any(!is.finite(x))) {
+    stop("'x' values must be finite (no Inf or NaN)", call. = FALSE)
+  }
+
+  storage.mode(x) <- "double"
+  neg <- x < 0
+  if (any(neg)) {
+    warning(
+      "there are ", sum(neg), " negative value(s) shifted to zero",
+      call. = FALSE
+    )
+  }
+  .Call(C_inclusion_prob, x, as.double(n))
 }
 
 #' Expected Hits
@@ -75,7 +146,9 @@ inclusion_prob.wr <- function(x, ...) {
 #' expected_hits(s)
 #'
 #' @export
-expected_hits <- function(x, ...) UseMethod("expected_hits")
+expected_hits <- function(x, ...) {
+  UseMethod("expected_hits")
+}
 
 #' @rdname expected_hits
 #' @export
@@ -86,8 +159,14 @@ expected_hits.default <- function(x, n, ...) {
   if (!is.numeric(n) || length(n) != 1) {
     stop("'n' must be a single numeric value", call. = FALSE)
   }
-  if (is.na(n) || n < 0) {
-    stop("'n' must be non-negative and not NA", call. = FALSE)
+  if (is.na(n)) {
+    stop("'n' must not be NA", call. = FALSE)
+  }
+  if (!is.finite(n)) {
+    stop("'n' must be finite", call. = FALSE)
+  }
+  if (n < 0) {
+    stop("'n' must be non-negative", call. = FALSE)
   }
   if (!is.numeric(x)) {
     stop("'x' must be a numeric vector", call. = FALSE)
@@ -109,7 +188,9 @@ expected_hits.default <- function(x, n, ...) {
 
 #' @rdname expected_hits
 #' @export
-expected_hits.wr <- function(x, ...) x$n * x$prob
+expected_hits.wr <- function(x, ...) {
+  x$n * x$prob
+}
 
 #' @rdname expected_hits
 #' @export
@@ -128,6 +209,9 @@ expected_hits.wor <- function(x, ...) {
 #' without-replacement sampling design.
 #'
 #' @param x A without-replacement design object (class `"wor"`).
+#' @param sampled_only If `TRUE`, return only the n x n submatrix for
+#'   the sampled units (requires `nrep = 1`). Useful when N is large
+#'   but n is manageable. Default `FALSE`.
 #' @param ... Additional arguments passed to methods (e.g., `eps`
 #'   for boundary tolerance).
 #'
@@ -136,8 +220,9 @@ expected_hits.wor <- function(x, ...) {
 #' object. Not all methods yield exact joint probabilities:
 #'
 #' \describe{
-#'   \item{Exact}{`cps` (from the CPS design matrix), `systematic`
-#'     (combinatorial enumeration via C code), `poisson`
+#'   \item{Exact (up to numerical precision)}{`cps` (from the CPS design
+#'     matrix via Aires' formula and elementary symmetric polynomials),
+#'     `systematic` (combinatorial enumeration via C code), `poisson`
 #'     (\eqn{\pi_{ij} = \pi_i \pi_j}, independent selections),
 #'     `srs`, and `bernoulli`.}
 #'   \item{Approximation}{`brewer`, `sps`, `pareto`, and `cube` use the
@@ -147,7 +232,7 @@ expected_hits.wor <- function(x, ...) {
 #'     where \eqn{c_k = (n-1) / (n - (2n-1)\pi_k/(n-1) +
 #'     \sum_l \pi_l^2/(n-1))}.
 #'     This approximation guarantees symmetry,
-#'     \eqn{0 \le \pi_{ij} \le \min(\pi_i, \pi_j)}, and correct
+#'     \eqn{0 \leq \pi_{ij} \leq \min(\pi_i, \pi_j)}, and correct
 #'     diagonal (\eqn{\pi_{ii} = \pi_i}), but does \strong{not}
 #'     guarantee the fixed-size marginal identity
 #'     \eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}. The marginal
@@ -155,8 +240,9 @@ expected_hits.wor <- function(x, ...) {
 #'     probabilities but can become non-trivial for highly skewed
 #'     \eqn{\pi_k} vectors, especially when \eqn{n} is small
 #'     (e.g. \eqn{n = 2}). A warning is issued when the defect
-#'     exceeds 5\% of \eqn{n}. Use `method = "cps"` when exact
-#'     second-order inclusion probabilities are required.}
+#'     exceeds 5\% of \eqn{n}. Use `method = "cps"` when exact (up to
+#'     numerical precision) second-order inclusion probabilities are
+#'     required.}
 #' }
 #'
 #' For \strong{systematic PPS} sampling, some off-diagonal entries may be
@@ -164,9 +250,26 @@ expected_hits.wor <- function(x, ...) {
 #' systematic sample). This has consequences for variance estimation;
 #' see [sampling_cov()].
 #'
-#' @return A symmetric N x N matrix of joint inclusion probabilities.
-#'   Diagonal entries are the first-order inclusion probabilities
-#'   \eqn{\pi_i}.
+#' When `sampled_only = TRUE`, only the n x n submatrix for sampled
+#' units is returned. For methods using the high-entropy approximation
+#' (`brewer`, `sps`, `pareto`, `cube`), the \eqn{c_k} coefficients are
+#' computed from the full population \eqn{\pi_k} vector (O(N)), but only
+#' the sampled pairs are assembled into a matrix (O(n^2)), avoiding the
+#' O(N^2) allocation entirely. Similarly, `poisson`, `bernoulli`, and
+#' `srs` compute the n x n matrix directly. These methods can therefore
+#' handle arbitrarily large N (e.g. N = 50 000 with n = 200).
+#'
+#' For `cps` and `systematic`, the underlying C code requires the full
+#' N x N matrix, so the N > 10 000 guard still applies even with
+#' `sampled_only = TRUE`. For large populations with these methods,
+#' consider switching to a high-entropy method (e.g. `brewer`).
+#'
+#' The marginal defect diagnostic is skipped when `sampled_only = TRUE`
+#' because the row-sum identity only holds for the full matrix.
+#'
+#' @return A symmetric N x N matrix (or n x n if `sampled_only = TRUE`)
+#'   of joint inclusion probabilities. Diagonal entries are the
+#'   first-order inclusion probabilities \eqn{\pi_i}.
 #'
 #' @seealso [joint_expected_hits()] for the with-replacement analogue,
 #'   [sampling_cov()] for the covariance matrix.
@@ -176,69 +279,164 @@ expected_hits.wor <- function(x, ...) {
 #' s <- unequal_prob_wor(pik, method = "cps")
 #' joint_inclusion_prob(s)
 #'
+#' # Only the n x n submatrix for sampled units
+#' joint_inclusion_prob(s, sampled_only = TRUE)
+#'
 #' @export
-joint_inclusion_prob <- function(x, ...) UseMethod("joint_inclusion_prob")
+joint_inclusion_prob <- function(x, ...) {
+  UseMethod("joint_inclusion_prob")
+}
 
 #' @rdname joint_inclusion_prob
 #' @param eps Boundary tolerance for CPS and systematic methods
 #'   (default 1e-6).
 #' @export
-joint_inclusion_prob.wor <- function(x, eps = 1e-6, ...) {
+joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
   pik <- x$pik
   N <- x$N
   n <- x$n
+  sample_idx <- x$sample
 
-  if (N > 10000L) {
-    stop(
-      sprintf("N = %d is too large for dense joint probability computation (N x N = %.1f GB). ",
-              N, N^2 * 8 / 1e9),
-      "Consider using approximation-based variance estimators for large populations.",
-      call. = FALSE
-    )
+  if (sampled_only) {
+    if (is.matrix(sample_idx) || is.list(sample_idx)) {
+      stop(
+        "sampled_only = TRUE is not supported for batch designs (nrep > 1). ",
+        "Use sampled_only = FALSE and subset manually:\n",
+        "  pikl[s$sample[, i], s$sample[, i]] for fixed-size designs, or\n",
+        "  pikl[s$sample[[i]], s$sample[[i]]] for random-size designs.",
+        call. = FALSE
+      )
+    }
+    n_sampled <- length(sample_idx)
+    if (n_sampled > 10000L) {
+      stop(
+        sprintf(
+          "n = %d is too large for dense joint probability computation (n x n = %.1f GB).",
+          n_sampled,
+          n_sampled^2 * 8 / 1e9
+        ),
+        call. = FALSE
+      )
+    }
+    # CPS and systematic still require N x N internally
+    if (x$method %in% c("cps", "systematic") && N > 10000L) {
+      stop(
+        sprintf(
+          "N = %d is too large for method '%s' even with sampled_only = TRUE, ",
+          N,
+          x$method
+        ),
+        "because this method requires an N x N intermediate matrix. ",
+        "Consider using method = \"brewer\" or another high-entropy method, ",
+        "which can compute the n x n submatrix directly.",
+        call. = FALSE
+      )
+    }
+  } else {
+    if (N > 10000L) {
+      stop(
+        sprintf(
+          "N = %d is too large for dense joint probability computation (N x N = %.1f GB). ",
+          N,
+          N^2 * 8 / 1e9
+        ),
+        "Consider using sampled_only = TRUE to compute the n x n submatrix, or ",
+        "approximation-based variance estimators for large populations.",
+        call. = FALSE
+      )
+    }
   }
 
-  pikl <- switch(
-    x$method,
-    cps = .Call(C_cps_jip, as.double(pik), as.double(eps)),
-    brewer = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
-    systematic = .Call(C_up_systematic_jip, as.double(pik), as.double(eps)),
-    sps = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
-    pareto = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
-    cube = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
-    poisson = {
-      J <- outer(pik, pik)
-      diag(J) <- pik
-      J
-    },
-    srs = .jip_srs(n, N),
-    bernoulli = {
-      p <- pik[1]
-      J <- matrix(p * p, N, N)
-      diag(J) <- p
-      J
-    },
-    stop(
-      sprintf("joint_inclusion_prob not implemented for method '%s'", x$method),
-      call. = FALSE
+  if (sampled_only) {
+    pikl <- switch(
+      x$method,
+      cps = .Call(C_cps_jip, as.double(pik), as.double(eps))[
+        sample_idx,
+        sample_idx,
+        drop = FALSE
+      ],
+      systematic = .Call(C_up_systematic_jip, as.double(pik), as.double(eps))[
+        sample_idx,
+        sample_idx,
+        drop = FALSE
+      ],
+      brewer = ,
+      sps = ,
+      pareto = ,
+      cube = .he_jip_sampled(pik, sample_idx, eps),
+      poisson = {
+        pik_s <- pik[sample_idx]
+        J <- outer(pik_s, pik_s)
+        diag(J) <- pik_s
+        J
+      },
+      srs = {
+        ns <- length(sample_idx)
+        .jip_srs(n, N, ns)
+      },
+      bernoulli = {
+        p <- pik[1]
+        ns <- length(sample_idx)
+        J <- matrix(p * p, ns, ns)
+        diag(J) <- p
+        J
+      },
+      stop(
+        sprintf(
+          "joint_inclusion_prob not implemented for method '%s'",
+          x$method
+        ),
+        call. = FALSE
+      )
     )
-  )
+  } else {
+    pikl <- switch(
+      x$method,
+      cps = .Call(C_cps_jip, as.double(pik), as.double(eps)),
+      brewer = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
+      systematic = .Call(C_up_systematic_jip, as.double(pik), as.double(eps)),
+      sps = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
+      pareto = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
+      cube = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
+      poisson = {
+        J <- outer(pik, pik)
+        diag(J) <- pik
+        J
+      },
+      srs = .jip_srs(n, N),
+      bernoulli = {
+        p <- pik[1]
+        J <- matrix(p * p, N, N)
+        diag(J) <- p
+        J
+      },
+      stop(
+        sprintf(
+          "joint_inclusion_prob not implemented for method '%s'",
+          x$method
+        ),
+        call. = FALSE
+      )
+    )
 
-  # Marginal defect diagnostic for high-entropy approximation
-  if (x$method %in% c("brewer", "sps", "pareto", "cube")) {
-    n_round <- round(n)
-    if (n_round >= 2L) {
-      defect <- max(abs(rowSums(pikl) - n * pik))
-      if (defect / n > 0.05) {
-        warning(
-          sprintf(
-            "High-entropy approximation: marginal defect = %.4f (%.1f%% of n). ",
-            defect, 100 * defect / n
-          ),
-          "The marginal identity sum(pi_ij, j!=i) = (n-1)*pi_i is not well ",
-          "satisfied for this pik vector. Consider using method = \"cps\" for ",
-          "exact joint inclusion probabilities.",
-          call. = FALSE
-        )
+    # Marginal defect diagnostic for high-entropy approximation
+    if (x$method %in% c("brewer", "sps", "pareto", "cube")) {
+      n_round <- round(n)
+      if (n_round >= 2L) {
+        defect <- max(abs(rowSums(pikl) - n * pik))
+        if (defect / n > 0.05) {
+          warning(
+            sprintf(
+              "High-entropy approximation: marginal defect = %.4f (%.1f%% of n). ",
+              defect,
+              100 * defect / n
+            ),
+            "The marginal identity sum(pi_ij, j!=i) = (n-1)*pi_i is not well ",
+            "satisfied for this pik vector. Consider using method = \"cps\" for ",
+            "exact joint inclusion probabilities.",
+            call. = FALSE
+          )
+        }
       }
     }
   }
@@ -273,6 +471,10 @@ joint_inclusion_prob.default <- function(x, ...) {
 #' times unit \eqn{k} is selected.
 #'
 #' @param x A with-replacement design object (class `"wr"`).
+#' @param sampled_only If `TRUE`, return only the submatrix for units
+#'   selected at least once (requires `nrep = 1`). Useful when N is
+#'   large but the number of distinct selected units is manageable.
+#'   Default `FALSE`.
 #' @param ... Additional arguments passed to methods (e.g., `nsim`
 #'   for simulation-based methods).
 #'
@@ -289,8 +491,16 @@ joint_inclusion_prob.default <- function(x, ...) {
 #'     estimates at the cost of computation time.}
 #' }
 #'
-#' @return A symmetric N x N matrix. Diagonal entries are
-#'   \eqn{E(n_i^2)} and off-diagonal entries are \eqn{E(n_i n_j)}.
+#' When `sampled_only = TRUE`, the submatrix is indexed by population
+#' units that were selected at least once (i.e., units with
+#' `hits > 0`). For `multinomial` and `srs`, the submatrix is computed
+#' directly at O(n_s^2). For `chromy`, the full N x N matrix is
+#' computed internally and then subset.
+#'
+#' @return A symmetric N x N matrix (or n_s x n_s if
+#'   `sampled_only = TRUE`, where n_s is the number of distinct
+#'   selected units). Diagonal entries are \eqn{E(n_i^2)} and
+#'   off-diagonal entries are \eqn{E(n_i n_j)}.
 #'
 #' @seealso [joint_inclusion_prob()] for the without-replacement analogue,
 #'   [sampling_cov()] for the covariance matrix.
@@ -301,6 +511,9 @@ joint_inclusion_prob.default <- function(x, ...) {
 #' s <- unequal_prob_wr(hits, method = "chromy")
 #' joint_expected_hits(s)
 #'
+#' # Only the submatrix for selected units
+#' joint_expected_hits(s, sampled_only = TRUE)
+#'
 #' @export
 joint_expected_hits <- function(x, ...) UseMethod("joint_expected_hits")
 
@@ -310,45 +523,132 @@ joint_expected_hits <- function(x, ...) UseMethod("joint_expected_hits")
 #'   (default 10000).
 #'
 #' @export
-joint_expected_hits.wr <- function(x, nsim = 10000L, ...) {
+joint_expected_hits.wr <- function(
+  x,
+  sampled_only = FALSE,
+  nsim = 10000L,
+  ...
+) {
   prob <- x$prob
   n <- x$n
   N <- x$N
 
-  if (N > 10000L) {
-    stop(
-      sprintf("N = %d is too large for dense joint probability computation (N x N = %.1f GB). ",
-              N, N^2 * 8 / 1e9),
-      "Consider using approximation-based variance estimators for large populations.",
-      call. = FALSE
-    )
+  if (sampled_only) {
+    if (is.matrix(x$sample) || is.list(x$sample)) {
+      stop(
+        "sampled_only = TRUE is not supported for batch designs (nrep > 1). ",
+        "Use sampled_only = FALSE and subset manually:\n",
+        "  pikl[s$sample[, i], s$sample[, i]] for fixed-size designs, or\n",
+        "  pikl[s$sample[[i]], s$sample[[i]]] for random-size designs.",
+        call. = FALSE
+      )
+    }
+    sample_idx <- which(x$hits > 0)
+    n_sampled <- length(sample_idx)
+    if (n_sampled > 10000L) {
+      stop(
+        sprintf(
+          "n = %d is too large for dense joint probability computation (n x n = %.1f GB).",
+          n_sampled,
+          n_sampled^2 * 8 / 1e9
+        ),
+        call. = FALSE
+      )
+    }
+    # Chromy still requires N x N internally
+    if (x$method == "chromy" && N > 10000L) {
+      stop(
+        sprintf(
+          "N = %d is too large for method 'chromy' even with sampled_only = TRUE, ",
+          N
+        ),
+        "because this method requires an N x N intermediate matrix. ",
+        "Consider using method = \"multinomial\" which can compute the ",
+        "n x n submatrix directly.",
+        call. = FALSE
+      )
+    }
+  } else {
+    if (N > 10000L) {
+      stop(
+        sprintf(
+          "N = %d is too large for dense joint probability computation (N x N = %.1f GB). ",
+          N,
+          N^2 * 8 / 1e9
+        ),
+        "Consider using sampled_only = TRUE to compute the n x n submatrix, or ",
+        "approximation-based variance estimators for large populations.",
+        call. = FALSE
+      )
+    }
   }
 
-  switch(
-    x$method,
-    chromy = {
-      if (!is.numeric(nsim) || length(nsim) != 1L || is.na(nsim) || nsim < 1) {
-        stop("'nsim' must be a positive integer", call. = FALSE)
-      }
-      nsim <- check_integer(nsim, "nsim")
-      .Call(C_chromy_joint_exp, as.double(prob), as.integer(n), nsim)
-    },
-    multinomial = {
-      pikl <- n * (n - 1) * outer(prob, prob)
-      diag(pikl) <- n * prob * (1 - prob) + (n * prob)^2
-      pikl
-    },
-    srs = {
-      p <- 1 / N
-      pikl <- matrix(n * (n - 1) * p * p, N, N)
-      diag(pikl) <- n * p * (1 - p) + (n * p)^2
-      pikl
-    },
-    stop(
-      sprintf("joint_expected_hits not implemented for method '%s'", x$method),
-      call. = FALSE
+  if (sampled_only) {
+    prob_s <- prob[sample_idx]
+    switch(
+      x$method,
+      chromy = {
+        if (
+          !is.numeric(nsim) || length(nsim) != 1L || is.na(nsim) || nsim < 1
+        ) {
+          stop("'nsim' must be a positive integer", call. = FALSE)
+        }
+        nsim <- check_integer(nsim, "nsim")
+        full <- .Call(C_chromy_joint_exp, as.double(prob), as.integer(n), nsim)
+        full[sample_idx, sample_idx, drop = FALSE]
+      },
+      multinomial = {
+        pikl <- n * (n - 1) * outer(prob_s, prob_s)
+        diag(pikl) <- n * prob_s * (1 - prob_s) + (n * prob_s)^2
+        pikl
+      },
+      srs = {
+        p <- 1 / N
+        ns <- n_sampled
+        pikl <- matrix(n * (n - 1) * p * p, ns, ns)
+        diag(pikl) <- n * p * (1 - p) + (n * p)^2
+        pikl
+      },
+      stop(
+        sprintf(
+          "joint_expected_hits not implemented for method '%s'",
+          x$method
+        ),
+        call. = FALSE
+      )
     )
-  )
+  } else {
+    switch(
+      x$method,
+      chromy = {
+        if (
+          !is.numeric(nsim) || length(nsim) != 1L || is.na(nsim) || nsim < 1
+        ) {
+          stop("'nsim' must be a positive integer", call. = FALSE)
+        }
+        nsim <- check_integer(nsim, "nsim")
+        .Call(C_chromy_joint_exp, as.double(prob), as.integer(n), nsim)
+      },
+      multinomial = {
+        pikl <- n * (n - 1) * outer(prob, prob)
+        diag(pikl) <- n * prob * (1 - prob) + (n * prob)^2
+        pikl
+      },
+      srs = {
+        p <- 1 / N
+        pikl <- matrix(n * (n - 1) * p * p, N, N)
+        diag(pikl) <- n * p * (1 - p) + (n * p)^2
+        pikl
+      },
+      stop(
+        sprintf(
+          "joint_expected_hits not implemented for method '%s'",
+          x$method
+        ),
+        call. = FALSE
+      )
+    )
+  }
 }
 
 #' @rdname joint_expected_hits
@@ -389,6 +689,9 @@ joint_expected_hits.default <- function(x, ...) {
 #' @param weighted If `FALSE` (default), returns the raw covariance matrix.
 #'   If `TRUE`, returns the weighted check quantities used in the
 #'   Sen-Yates-Grundy variance estimator.
+#' @param sampled_only If `TRUE`, compute only the submatrix for sampled
+#'   units. Passed to [joint_inclusion_prob()] or [joint_expected_hits()].
+#'   Default `FALSE`.
 #' @param ... Additional arguments passed to [joint_inclusion_prob()] or
 #'   [joint_expected_hits()].
 #'
@@ -419,10 +722,11 @@ joint_expected_hits.default <- function(x, ...) {
 #' for such designs, e.g. successive-differences or Hartley-Rao
 #' approximations.
 #'
-#' @return A symmetric N x N matrix. For WOR designs with `weighted = FALSE`,
-#'   off-diagonal entries are typically negative for well-behaved designs.
-#'   With `weighted = TRUE`, off-diagonal entries are typically non-positive
-#'   (entries where \eqn{\pi_{ij} = 0} are set to `NA`).
+#' @return A symmetric N x N matrix (or n x n if `sampled_only = TRUE`).
+#'   For WOR designs with `weighted = FALSE`, off-diagonal entries are
+#'   typically negative for well-behaved designs. With `weighted = TRUE`,
+#'   off-diagonal entries are typically non-positive (entries where
+#'   \eqn{\pi_{ij} = 0} are set to `NA`).
 #'
 #' @references
 #' Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson
@@ -440,14 +744,23 @@ joint_expected_hits.default <- function(x, ...) {
 #' # SYG check quantities
 #' sampling_cov(s, weighted = TRUE)
 #'
+#' # Covariance for sampled units only
+#' sampling_cov(s, sampled_only = TRUE)
+#'
 #' @export
-sampling_cov <- function(x, ...) UseMethod("sampling_cov")
+sampling_cov <- function(x, ...) {
+  UseMethod("sampling_cov")
+}
 
 #' @rdname sampling_cov
 #' @export
-sampling_cov.wor <- function(x, weighted = FALSE, ...) {
-  pikl <- joint_inclusion_prob(x, ...)
-  pik <- x$pik
+sampling_cov.wor <- function(x, weighted = FALSE, sampled_only = FALSE, ...) {
+  pikl <- joint_inclusion_prob(x, sampled_only = sampled_only, ...)
+  if (sampled_only) {
+    pik <- x$pik[x$sample]
+  } else {
+    pik <- x$pik
+  }
   if (weighted) {
     pip <- outer(pik, pik)
     zero <- pikl == 0 & pip > 0
@@ -461,8 +774,11 @@ sampling_cov.wor <- function(x, weighted = FALSE, ...) {
         call. = FALSE
       )
     }
+    # Handle 0/0 case (both pikl and pip are zero)
+    both_zero <- pikl == 0 & pip == 0
     m <- 1 - pip / pikl
     m[zero] <- NA_real_
+    m[both_zero] <- NA_real_
     diag(m) <- 1 - pik
     m
   } else {
@@ -472,9 +788,14 @@ sampling_cov.wor <- function(x, weighted = FALSE, ...) {
 
 #' @rdname sampling_cov
 #' @export
-sampling_cov.wr <- function(x, weighted = FALSE, ...) {
-  pikl <- joint_expected_hits(x, ...)
-  ehits <- expected_hits(x)
+sampling_cov.wr <- function(x, weighted = FALSE, sampled_only = FALSE, ...) {
+  pikl <- joint_expected_hits(x, sampled_only = sampled_only, ...)
+  if (sampled_only) {
+    sample_idx <- which(x$hits > 0)
+    ehits <- expected_hits(x)[sample_idx]
+  } else {
+    ehits <- expected_hits(x)
+  }
   if (weighted) {
     eep <- outer(ehits, ehits)
     zero <- pikl == 0 & eep > 0
@@ -486,13 +807,12 @@ sampling_cov.wr <- function(x, weighted = FALSE, ...) {
         call. = FALSE
       )
     }
-    # Handle 0/0 case (both pikl and eep are zero)
     both_zero <- pikl == 0 & eep == 0
     m <- 1 - eep / pikl
     m[zero] <- NA_real_
     m[both_zero] <- NA_real_
     d <- diag(pikl)
-    diag(m) <- ifelse(d == 0, NA_real_, 1 - ehits / d)
+    diag(m) <- ifelse(d == 0, NA_real_, 1 - ehits^2 / d)
     m
   } else {
     pikl - outer(ehits, ehits)
@@ -511,14 +831,64 @@ sampling_cov.default <- function(x, ...) {
 }
 
 #' @noRd
-.jip_srs <- function(n, N) {
+.jip_srs <- function(n, N, ns = N) {
   if (n < 2 || N < 2) {
-    pikl <- matrix(0, N, N)
+    pikl <- matrix(0, ns, ns)
     diag(pikl) <- n / N
     return(pikl)
   }
   pi_ij <- n * (n - 1) / (N * (N - 1))
-  pikl <- matrix(pi_ij, N, N)
+  pikl <- matrix(pi_ij, ns, ns)
   diag(pikl) <- n / N
+  pikl
+}
+
+#' @noRd
+.he_jip_sampled <- function(pik, sample_idx, eps = 1e-6) {
+  pik_s <- pik[sample_idx]
+  n_s <- length(pik_s)
+
+  pikl <- matrix(0, n_s, n_s)
+  diag(pikl) <- pik_s
+
+  # Handle certainty units in sample
+  cert_s <- which(pik_s >= 1 - eps)
+  if (length(cert_s) > 0) {
+    for (ci in cert_s) {
+      pikl[ci, ] <- pik_s
+      pikl[, ci] <- pik_s
+      pikl[ci, ci] <- pik_s[ci]
+    }
+  }
+
+  # Valid (non-certainty, non-zero) units from FULL population
+  valid <- pik > eps & pik < 1 - eps
+  n_sum <- sum(pik[valid])
+  sum_pik2 <- sum(pik[valid]^2)
+
+  if (n_sum <= 1 + eps) {
+    return(pikl)
+  }
+
+  nm1 <- n_sum - 1
+  coef1 <- (2 * n_sum - 1) / nm1
+  coef2 <- sum_pik2 / nm1
+  ck <- numeric(length(pik))
+  ck[valid] <- nm1 / (n_sum - coef1 * pik[valid] + coef2)
+
+  # Valid units in sample
+  valid_s <- which(pik_s > eps & pik_s < 1 - eps)
+  if (length(valid_s) < 2) {
+    return(pikl)
+  }
+
+  pik_v <- pik_s[valid_s]
+  ck_v <- ck[sample_idx[valid_s]]
+  J <- outer(pik_v, pik_v) * (outer(ck_v, ck_v, "+") / 2)
+  J <- pmin(J, outer(pik_v, pik_v, pmin))
+  J[J < 0] <- 0
+  diag(J) <- pik_v
+  pikl[valid_s, valid_s] <- J
+
   pikl
 }

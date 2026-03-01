@@ -9,9 +9,9 @@
 \usage{
 sampling_cov(x, ...)
 
-\method{sampling_cov}{wor}(x, weighted = FALSE, ...)
+\method{sampling_cov}{wor}(x, weighted = FALSE, sampled_only = FALSE, ...)
 
-\method{sampling_cov}{wr}(x, weighted = FALSE, ...)
+\method{sampling_cov}{wr}(x, weighted = FALSE, sampled_only = FALSE, ...)
 
 \method{sampling_cov}{default}(x, ...)
 }
@@ -24,12 +24,17 @@ sampling_cov(x, ...)
 \item{weighted}{If \code{FALSE} (default), returns the raw covariance matrix.
 If \code{TRUE}, returns the weighted check quantities used in the
 Sen-Yates-Grundy variance estimator.}
+
+\item{sampled_only}{If \code{TRUE}, compute only the submatrix for sampled
+units. Passed to \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} or \code{\link[=joint_expected_hits]{joint_expected_hits()}}.
+Default \code{FALSE}.}
 }
 \value{
-A symmetric N x N matrix. For WOR designs with \code{weighted = FALSE},
-off-diagonal entries are typically negative for well-behaved designs.
-With \code{weighted = TRUE}, off-diagonal entries are typically non-positive
-(entries where \eqn{\pi_{ij} = 0} are set to \code{NA}).
+A symmetric N x N matrix (or n x n if \code{sampled_only = TRUE}).
+For WOR designs with \code{weighted = FALSE}, off-diagonal entries are
+typically negative for well-behaved designs. With \code{weighted = TRUE},
+off-diagonal entries are typically non-positive (entries where
+\eqn{\pi_{ij} = 0} are set to \code{NA}).
 }
 \description{
 Computes the sampling covariance matrix used in variance estimation.
@@ -80,6 +85,9 @@ sampling_cov(s)
 
 # SYG check quantities
 sampling_cov(s, weighted = TRUE)
+
+# Covariance for sampled units only
+sampling_cov(s, sampled_only = TRUE)
 
 }
 \references{

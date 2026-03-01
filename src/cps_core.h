@@ -11,8 +11,10 @@
 #include <R.h>
 #include <Rinternals.h>
 #include <Rmath.h>
+#include <R_ext/Utils.h>
 #include <string.h>
 #include <math.h>
+#include <float.h>
 
 /* expa[i*n + z] = e_z(w_i, ..., w_{N-1}) */
 static void cps_compute_expa(const double *w, int N, int n, double *expa) {
@@ -98,6 +100,35 @@ static void cps_compute_pik(const double *w, const double *expa,
 static int cps_calibrate(const double *pik_target, int N, int n,
                           double *w, double *expa,
                           double eps, int max_iter) {
+    if (N <= 0 || n <= 0) return 0;
+
+    /*
+     * Exact fast path: if all target probabilities are equal, calibration
+     * has a closed-form solution with common odds w = p / (1 - p).
+     */
+    {
+        int all_equal = 1;
+        double p0 = pik_target[0];
+        double tol = 16.0 * DBL_EPSILON * fmax(1.0, fabs(p0));
+        for (int i = 1; i < N; i++) {
+            if (fabs(pik_target[i] - p0) > tol) {
+                all_equal = 0;
+                break;
+            }
+        }
+        if (all_equal) {
+            double p = p0;
+            if (p < 1e-10) p = 1e-10;
+            if (p > 1.0 - 1e-10) p = 1.0 - 1e-10;
+            double w0 = p / (1.0 - p);
+            for (int i = 0; i < N; i++) {
+                w[i] = w0;
+            }
+            cps_compute_expa(w, N, n, expa);
+            return 1;
+        }
+    }
+
     double *piktilde = (double *) R_alloc(N, sizeof(double));
     double *pik_implied = (double *) R_alloc(N, sizeof(double));
     double *pro = (double *) R_alloc((size_t)N * n, sizeof(double));
@@ -105,6 +136,7 @@ static int cps_calibrate(const double *pik_target, int N, int n,
     memcpy(piktilde, pik_target, N * sizeof(double));
 
     for (int iter = 0; iter < max_iter; iter++) {
+        R_CheckUserInterrupt();
         for (int i = 0; i < N; i++) {
             double p = piktilde[i];
             if (p < 1e-10) p = 1e-10;
@@ -141,18 +173,51 @@ static int cps_calibrate(const double *pik_target, int N, int n,
     return max_iter;
 }
 
-static void cps_sample(const double *w, const double *expa,
-                        int N, int n, int *sample_idx) {
+/*
+ * Draw one CPS sample.
+ * Returns number of selected indices written to sample_idx.
+ */
+static int cps_sample(const double *w, const double *expa,
+                       int N, int n, int *sample_idx) {
     int remaining = n;
     int count = 0;
 
     for (int k = 0; k < N && remaining > 0; k++) {
+        int units_left = N - k;
+
+        /*
+         * Numerical guard: if remaining units equals remaining selections,
+         * all tail units must be selected.
+         */
+        if (units_left == remaining) {
+            for (int kk = k; kk < N; kk++) {
+                sample_idx[count++] = kk;
+            }
+            remaining = 0;
+            break;
+        }
+
         double q = cps_compute_q(w, expa, N, n, k, remaining - 1);
+
+        /*
+         * Clamp/repair tiny numerical deviations. This prevents NaN/Inf from
+         * silently producing invalid selection paths.
+         */
+        if (!R_FINITE(q)) {
+            q = 0.0;
+        } else if (q < 0.0) {
+            q = 0.0;
+        } else if (q > 1.0) {
+            q = 1.0;
+        }
+
         if (unif_rand() < q) {
             sample_idx[count++] = k;
             remaining--;
         }
     }
+
+    return count;
 }
 
 #endif /* CPS_CORE_H */

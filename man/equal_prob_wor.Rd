@@ -17,7 +17,7 @@ equal_prob_wor(
 \item{N}{Population size (positive integer).}
 
 \item{n}{Expected sample size. For \code{"srs"} and \code{"systematic"}, must be
-a positive integer not exceeding N. For \code{"bernoulli"}, this is the
+a non-negative integer not exceeding N. For \code{"bernoulli"}, this is the
 expected sample size and \code{p = n/N} is used as the selection probability.}
 
 \item{method}{The sampling method:
@@ -38,7 +38,8 @@ replicates. The design object and all generics remain usable.}
 
 \item{prn}{Optional vector of permanent random numbers (length N,
 values in the open interval (0, 1)) for sample coordination.
-Only supported by \code{"bernoulli"} method.}
+Only supported by \code{"bernoulli"} method. Cannot be used with
+\code{nrep > 1} (identical PRN would produce identical replicates).}
 
 \item{...}{Additional arguments passed to methods.}
 }

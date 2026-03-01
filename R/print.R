@@ -1,3 +1,13 @@
+#' Print Sampling Design Objects
+#'
+#' @param x A sampling design object of class `"sondage_sample"`.
+#' @param ... Further arguments passed to or from other methods.
+#'
+#' @return `invisible(x)`.
+#'
+#' @name print.sondage_sample
+NULL
+
 #' @noRd
 .print_sample <- function(s) {
   if (is.matrix(s)) {
@@ -26,6 +36,7 @@
   }
 }
 
+#' @rdname print.sondage_sample
 #' @export
 print.unequal_prob <- function(x, ...) {
   wr <- inherits(x, "wr")
@@ -35,6 +46,7 @@ print.unequal_prob <- function(x, ...) {
   invisible(x)
 }
 
+#' @rdname print.sondage_sample
 #' @export
 print.equal_prob <- function(x, ...) {
   wr <- inherits(x, "wr")

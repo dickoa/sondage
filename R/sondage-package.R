@@ -1,10 +1,3 @@
-#' sondage: Survey Sampling Algorithms
-#'
-#' Fast implementations of survey sampling algorithms for drawing samples
-#' from finite populations. All functions return design objects that carry
-#' sample indices, inclusion probabilities (or expected hits), and design
-#' metadata.
-#'
 #' @section Unequal Probability Sampling:
 #' \itemize{
 #'   \item [unequal_prob_wor()] - Without replacement: CPS (maximum entropy),
@@ -19,6 +12,13 @@
 #'   \item [equal_prob_wor()] - Without replacement: SRS, systematic,
 #'     Bernoulli (random size)
 #'   \item [equal_prob_wr()] - With replacement: SRS
+#' }
+#'
+#' @section Balanced Sampling:
+#' \itemize{
+#'   \item [balanced_wor()] - Cube method (Deville & Tille, 2004) for
+#'     balanced sampling with unequal probabilities, with optional
+#'     stratification (Chauvet & Tille, 2006)
 #' }
 #'
 #' @section Design Queries:

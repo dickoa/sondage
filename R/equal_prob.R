@@ -4,7 +4,7 @@
 #'
 #' @param N Population size (positive integer).
 #' @param n Expected sample size. For `"srs"` and `"systematic"`, must be
-#'   a positive integer not exceeding N. For `"bernoulli"`, this is the
+#'   a non-negative integer not exceeding N. For `"bernoulli"`, this is the
 #'   expected sample size and `p = n/N` is used as the selection probability.
 #' @param method The sampling method:
 #'   \describe{
@@ -22,7 +22,8 @@
 #'   replicates. The design object and all generics remain usable.
 #' @param prn Optional vector of permanent random numbers (length N,
 #'   values in the open interval (0, 1)) for sample coordination.
-#'   Only supported by `"bernoulli"` method.
+#'   Only supported by `"bernoulli"` method. Cannot be used with
+#'   `nrep > 1` (identical PRN would produce identical replicates).
 #' @param ... Additional arguments passed to methods.
 #'
 #' @return An object of class `c("equal_prob", "wor", "sondage_sample")`.
@@ -68,6 +69,15 @@ equal_prob_wor <- function(
     )
   }
 
+  if (!is.null(prn) && nrep > 1L) {
+    stop(
+      "prn and nrep > 1 cannot be used together. ",
+      "Permanent random numbers produce identical samples across replicates. ",
+      "Use a loop with different prn vectors for coordinated repeated sampling.",
+      call. = FALSE
+    )
+  }
+
   if (nrep == 1L) {
     switch(
       method,
@@ -85,7 +95,7 @@ equal_prob_wor <- function(
 #' Draws a simple random sample with replacement.
 #'
 #' @param N Population size (positive integer).
-#' @param n Sample size (positive integer).
+#' @param n Sample size (non-negative integer).
 #' @param method The sampling method. Currently only `"srs"`.
 #' @param nrep Number of replicate samples (default 1).
 #' @param prn Optional vector of permanent random numbers for sample
@@ -108,7 +118,7 @@ equal_prob_wor <- function(
 #' s$hits
 #'
 #' @export
-equal_prob_wr <- function(N, n, method = c("srs"), nrep = 1L, prn = NULL, ...) {
+equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
   method <- match.arg(method)
   nrep <- check_integer(nrep, "nrep")
   if (nrep < 1L) {
@@ -243,7 +253,10 @@ equal_prob_wr <- function(N, n, method = c("srs"), nrep = 1L, prn = NULL, ...) {
     stop("'n' must be a non-negative integer", call. = FALSE)
   }
   if (!replace && n > N) {
-    stop("'n' cannot exceed 'N' when sampling without replacement", call. = FALSE)
+    stop(
+      "'n' cannot exceed 'N' when sampling without replacement",
+      call. = FALSE
+    )
   }
   invisible(TRUE)
 }

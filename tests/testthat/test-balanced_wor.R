@@ -264,6 +264,18 @@ test_that("cube batch returns correct structure", {
   expect_equal(s$method, "cube")
 })
 
+test_that("cube batch is reproducible with set.seed", {
+  pik <- c(0.2, 0.4, 0.6, 0.8)
+  x <- matrix(c(10, 20, 30, 40))
+
+  set.seed(4321)
+  s1 <- balanced_wor(pik, aux = x, nrep = 60)$sample
+  set.seed(4321)
+  s2 <- balanced_wor(pik, aux = x, nrep = 60)$sample
+
+  expect_identical(s1, s2)
+})
+
 test_that("cube batch prints correctly", {
   pik <- c(0.2, 0.4, 0.6, 0.8)
   s <- balanced_wor(pik, aux = matrix(c(10, 20, 30, 40)), nrep = 10)
@@ -285,6 +297,19 @@ test_that("stratified cube batch preserves per-stratum sizes", {
   }
 })
 
+
+test_that("stratified cube batch is reproducible when stratum sizes are integer", {
+  pik <- rep(0.4, 20)
+  x <- matrix(as.double(1:20), ncol = 1)
+  strata <- rep(1:4, each = 5)
+
+  set.seed(987)
+  s1 <- balanced_wor(pik, aux = x, strata = strata, nrep = 40)$sample
+  set.seed(987)
+  s2 <- balanced_wor(pik, aux = x, strata = strata, nrep = 40)$sample
+
+  expect_identical(s1, s2)
+})
 
 test_that("cube handles certainty units (pik = 1)", {
   pik <- c(1.0, 0.5, 0.5)
@@ -375,6 +400,34 @@ test_that("balanced_wor rejects invalid method", {
   expect_error(balanced_wor(c(0.5, 0.5), method = "foo"))
 })
 
+test_that("cube handles degenerate/collinear auxiliary variables", {
+  N <- 50
+  n <- 10
+  pik <- rep(n / N, N)
+
+  # Identical columns (rank-1 auxiliary matrix)
+  set.seed(42)
+  aux_dup <- cbind(1:N, 1:N)
+  s <- balanced_wor(pik, aux = aux_dup, method = "cube")
+  expect_length(s$sample, n)
+  expect_true(all(s$sample %in% 1:N))
+  expect_false(anyDuplicated(s$sample) > 0)
+
+  # Constant column (zero variance after A = X/pi)
+  aux_const <- cbind(1:N, rep(1, N))
+  s2 <- balanced_wor(pik, aux = aux_const, method = "cube")
+  expect_length(s2$sample, n)
+  expect_true(all(s2$sample %in% 1:N))
+  expect_false(anyDuplicated(s2$sample) > 0)
+
+  # All-identical rows
+  aux_identical <- matrix(1, nrow = N, ncol = 3)
+  s3 <- balanced_wor(pik, aux = aux_identical, method = "cube")
+  expect_length(s3$sample, n)
+  expect_true(all(s3$sample %in% 1:N))
+  expect_false(anyDuplicated(s3$sample) > 0)
+})
+
 test_that("stratified cube warns and sets fixed_size=FALSE for non-integer stratum sums", {
   strata <- rep(1:3, each = 4)
   pik <- c(rep(0.35, 4), rep(0.40, 4), rep(0.50, 4))
@@ -424,4 +477,79 @@ test_that("stratified cube handles sparse stratum labels", {
   # Both strata should be represented
   tab <- table(strata[s$sample])
   expect_equal(length(tab), 2L)
+})
+
+
+# --- condition_aux tests ---
+
+test_that("cube handles collinear aux with condition_aux = TRUE", {
+  set.seed(42)
+  N <- 60
+  n <- 12
+  pik <- rep(n / N, N)
+
+  # Build highly collinear aux: 3 independent + 7 dependent
+  base <- matrix(rnorm(N * 3), ncol = 3)
+  dependent <- base %*% matrix(rnorm(21), nrow = 3, ncol = 7) +
+    matrix(rnorm(N * 7, sd = 1e-8), ncol = 7)
+  aux <- cbind(base, dependent)
+
+  s <- balanced_wor(pik, aux = aux, condition_aux = TRUE)
+  expect_length(s$sample, n)
+  expect_true(all(s$sample >= 1 & s$sample <= N))
+  expect_false(anyDuplicated(s$sample) > 0)
+})
+
+test_that("cube conditioning can be explicitly disabled", {
+  pik <- c(0.2, 0.4, 0.6, 0.8)
+  x <- matrix(c(10, 20, 30, 40))
+
+  set.seed(1)
+  s1 <- balanced_wor(pik, aux = x, condition_aux = FALSE)
+  set.seed(1)
+  s2 <- balanced_wor(pik, aux = x)
+
+  # Default is FALSE, so both should give same result
+  expect_identical(s1$sample, s2$sample)
+})
+
+test_that("condition_aux preserves correct inclusion probabilities", {
+  skip_on_cran()
+  set.seed(1)
+  N <- 40
+  pik <- inclusion_prob(runif(N, 1, 10), n = 10)
+
+  # Collinear aux
+  base <- matrix(rnorm(N * 2), ncol = 2)
+  aux <- cbind(base, base[, 1] + base[, 2], 2 * base[, 1])
+
+  sim <- balanced_wor(pik, aux = aux, condition_aux = TRUE, nrep = 5000)
+  counts <- integer(N)
+  for (j in seq_len(ncol(sim$sample))) {
+    counts[sim$sample[, j]] <- counts[sim$sample[, j]] + 1L
+  }
+  pi_hat <- counts / ncol(sim$sample)
+  expect_equal(pi_hat, pik, tolerance = 0.03)
+})
+
+test_that("condition_aux works with stratified cube", {
+  set.seed(42)
+  N <- 40
+  pik <- rep(0.4, N)
+  strata <- rep(1:4, each = 10)
+  base <- matrix(rnorm(N * 2), ncol = 2)
+  aux <- cbind(base, base[, 1] + base[, 2])
+
+  s <- balanced_wor(pik, aux = aux, strata = strata, condition_aux = TRUE)
+  expect_length(s$sample, 16)
+  tab <- tabulate(strata[s$sample], nbins = 4)
+  expect_equal(tab, rep(4L, 4))
+})
+
+test_that("condition_aux with all-constant aux produces valid sample", {
+  pik <- rep(0.4, 10)
+  aux <- matrix(1, nrow = 10, ncol = 3)
+  s <- balanced_wor(pik, aux = aux, condition_aux = TRUE)
+  expect_length(s$sample, 4)
+  expect_true(all(s$sample >= 1 & s$sample <= 10))
 })

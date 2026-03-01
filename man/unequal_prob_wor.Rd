@@ -70,7 +70,10 @@ replicates. The design object and all generics remain usable.}
 \item{prn}{Optional vector of permanent random numbers (length N,
 values in the open interval (0, 1)) for sample coordination.
 Supported by methods \code{"sps"}, \code{"pareto"}, and \code{"poisson"}.
-When \code{NULL}, random numbers are generated internally.}
+When \code{NULL}, random numbers are generated internally.
+Cannot be used with \code{nrep > 1} (identical PRN would produce
+identical replicates). Use a loop with different PRN vectors
+for coordinated repeated sampling.}
 
 \item{...}{Additional arguments passed to methods (e.g., \code{eps} for
 boundary tolerance).}
@@ -105,9 +108,11 @@ s$sample
 s <- unequal_prob_wor(pik, method = "pareto", prn = prn)
 s$sample
 
+\donttest{
 # Batch mode for simulations
 sim <- unequal_prob_wor(pik, method = "cps", nrep = 1000)
 dim(sim$sample)  # 2 x 1000
+}
 
 }
 \references{

@@ -63,7 +63,7 @@ test_that("inclusion_prob rejects invalid input", {
   expect_error(inclusion_prob(1:10, n = 15), "cannot exceed")
   expect_error(inclusion_prob(1:10, n = -1), "non-negative")
   expect_error(inclusion_prob(1:10, n = NA), "single numeric")
-  expect_error(inclusion_prob(1:10, n = NA_real_), "not NA")
+  expect_error(inclusion_prob(1:10, n = NA_real_), "not be NA")
 })
 
 test_that("inclusion_prob rejects non-numeric n", {
@@ -85,6 +85,14 @@ test_that("inclusion_prob rejects non-integer n", {
 
 test_that("inclusion_prob rejects Inf n", {
   expect_error(inclusion_prob(1:10, n = Inf), "finite")
+})
+
+test_that("inclusion_prob rejects -Inf n", {
+  expect_error(inclusion_prob(1:10, n = -Inf), "finite")
+})
+
+test_that("inclusion_prob rejects NaN n", {
+  expect_error(inclusion_prob(1:10, n = NaN), "NA")
 })
 
 test_that("inclusion_prob silently accepts integer-like n", {
@@ -135,7 +143,7 @@ test_that("expected_hits errors when n is not a single numeric", {
 })
 
 test_that("expected_hits errors when n is NA or negative", {
-  expect_error(expected_hits(c(10, 20), n = NA_real_), "non-negative")
+  expect_error(expected_hits(c(10, 20), n = NA_real_), "NA")
   expect_error(expected_hits(c(10, 20), n = -1), "non-negative")
 })
 
@@ -157,6 +165,18 @@ test_that("expected_hits rejects negative x", {
 
 test_that("expected_hits errors when sum(x) is zero", {
   expect_error(expected_hits(c(0, 0, 0), n = 2), "sum")
+})
+
+test_that("expected_hits rejects Inf n", {
+  expect_error(expected_hits(c(1, 2, 3), n = Inf), "finite")
+})
+
+test_that("expected_hits rejects -Inf n", {
+  expect_error(expected_hits(c(1, 2, 3), n = -Inf), "finite")
+})
+
+test_that("expected_hits rejects NaN n", {
+  expect_error(expected_hits(c(1, 2, 3), n = NaN), "NA")
 })
 
 test_that("inclusion_prob rejects Inf in x", {

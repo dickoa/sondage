@@ -175,3 +175,102 @@ test_that("unequal_prob_wor dispatches to cps by default", {
   expect_equal(s$method, "cps")
   expect_s3_class(s, "wor")
 })
+
+test_that("cps handles high sampling fraction via complement path", {
+  skip_on_cran()
+  set.seed(321)
+
+  N <- 400L
+  n <- 360L
+  pik <- inclusion_prob(rgamma(N, shape = 0.7, rate = 1), n = n)
+
+  # Single draws
+  for (i in 1:20) {
+    s <- unequal_prob_wor(pik, method = "cps")
+    expect_length(s$sample, n)
+    expect_true(all(s$sample >= 1L & s$sample <= N))
+    expect_false(anyDuplicated(s$sample) > 0)
+  }
+
+  # Batch draws
+  sb <- unequal_prob_wor(pik, method = "cps", nrep = 100)
+  expect_true(is.matrix(sb$sample))
+  expect_equal(dim(sb$sample), c(n, 100))
+  for (j in 1:100) {
+    col <- sb$sample[, j]
+    expect_true(all(col >= 1L & col <= N))
+    expect_false(anyDuplicated(col) > 0)
+  }
+})
+
+test_that("cps complement path achieves correct inclusion probs", {
+  skip_on_cran()
+  set.seed(42)
+
+  N <- 100L
+  n <- 80L
+  pik <- inclusion_prob(rgamma(N, shape = 0.7, rate = 1), n = n)
+  n_sim <- 5000
+
+  counts <- integer(N)
+  for (i in 1:n_sim) {
+    idx <- unequal_prob_wor(pik, method = "cps")$sample
+    counts[idx] <- counts[idx] + 1
+  }
+  pi_hat <- counts / n_sim
+
+  expect_equal(pi_hat, pik, tolerance = 0.03)
+})
+
+test_that("cps complement path is faster for high sampling fractions", {
+  skip_on_cran()
+  set.seed(123)
+
+  N <- 1000L
+  n_high <- 900L
+  n_low <- 100L
+  pik_high <- inclusion_prob(rgamma(N, shape = 0.7, rate = 1), n = n_high)
+  pik_low <- inclusion_prob(rgamma(N, shape = 0.7, rate = 1), n = n_low)
+
+  # High fraction (n=900, complement=100) should be comparable to low (n=100)
+  t_high <- system.time({
+    set.seed(42)
+    unequal_prob_wor(pik_high, method = "cps", nrep = 50)
+  })[3]
+
+  t_low <- system.time({
+    set.seed(42)
+    unequal_prob_wor(pik_low, method = "cps", nrep = 50)
+  })[3]
+
+  # High fraction should take at most 3x the time of low (without complement
+  # path it would be 9x+ due to O(N*n) DP). Allow generous margin for CI.
+  expect_true(t_high < t_low * 4 || t_high < 0.5)
+})
+
+test_that("cps stress: repeated medium-large draws do not crash", {
+  skip_on_cran()
+  set.seed(123)
+  N <- 2500L
+  n <- 1250L
+  pik <- inclusion_prob(rgamma(N, shape = 0.7, rate = 1), n = n)
+
+  # Single draws
+  for (i in 1:40) {
+    s <- unequal_prob_wor(pik, method = "cps")
+    expect_length(s$sample, n)
+    expect_true(all(s$sample >= 1L & s$sample <= N))
+    expect_false(anyDuplicated(s$sample) > 0)
+  }
+
+  # Batch draw
+  sb <- unequal_prob_wor(pik, method = "cps", nrep = 40)
+  expect_true(is.matrix(sb$sample))
+  expect_equal(nrow(sb$sample), n)
+  expect_equal(ncol(sb$sample), 40L)
+  for (j in 1:40) {
+    col <- sb$sample[, j]
+    expect_true(all(col >= 1L & col <= N))
+    expect_false(anyDuplicated(col) > 0)
+  }
+})

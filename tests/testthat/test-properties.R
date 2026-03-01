@@ -307,11 +307,37 @@ test_that("sampling_cov.wr weighted returns NA (not NaN) for zero-prob units", {
 })
 
 
+# Property 15: sampling_cov.wor weighted handles zero-prob units
+test_that("sampling_cov.wor weighted returns NA (not NaN) for zero-prob units", {
+  s <- unequal_prob_wor(c(0, 0.5, 0.5, 0.5, 0.5), method = "cps")
+  m <- sampling_cov(s, weighted = TRUE)
+  # No NaN anywhere
+  expect_false(any(is.nan(m)))
+  # Off-diagonals involving zero-prob unit should be NA
+  expect_true(all(is.na(m[1, -1])))
+  expect_true(all(is.na(m[-1, 1])))
+  # Diagonal for zero-prob unit: 1 - 0 = 1
+  expect_equal(m[1, 1], 1)
+  # Non-zero-prob entries should be finite
+  expect_true(all(is.finite(m[2:5, 2:5])))
+})
+
+
 # Property 16: Joint probability functions reject large N
 test_that("joint probability functions reject large N", {
   pik <- rep(0.5, 10001)
   expect_error(
     joint_inclusion_prob(unequal_prob_wor(pik, method = "poisson")),
-    "too large"
+    "sampled_only = TRUE"
+  )
+})
+
+# Property 17: sampled_only batch error
+test_that("sampled_only errors for batch designs with subsetting instructions", {
+  pik <- c(0.2, 0.4, 0.6, 0.8)
+  s <- unequal_prob_wor(pik, method = "cps", nrep = 3)
+  expect_error(
+    joint_inclusion_prob(s, sampled_only = TRUE),
+    "pikl\\[s\\$sample\\[, i\\]"
   )
 })

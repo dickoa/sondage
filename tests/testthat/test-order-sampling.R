@@ -145,15 +145,18 @@ test_that("pareto batch mode returns design object with correct dimensions", {
   expect_equal(dim(sim$sample), c(2L, 50L))
 })
 
-test_that("batch with prn produces identical columns", {
+test_that("batch with prn errors (identical replicates)", {
   pik <- c(0.2, 0.4, 0.6, 0.8)
   prn <- c(0.3, 0.7, 0.1, 0.5)
 
-  sim_sps <- unequal_prob_wor(pik, method = "sps", nrep = 5, prn = prn)
-  expect_true(all(apply(sim_sps$sample, 2, identical, sim_sps$sample[, 1])))
-
-  sim_par <- unequal_prob_wor(pik, method = "pareto", nrep = 5, prn = prn)
-  expect_true(all(apply(sim_par$sample, 2, identical, sim_par$sample[, 1])))
+  expect_error(
+    unequal_prob_wor(pik, method = "sps", nrep = 5, prn = prn),
+    "prn and nrep > 1 cannot be used together"
+  )
+  expect_error(
+    unequal_prob_wor(pik, method = "pareto", nrep = 5, prn = prn),
+    "prn and nrep > 1 cannot be used together"
+  )
 })
 
 test_that("joint_inclusion_prob works for sps and pareto", {
@@ -183,14 +186,13 @@ test_that("poisson prn selects units where prn < pik", {
   expect_equal(s$sample, expected)
 })
 
-test_that("poisson batch with prn produces identical lists", {
+test_that("poisson batch with prn errors (identical replicates)", {
   pik <- c(0.2, 0.4, 0.6, 0.8)
   prn <- c(0.1, 0.5, 0.3, 0.9)
-  sim <- unequal_prob_wor(pik, method = "poisson", nrep = 5, prn = prn)
-  expect_s3_class(sim, "sondage_sample")
-  for (i in 2:5) {
-    expect_identical(sim$sample[[i]], sim$sample[[1]])
-  }
+  expect_error(
+    unequal_prob_wor(pik, method = "poisson", nrep = 5, prn = prn),
+    "prn and nrep > 1 cannot be used together"
+  )
 })
 
 test_that("bernoulli with prn is deterministic", {
@@ -208,13 +210,12 @@ test_that("bernoulli prn selects units where prn < p", {
   expect_equal(s$sample, expected)
 })
 
-test_that("bernoulli batch with prn produces identical lists", {
+test_that("bernoulli batch with prn errors (identical replicates)", {
   prn <- c(0.1, 0.3, 0.5, 0.7, 0.9, 0.2, 0.4, 0.6, 0.8, 0.05)
-  sim <- equal_prob_wor(10, 3, method = "bernoulli", nrep = 5, prn = prn)
-  expect_s3_class(sim, "sondage_sample")
-  for (i in 2:5) {
-    expect_identical(sim$sample[[i]], sim$sample[[1]])
-  }
+  expect_error(
+    equal_prob_wor(10, 3, method = "bernoulli", nrep = 5, prn = prn),
+    "prn and nrep > 1 cannot be used together"
+  )
 })
 
 test_that("warning when prn used with unsupported WOR methods", {

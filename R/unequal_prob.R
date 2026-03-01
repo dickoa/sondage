@@ -57,6 +57,9 @@
 #'   values in the open interval (0, 1)) for sample coordination.
 #'   Supported by methods `"sps"`, `"pareto"`, and `"poisson"`.
 #'   When `NULL`, random numbers are generated internally.
+#'   Cannot be used with `nrep > 1` (identical PRN would produce
+#'   identical replicates). Use a loop with different PRN vectors
+#'   for coordinated repeated sampling.
 #' @param ... Additional arguments passed to methods (e.g., `eps` for
 #'   boundary tolerance).
 #'
@@ -106,9 +109,11 @@
 #' s <- unequal_prob_wor(pik, method = "pareto", prn = prn)
 #' s$sample
 #'
+#' \donttest{
 #' # Batch mode for simulations
 #' sim <- unequal_prob_wor(pik, method = "cps", nrep = 1000)
 #' dim(sim$sample)  # 2 x 1000
+#' }
 #'
 #' @export
 unequal_prob_wor <- function(
@@ -127,6 +132,15 @@ unequal_prob_wor <- function(
   if (!is.null(prn) && !method %in% c("sps", "pareto", "poisson")) {
     warning(
       sprintf("prn is not used by method '%s' and will be ignored", method),
+      call. = FALSE
+    )
+  }
+
+  if (!is.null(prn) && nrep > 1L) {
+    stop(
+      "prn and nrep > 1 cannot be used together. ",
+      "Permanent random numbers produce identical samples across replicates. ",
+      "Use a loop with different prn vectors for coordinated repeated sampling.",
       call. = FALSE
     )
   }
@@ -425,7 +439,7 @@ unequal_prob_wr <- function(
   fixed_size <- method != "poisson"
 
   if (method == "cps") {
-    eps <- list(...)$eps
+    eps <- list(...)[["eps"]]
     if (is.null(eps)) eps <- 1e-06
     design <- .Call(C_cps_design, as.double(pik), as.double(eps))
     sample_data <- .Call(C_cps_draw_batch, design, as.integer(nrep))

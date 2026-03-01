@@ -9,7 +9,7 @@
 \usage{
 joint_inclusion_prob(x, ...)
 
-\method{joint_inclusion_prob}{wor}(x, eps = 1e-06, ...)
+\method{joint_inclusion_prob}{wor}(x, sampled_only = FALSE, eps = 1e-06, ...)
 
 \method{joint_inclusion_prob}{wr}(x, ...)
 
@@ -21,13 +21,17 @@ joint_inclusion_prob(x, ...)
 \item{...}{Additional arguments passed to methods (e.g., \code{eps}
 for boundary tolerance).}
 
+\item{sampled_only}{If \code{TRUE}, return only the n x n submatrix for
+the sampled units (requires \code{nrep = 1}). Useful when N is large
+but n is manageable. Default \code{FALSE}.}
+
 \item{eps}{Boundary tolerance for CPS and systematic methods
 (default 1e-6).}
 }
 \value{
-A symmetric N x N matrix of joint inclusion probabilities.
-Diagonal entries are the first-order inclusion probabilities
-\eqn{\pi_i}.
+A symmetric N x N matrix (or n x n if \code{sampled_only = TRUE})
+of joint inclusion probabilities. Diagonal entries are the
+first-order inclusion probabilities \eqn{\pi_i}.
 }
 \description{
 Computes the matrix of joint inclusion probabilities
@@ -39,8 +43,9 @@ The computation depends on the sampling method stored in the design
 object. Not all methods yield exact joint probabilities:
 
 \describe{
-\item{Exact}{\code{cps} (from the CPS design matrix), \code{systematic}
-(combinatorial enumeration via C code), \code{poisson}
+\item{Exact (up to numerical precision)}{\code{cps} (from the CPS design
+matrix via Aires' formula and elementary symmetric polynomials),
+\code{systematic} (combinatorial enumeration via C code), \code{poisson}
 (\eqn{\pi_{ij} = \pi_i \pi_j}, independent selections),
 \code{srs}, and \code{bernoulli}.}
 \item{Approximation}{\code{brewer}, \code{sps}, \code{pareto}, and \code{cube} use the
@@ -50,7 +55,7 @@ eq. 18):
 where \eqn{c_k = (n-1) / (n - (2n-1)\pi_k/(n-1) +
     \sum_l \pi_l^2/(n-1))}.
 This approximation guarantees symmetry,
-\eqn{0 \le \pi_{ij} \le \min(\pi_i, \pi_j)}, and correct
+\eqn{0 \leq \pi_{ij} \leq \min(\pi_i, \pi_j)}, and correct
 diagonal (\eqn{\pi_{ii} = \pi_i}), but does \strong{not}
 guarantee the fixed-size marginal identity
 \eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}. The marginal
@@ -58,19 +63,40 @@ defect is typically small for well-spread inclusion
 probabilities but can become non-trivial for highly skewed
 \eqn{\pi_k} vectors, especially when \eqn{n} is small
 (e.g. \eqn{n = 2}). A warning is issued when the defect
-exceeds 5\\% of \eqn{n}. Use \code{method = "cps"} when exact
-second-order inclusion probabilities are required.}
+exceeds 5\\% of \eqn{n}. Use \code{method = "cps"} when exact (up to
+numerical precision) second-order inclusion probabilities are
+required.}
 }
 
 For \strong{systematic PPS} sampling, some off-diagonal entries may be
 exactly zero (pairs of units that can never co-occur in the same
 systematic sample). This has consequences for variance estimation;
 see \code{\link[=sampling_cov]{sampling_cov()}}.
+
+When \code{sampled_only = TRUE}, only the n x n submatrix for sampled
+units is returned. For methods using the high-entropy approximation
+(\code{brewer}, \code{sps}, \code{pareto}, \code{cube}), the \eqn{c_k} coefficients are
+computed from the full population \eqn{\pi_k} vector (O(N)), but only
+the sampled pairs are assembled into a matrix (O(n^2)), avoiding the
+O(N^2) allocation entirely. Similarly, \code{poisson}, \code{bernoulli}, and
+\code{srs} compute the n x n matrix directly. These methods can therefore
+handle arbitrarily large N (e.g. N = 50 000 with n = 200).
+
+For \code{cps} and \code{systematic}, the underlying C code requires the full
+N x N matrix, so the N > 10 000 guard still applies even with
+\code{sampled_only = TRUE}. For large populations with these methods,
+consider switching to a high-entropy method (e.g. \code{brewer}).
+
+The marginal defect diagnostic is skipped when \code{sampled_only = TRUE}
+because the row-sum identity only holds for the full matrix.
 }
 \examples{
 pik <- c(0.2, 0.3, 0.5)
 s <- unequal_prob_wor(pik, method = "cps")
 joint_inclusion_prob(s)
+
+# Only the n x n submatrix for sampled units
+joint_inclusion_prob(s, sampled_only = TRUE)
 
 }
 \seealso{

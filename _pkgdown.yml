@@ -30,3 +30,7 @@ reference:
   - joint_inclusion_prob
   - joint_expected_hits
   - sampling_cov
+
+- title: Print methods
+  contents:
+  - print.sondage_sample

@@ -5,6 +5,7 @@
 #include <R.h>
 #include <Rinternals.h>
 #include <Rmath.h>
+#include <R_ext/Utils.h>
 
 static inline int binary_search(const double *cumprob, int n, double u) {
     int lo = 0, hi = n - 1;
@@ -76,6 +77,7 @@ SEXP C_up_brewer(SEXP pik, SEXP eps) {
     int n_active = N;
 
     for (int i = 1; i <= n_draws; i++) {
+        R_CheckUserInterrupt();
         const double m = n - a;
         const double r = (double)(n_draws - i + 1);
 
@@ -84,10 +86,9 @@ SEXP C_up_brewer(SEXP pik, SEXP eps) {
             const double pk = pikb[j];
             const double denom = m - pk * r;
 
-            if (denom > 1e-10) {
-                double prob = pk * (m - pk) / denom;
-                if (prob > 0.0) sum_p += prob;
-            }
+            double safe_denom = denom < 1e-15 ? 1e-15 : denom;
+            double prob = pk * (m - pk) / safe_denom;
+            if (prob > 0.0) sum_p += prob;
             cumprob[j] = sum_p;
         }
 

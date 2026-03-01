@@ -188,6 +188,30 @@ s_wr <- unequal_prob_wr(eh, method = "chromy")
 joint_expected_hits(s_wr)
 ```
 
+### Submatrices for large populations
+
+By default, `joint_inclusion_prob()` and `joint_expected_hits()` return the full N x N matrix, which is prohibitive when N > 10,000 (~0.8 GB). In practice, variance estimators only need the submatrix for sampled units. The `sampled_only = TRUE` argument returns this n x n submatrix directly:
+
+```{r}
+pik_large <- inclusion_prob(runif(500), n = 10)
+s_large <- unequal_prob_wor(pik_large, method = "brewer")
+
+# Full 500 x 500 matrix
+pikl_full <- joint_inclusion_prob(s_large)
+dim(pikl_full)
+
+# Only the 10 x 10 submatrix for sampled units
+pikl_sub <- joint_inclusion_prob(s_large, sampled_only = TRUE)
+dim(pikl_sub)
+```
+
+For high-entropy methods (`brewer`, `sps`, `pareto`, `cube`), `poisson`, `bernoulli`, `srs`, and `multinomial`, the submatrix is computed directly without allocating the N x N matrix, so arbitrarily large populations are supported. For `cps`, `systematic`, and `chromy`, the full matrix is still needed internally, so the N > 10,000 guard remains. The `sampling_cov()` generic also accepts `sampled_only`:
+
+```{r}
+delta_sub <- sampling_cov(s_large, sampled_only = TRUE)
+dim(delta_sub)
+```
+
 ### Sampling covariance
 
 The `sampling_cov()` generic computes $\Delta_{ij} = \pi_{ij} - \pi_i \pi_j$ for WOR designs (or the analogous expression for WR designs):
@@ -204,7 +228,7 @@ sampling_cov(s, weighted = TRUE)
 
 ## Batch sampling
 
-All four dispatchers accept an `nrep` parameter for drawing multiple independent samples in one call, useful for simulation studies. The result is always a design object (the same class as `nrep = 1`) but with `$sample` holding all replicates:
+All five dispatchers accept an `nrep` parameter for drawing multiple independent samples in one call, useful for simulation studies. The result is always a design object (the same class as `nrep = 1`) but with `$sample` holding all replicates:
 
 ```{r}
 sim <- equal_prob_wor(N = 50, n = 5, nrep = 4)

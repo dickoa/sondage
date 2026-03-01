@@ -47,6 +47,15 @@ check_pik <- function(
         call. = FALSE
       )
     }
+    if (round(s) < 1L) {
+      stop(
+        sprintf(
+          "sum(pik) = %.4g rounds to 0; need at least n = 1 for fixed-size sampling",
+          s
+        ),
+        call. = FALSE
+      )
+    }
   }
   invisible(TRUE)
 }
@@ -92,6 +101,9 @@ check_prn <- function(prn, N) {
 #' @keywords internal
 #' @noRd
 check_integer <- function(x, name = "n", tol = 1e-4) {
+  if (!is.numeric(x) || length(x) != 1L) {
+    stop(sprintf("%s must be a single number", name), call. = FALSE)
+  }
   if (is.na(x)) {
     stop(sprintf("%s must not be NA", name), call. = FALSE)
   }

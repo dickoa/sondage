@@ -8,6 +8,7 @@
 
 #include "cps_core.h"
 #include <float.h>
+#include <R_ext/Utils.h>
 
 static int compare_double(const void *a, const void *b) {
     double diff = *(const double *)a - *(const double *)b;
@@ -82,34 +83,95 @@ SEXP C_cps_jip(SEXP pik_sexp, SEXP eps_sexp) {
 
     double *w = (double *) R_alloc(N_valid, sizeof(double));
     double *expa = (double *) R_alloc((size_t)N_valid * n_valid, sizeof(double));
-    cps_calibrate(pik_valid, N_valid, n_valid, w, expa, eps, 100);
+    int cal_iters = cps_calibrate(pik_valid, N_valid, n_valid, w, expa, eps, 100);
+    if (cal_iters >= 100) {
+        Rf_warning("CPS calibration did not converge after %d iterations", 100);
+    }
 
-    for (int i = 0; i < N_valid; i++) {
-        for (int jj = i + 1; jj < N_valid; jj++) {
-            double r_i = w[i];
-            double r_j = w[jj];
-            double r_diff = r_j - r_i;
-            double pi_ij;
+    /* Relative near-equality threshold (decoupled from user eps) */
+    const double tau = 16.0 * sqrt(DBL_EPSILON);
 
-            if (fabs(r_diff) > eps * (r_i + r_j + 1e-10)) {
-                pi_ij = (r_j * pik_valid[i] - r_i * pik_valid[jj]) / r_diff;
-            } else {
-                double d = 0.0;
-                for (int m = 0; m < N_valid; m++) {
-                    d += pik_valid[m] * (1.0 - pik_valid[m]);
-                }
-                pi_ij = pik_valid[i] * pik_valid[jj] *
-                        (1.0 - (1.0 - pik_valid[i]) * (1.0 - pik_valid[jj]) / d);
+    /* Check if all weights are approximately equal */
+    double w_min = w[0], w_max = w[0];
+    for (int i = 1; i < N_valid; i++) {
+        if (w[i] < w_min) w_min = w[i];
+        if (w[i] > w_max) w_max = w[i];
+    }
+    double w_scale = fmax(1.0, w_max);
+    int all_equal = (w_max - w_min) <= tau * w_scale;
+
+    if (all_equal) {
+        /* All weights equal => CPS reduces to SRS on valid subset */
+        double pi_ij = (double)n_valid * (n_valid - 1) /
+                       ((double)N_valid * (N_valid - 1));
+        for (int i = 0; i < N_valid; i++) {
+            for (int jj = i + 1; jj < N_valid; jj++) {
+                int k = valid_idx[i];
+                int l = valid_idx[jj];
+                pikl[l * N_full + k] = pi_ij;
+                pikl[k * N_full + l] = pi_ij;
             }
+        }
+    } else {
+        /* Full elementary symmetric polynomials E[z] = e_z(W) */
+        double *E = (double *) R_alloc(n_valid + 1, sizeof(double));
+        E[0] = 1.0;
+        /* expa[0*n_valid + z] = e_{z+1}(w_0,...,w_{N_valid-1}) */
+        for (int z = 0; z < n_valid; z++) {
+            E[z + 1] = expa[0 * n_valid + z];
+        }
 
-            if (pi_ij < 0.0) pi_ij = 0.0;
-            if (pi_ij > pik_valid[i]) pi_ij = pik_valid[i];
-            if (pi_ij > pik_valid[jj]) pi_ij = pik_valid[jj];
+        /* Buffers for leave-one-out and leave-two-out ESPs */
+        double *E_i = (double *) R_alloc(n_valid + 1, sizeof(double));
+        double *E_ij = (double *) R_alloc(n_valid + 1, sizeof(double));
 
-            int k = valid_idx[i];
-            int l = valid_idx[jj];
-            pikl[l * N_full + k] = pi_ij;
-            pikl[k * N_full + l] = pi_ij;
+        int prev_i = -1;
+
+        for (int i = 0; i < N_valid; i++) {
+            R_CheckUserInterrupt();
+
+            for (int jj = i + 1; jj < N_valid; jj++) {
+                double r_i = w[i];
+                double r_j = w[jj];
+                double r_diff = r_j - r_i;
+                double scale = fmax(1.0, fmax(fabs(r_i), fabs(r_j)));
+                double pi_ij;
+
+                if (fabs(r_diff) > tau * scale) {
+                    /* Aires formula (fast O(1) path) */
+                    pi_ij = (r_j * pik_valid[i] - r_i * pik_valid[jj]) / r_diff;
+                } else {
+                    /* ESF-based exact computation for near-equal weights.
+                     * pi_ij = w_i * w_j * e_{n-2}(W\{i,j}) / e_n(W) */
+
+                    /* Compute E_i[0..n_valid-2] if i changed */
+                    if (i != prev_i) {
+                        E_i[0] = 1.0;
+                        for (int z = 1; z <= n_valid - 2; z++) {
+                            E_i[z] = E[z] - w[i] * E_i[z - 1];
+                        }
+                        prev_i = i;
+                    }
+
+                    /* Compute E_ij[n_valid-2] */
+                    E_ij[0] = 1.0;
+                    for (int z = 1; z <= n_valid - 2; z++) {
+                        E_ij[z] = E_i[z] - w[jj] * E_ij[z - 1];
+                    }
+
+                    pi_ij = r_i * r_j * E_ij[n_valid - 2] / E[n_valid];
+                }
+
+                /* Clamp tiny floating-point spillover */
+                if (pi_ij < 0.0) pi_ij = 0.0;
+                if (pi_ij > pik_valid[i]) pi_ij = pik_valid[i];
+                if (pi_ij > pik_valid[jj]) pi_ij = pik_valid[jj];
+
+                int k = valid_idx[i];
+                int l = valid_idx[jj];
+                pikl[l * N_full + k] = pi_ij;
+                pikl[k * N_full + l] = pi_ij;
+            }
         }
     }
 
@@ -197,6 +259,7 @@ SEXP C_up_systematic_jip(SEXP pik_sexp, SEXP eps_sexp) {
     }
 
     for (int i = 0; i < N; i++) {
+        R_CheckUserInterrupt();
         for (int jj = i + 1; jj < N; jj++) {
             double pi_ij = 0.0;
             for (int m = 0; m < N; m++) {
@@ -287,6 +350,7 @@ SEXP C_high_entropy_jip(SEXP pik_sexp, SEXP eps_sexp) {
 
     /* Compute joint probabilities for valid pairs, with clamping */
     for (int i = 0; i < N_valid; i++) {
+        R_CheckUserInterrupt();
         for (int jj = i + 1; jj < N_valid; jj++) {
             double pi_ij = pik_valid[i] * pik_valid[jj] *
                            (c[i] + c[jj]) / 2.0;

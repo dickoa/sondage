@@ -216,3 +216,94 @@ test_that("sampling_cov weighted off-diagonal is non-positive for high-entropy d
   expect_true(all(off_diag_b <= 1e-10))
   expect_equal(diag(chk_brewer), 1 - pik, tolerance = 1e-10)
 })
+
+
+# ---- sampled_only = TRUE for WR designs ----
+
+test_that("sampled_only returns correct dims for Chromy", {
+  x <- c(10, 20, 30, 40, 50)
+  hits <- expected_hits(x, n = 3)
+  s <- unequal_prob_wr(hits, method = "chromy")
+  full <- joint_expected_hits(s, nsim = 5000)
+  sub <- joint_expected_hits(s, sampled_only = TRUE, nsim = 5000)
+
+  idx <- which(s$hits > 0)
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  # Values come from same simulation engine, may differ due to RNG state,
+  # so just check structure
+  expect_equal(sub, t(sub), tolerance = 0.1)
+  expect_true(all(diag(sub) > 0))
+})
+
+test_that("sampled_only returns correct dims and values for multinomial", {
+  x <- c(10, 20, 30, 40)
+  hits <- expected_hits(x, n = 5)
+  s <- unequal_prob_wr(hits, method = "multinomial")
+  full <- joint_expected_hits(s)
+  sub <- joint_expected_hits(s, sampled_only = TRUE)
+
+  idx <- which(s$hits > 0)
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx, drop = FALSE])
+})
+
+test_that("sampled_only returns correct dims and values for SRS WR", {
+  s <- equal_prob_wr(10, 5)
+  full <- joint_expected_hits(s)
+  sub <- joint_expected_hits(s, sampled_only = TRUE)
+
+  idx <- which(s$hits > 0)
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx, drop = FALSE])
+})
+
+test_that("sampled_only errors for batch WR designs", {
+  hits <- expected_hits(c(10, 20, 30), n = 2)
+  s <- unequal_prob_wr(hits, method = "multinomial", nrep = 3)
+  expect_error(
+    joint_expected_hits(s, sampled_only = TRUE),
+    "not supported for batch"
+  )
+})
+
+test_that("N > 10K error for joint_expected_hits suggests sampled_only", {
+  hits <- rep(1, 10001)
+  expect_error(
+    joint_expected_hits(unequal_prob_wr(hits, method = "multinomial")),
+    "sampled_only = TRUE"
+  )
+})
+
+test_that("sampling_cov.wor with sampled_only matches subset", {
+  pik <- c(0.2, 0.4, 0.6, 0.8)
+  s <- unequal_prob_wor(pik, method = "cps")
+  full_cov <- sampling_cov(s)
+  sub_cov <- sampling_cov(s, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub_cov), c(length(idx), length(idx)))
+  expect_equal(sub_cov, full_cov[idx, idx, drop = FALSE])
+})
+
+test_that("sampling_cov.wr with sampled_only matches subset", {
+  x <- c(10, 20, 30, 40)
+  hits <- expected_hits(x, n = 5)
+  s <- unequal_prob_wr(hits, method = "multinomial")
+  full_cov <- sampling_cov(s)
+  sub_cov <- sampling_cov(s, sampled_only = TRUE)
+
+  idx <- which(s$hits > 0)
+  expect_equal(dim(sub_cov), c(length(idx), length(idx)))
+  expect_equal(sub_cov, full_cov[idx, idx, drop = FALSE])
+})
+
+test_that("sampling_cov.wor weighted with sampled_only matches subset", {
+  pik <- c(0.2, 0.4, 0.6, 0.8)
+  s <- unequal_prob_wor(pik, method = "cps")
+  full_cov <- sampling_cov(s, weighted = TRUE)
+  sub_cov <- sampling_cov(s, weighted = TRUE, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub_cov), c(length(idx), length(idx)))
+  expect_equal(sub_cov, full_cov[idx, idx, drop = FALSE])
+})

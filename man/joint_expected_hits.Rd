@@ -9,7 +9,7 @@
 \usage{
 joint_expected_hits(x, ...)
 
-\method{joint_expected_hits}{wr}(x, nsim = 10000L, ...)
+\method{joint_expected_hits}{wr}(x, sampled_only = FALSE, nsim = 10000L, ...)
 
 \method{joint_expected_hits}{wor}(x, ...)
 
@@ -21,12 +21,19 @@ joint_expected_hits(x, ...)
 \item{...}{Additional arguments passed to methods (e.g., \code{nsim}
 for simulation-based methods).}
 
+\item{sampled_only}{If \code{TRUE}, return only the submatrix for units
+selected at least once (requires \code{nrep = 1}). Useful when N is
+large but the number of distinct selected units is manageable.
+Default \code{FALSE}.}
+
 \item{nsim}{Number of simulations for Chromy's pairwise expectations
 (default 10000).}
 }
 \value{
-A symmetric N x N matrix. Diagonal entries are
-\eqn{E(n_i^2)} and off-diagonal entries are \eqn{E(n_i n_j)}.
+A symmetric N x N matrix (or n_s x n_s if
+\code{sampled_only = TRUE}, where n_s is the number of distinct
+selected units). Diagonal entries are \eqn{E(n_i^2)} and
+off-diagonal entries are \eqn{E(n_i n_j)}.
 }
 \description{
 Computes the matrix of pairwise expectations \eqn{E(n_i n_j)} for a
@@ -45,12 +52,21 @@ estimated by Monte Carlo simulation (controlled by the \code{nsim}
 parameter, default 10 000). Increase \code{nsim} for more precise
 estimates at the cost of computation time.}
 }
+
+When \code{sampled_only = TRUE}, the submatrix is indexed by population
+units that were selected at least once (i.e., units with
+\code{hits > 0}). For \code{multinomial} and \code{srs}, the submatrix is computed
+directly at O(n_s^2). For \code{chromy}, the full N x N matrix is
+computed internally and then subset.
 }
 \examples{
 x <- c(40, 80, 50, 60, 70)
 hits <- expected_hits(x, n = 3)
 s <- unequal_prob_wr(hits, method = "chromy")
 joint_expected_hits(s)
+
+# Only the submatrix for selected units
+joint_expected_hits(s, sampled_only = TRUE)
 
 }
 \seealso{
