@@ -13,13 +13,19 @@ set.seed(1)
 
 # sondage
 
+<!-- badges: start -->
+[![CRAN status](https://www.r-pkg.org/badges/version/sondage)](https://CRAN.R-project.org/package=sondage)
+[![R-CMD-check](https://gitlab.com/dickoa/sondage/badges/main/pipeline.svg)](https://gitlab.com/dickoa/sondage/-/pipelines)
+[![Codecov test coverage](https://codecov.io/gl/dickoa/sondage/branch/main/graph/badge.svg)](https://app.codecov.io/gl/dickoa/sondage?branch=main)
+<!-- badges: end -->
+
 Fast survey sampling algorithms for R. Sampling functions return **design objects** with generics for extracting inclusion probabilities, joint inclusion probabilities, and variance estimation quantities.
 
 ## Installation
 
-```r
+```{r, eval = FALSE}
 # From GitLab
-remotes::install_gitlab("dickoa/sondage")
+pak::pkg_install("gitlab::dickoa/sondage")
 ```
 
 ## Usage

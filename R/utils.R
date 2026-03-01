@@ -120,6 +120,34 @@ check_integer <- function(x, name = "n", tol = 1e-4) {
   as.integer(r)
 }
 
+#' Validate numerical tolerance parameter
+#'
+#' @param eps Numeric tolerance value.
+#' @param name Parameter name for error messages.
+#'
+#' @return The tolerance as a double.
+#'
+#' @keywords internal
+#' @noRd
+check_eps <- function(eps, name = "eps") {
+  if (!is.numeric(eps) || length(eps) != 1L) {
+    stop(sprintf("'%s' must be a single numeric value", name), call. = FALSE)
+  }
+  if (is.na(eps)) {
+    stop(sprintf("'%s' must not be NA", name), call. = FALSE)
+  }
+  if (!is.finite(eps)) {
+    stop(sprintf("'%s' must be finite", name), call. = FALSE)
+  }
+  if (eps <= 0 || eps >= 0.5) {
+    stop(
+      sprintf("'%s' must be in the open interval (0, 0.5)", name),
+      call. = FALSE
+    )
+  }
+  as.double(eps)
+}
+
 #' Validate expected hits vector
 #'
 #' Checks that hits is a valid vector of expected hits for WR sampling.

@@ -127,6 +127,7 @@ balanced_wor <- function(
   condition_aux <- isTRUE(dots[["condition_aux"]])
   qr_tol <- dots[["qr_tol"]]
   if (is.null(qr_tol)) qr_tol <- sqrt(.Machine$double.eps)
+  eps <- check_eps(eps)
 
   strata_fixed <- TRUE
   if (is.null(strata)) {
@@ -287,6 +288,7 @@ balanced_wor <- function(
   dots <- list(...)
   eps <- dots[["eps"]]
   if (is.null(eps)) eps <- 1e-10
+  eps <- check_eps(eps)
   condition_aux <- isTRUE(dots[["condition_aux"]])
   qr_tol <- dots[["qr_tol"]]
   if (is.null(qr_tol)) qr_tol <- sqrt(.Machine$double.eps)

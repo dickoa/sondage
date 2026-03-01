@@ -296,6 +296,7 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
   N <- x$N
   n <- x$n
   sample_idx <- x$sample
+  eps <- check_eps(eps)
 
   if (sampled_only) {
     if (is.matrix(sample_idx) || is.list(sample_idx)) {

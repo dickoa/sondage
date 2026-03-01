@@ -244,6 +244,7 @@ unequal_prob_wr <- function(
 #' @noRd
 .cps_sample <- function(pik, eps = 1e-06, ...) {
   check_pik(pik, fixed_size = TRUE)
+  eps <- check_eps(eps)
   idx <- .Call(C_cps_single, as.double(pik), as.double(eps))
   .new_wor_sample(
     sample = idx,
@@ -259,6 +260,7 @@ unequal_prob_wr <- function(
 #' @noRd
 .brewer_sample <- function(pik, eps = 1e-06, ...) {
   check_pik(pik, fixed_size = TRUE)
+  eps <- check_eps(eps)
   idx <- .Call(C_up_brewer, as.double(pik), as.double(eps))
   .new_wor_sample(
     sample = idx,
@@ -274,6 +276,7 @@ unequal_prob_wr <- function(
 #' @noRd
 .systematic_pps_sample <- function(pik, eps = 1e-06, ...) {
   check_pik(pik, fixed_size = TRUE)
+  eps <- check_eps(eps)
   certain <- which(pik >= 1 - eps)
   valid <- which(pik > eps & pik < 1 - eps)
   pik_valid <- pik[valid]
@@ -323,6 +326,7 @@ unequal_prob_wr <- function(
 #' @noRd
 .sps_sample <- function(pik, prn = NULL, eps = 1e-06, ...) {
   check_pik(pik, fixed_size = TRUE)
+  eps <- check_eps(eps)
   N <- length(pik)
   n <- as.integer(round(sum(pik)))
   if (is.null(prn)) prn <- stats::runif(N)
@@ -354,6 +358,7 @@ unequal_prob_wr <- function(
 #' @noRd
 .pareto_sample <- function(pik, prn = NULL, eps = 1e-06, ...) {
   check_pik(pik, fixed_size = TRUE)
+  eps <- check_eps(eps)
   N <- length(pik)
   n <- as.integer(round(sum(pik)))
   if (is.null(prn)) prn <- stats::runif(N)
@@ -434,13 +439,21 @@ unequal_prob_wr <- function(
 
 #' @noRd
 .batch_wor <- function(pik, method, nrep, prn, ...) {
+  if (method == "poisson") {
+    check_pik(pik)
+  } else {
+    check_pik(pik, fixed_size = TRUE)
+  }
+
   N <- length(pik)
   n <- sum(pik)
   fixed_size <- method != "poisson"
+  n_out <- if (fixed_size) as.integer(round(n)) else n
 
   if (method == "cps") {
     eps <- list(...)[["eps"]]
     if (is.null(eps)) eps <- 1e-06
+    eps <- check_eps(eps)
     design <- .Call(C_cps_design, as.double(pik), as.double(eps))
     sample_data <- .Call(C_cps_draw_batch, design, as.integer(nrep))
   } else if (method == "poisson") {
@@ -466,7 +479,7 @@ unequal_prob_wr <- function(
   .new_wor_sample(
     sample = sample_data,
     pik = pik,
-    n = n,
+    n = n_out,
     N = N,
     method = method,
     fixed_size = fixed_size,

@@ -250,7 +250,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
     stop("'N' must be a positive integer", call. = FALSE)
   }
   if (!is.numeric(n) || length(n) != 1 || is.na(n) || n < 0) {
-    stop("'n' must be a non-negative integer", call. = FALSE)
+    stop("'n' must be a non-negative number", call. = FALSE)
   }
   if (!replace && n > N) {
     stop(

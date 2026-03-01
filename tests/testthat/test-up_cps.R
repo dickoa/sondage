@@ -140,6 +140,13 @@ test_that("cps rejects non-integer sum(pik)", {
                "not close to an integer")
 })
 
+test_that("cps batch rejects non-integer sum(pik)", {
+  expect_error(
+    unequal_prob_wor(c(0.49, 0.49, 0.49), method = "cps", nrep = 2),
+    "not close to an integer"
+  )
+})
+
 test_that("cps rejects slightly non-integer sum(pik)", {
   expect_error(unequal_prob_wor(c(0.501, 0.25, 0.25), method = "cps"),
                "not close to an integer")

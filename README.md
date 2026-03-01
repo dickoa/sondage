@@ -1,6 +1,15 @@
 
 # sondage
 
+<!-- badges: start -->
+
+[![CRAN
+status](https://www.r-pkg.org/badges/version/sondage)](https://CRAN.R-project.org/package=sondage)
+[![R-CMD-check](https://gitlab.com/dickoa/sondage/badges/main/pipeline.svg)](https://gitlab.com/dickoa/sondage/-/pipelines)
+[![Codecov test
+coverage](https://codecov.io/gl/dickoa/sondage/branch/main/graph/badge.svg)](https://app.codecov.io/gl/dickoa/sondage?branch=main)
+<!-- badges: end -->
+
 Fast survey sampling algorithms for R. Sampling functions return
 **design objects** with generics for extracting inclusion probabilities,
 joint inclusion probabilities, and variance estimation quantities.
@@ -9,7 +18,7 @@ joint inclusion probabilities, and variance estimation quantities.
 
 ``` r
 # From GitLab
-remotes::install_gitlab("dickoa/sondage")
+pak::pkg_install("gitlab::dickoa/sondage")
 ```
 
 ## Usage
@@ -156,10 +165,16 @@ inclusion_prob(sim) # generics still work
 - `expected_hits(x, n)` - Compute expected hits from size measures
 - `expected_hits(s)` - Extract expected hits from a WR design
 - `joint_inclusion_prob(s)` - Joint inclusion probabilities (WOR)
+- `joint_inclusion_prob(s, sampled_only = TRUE)` - n x n submatrix for
+  sampled units only (scales to large N)
 - `joint_expected_hits(s)` - Pairwise expectations E(n_i n_j) (WR)
+- `joint_expected_hits(s, sampled_only = TRUE)` - Submatrix for selected
+  units only
 - `sampling_cov(s)` - Sampling covariance matrix
 - `sampling_cov(s, weighted = TRUE)` - Check quantities for SYG variance
   estimator
+- `sampling_cov(s, sampled_only = TRUE)` - Covariance for sampled units
+  only
 
 ## Method comparison
 
