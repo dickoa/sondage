@@ -84,7 +84,7 @@ equal_prob_wor <- function(
       srs = .srs_wor_sample(N, n, ...),
       systematic = .systematic_ep_sample(N, n, ...),
       bernoulli = .bernoulli_sample(N, n, prn = prn, ...),
-      .stop_unknown_method(method)
+      .stop_unknown_method(method) # nocov
     )
   } else {
     .batch_ep_wor(N, n, method, nrep, prn, ...)
@@ -280,7 +280,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
       method,
       srs = .srs_wor_sample,
       systematic = .systematic_ep_sample,
-      .stop_unknown_method(method)
+      .stop_unknown_method(method) # nocov
     )
     for (i in seq_len(nrep)) {
       mat[, i] <- draw_fn(N, n, ...)$sample

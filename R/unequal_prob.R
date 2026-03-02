@@ -154,7 +154,7 @@ unequal_prob_wor <- function(
       poisson = .poisson_pps_sample(pik, prn = prn, ...),
       sps = .sps_sample(pik, prn = prn, ...),
       pareto = .pareto_sample(pik, prn = prn, ...),
-      .stop_unknown_method(method)
+      .stop_unknown_method(method) # nocov
     )
   } else {
     .batch_wor(pik, method, nrep, prn, ...)
@@ -236,7 +236,7 @@ unequal_prob_wr <- function(
       method,
       chromy = .chromy_sample(hits, ...),
       multinomial = .multinomial_sample(hits, ...),
-      .stop_unknown_method(method)
+      .stop_unknown_method(method) # nocov
     )
   } else {
     .batch_wr(hits, method, nrep, prn, ...)
@@ -467,7 +467,7 @@ unequal_prob_wr <- function(
       systematic = .systematic_pps_sample,
       sps = .sps_sample,
       pareto = .pareto_sample,
-      .stop_unknown_method(method)
+      .stop_unknown_method(method) # nocov
     )
     for (i in seq_len(nrep)) {
       mat[, i] <- draw_fn(pik, prn = prn, ...)$sample
@@ -498,7 +498,7 @@ unequal_prob_wr <- function(
     method,
     chromy = .chromy_sample,
     multinomial = .multinomial_sample,
-    .stop_unknown_method(method)
+    .stop_unknown_method(method) # nocov
   )
   for (i in seq_len(nrep)) {
     d <- draw_fn(hits, ...)

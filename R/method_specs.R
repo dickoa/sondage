@@ -4,34 +4,29 @@
 # context to avoid cross-contamination (e.g. bernoulli never appears in
 # unequal-prob PRN checks). These tables, the resolver, and the hook helpers
 # are the future insertion points for custom method registration.
-
-# -- Spec tables: one per dispatcher context ----------------------------------
-
 .wor_specs <- list(
-  cps        = list(fixed_size = TRUE,  prn = FALSE),
-  brewer     = list(fixed_size = TRUE,  prn = FALSE),
-  systematic = list(fixed_size = TRUE,  prn = FALSE),
-  poisson    = list(fixed_size = FALSE, prn = TRUE),
-  sps        = list(fixed_size = TRUE,  prn = TRUE),
-  pareto     = list(fixed_size = TRUE,  prn = TRUE)
+  cps = list(fixed_size = TRUE, prn = FALSE),
+  brewer = list(fixed_size = TRUE, prn = FALSE),
+  systematic = list(fixed_size = TRUE, prn = FALSE),
+  poisson = list(fixed_size = FALSE, prn = TRUE),
+  sps = list(fixed_size = TRUE, prn = TRUE),
+  pareto = list(fixed_size = TRUE, prn = TRUE)
 )
 
 .wr_specs <- list(
-  chromy      = list(fixed_size = TRUE, prn = FALSE),
+  chromy = list(fixed_size = TRUE, prn = FALSE),
   multinomial = list(fixed_size = TRUE, prn = FALSE)
 )
 
 .ep_wor_specs <- list(
-  srs        = list(fixed_size = TRUE,  prn = FALSE),
-  systematic = list(fixed_size = TRUE,  prn = FALSE),
-  bernoulli  = list(fixed_size = FALSE, prn = TRUE)
+  srs = list(fixed_size = TRUE, prn = FALSE),
+  systematic = list(fixed_size = TRUE, prn = FALSE),
+  bernoulli = list(fixed_size = FALSE, prn = TRUE)
 )
 
 .ep_wr_specs <- list(
   srs = list(fixed_size = TRUE, prn = FALSE)
 )
-
-# -- Cross-context constants --------------------------------------------------
 
 # Methods using the high-entropy JIP approximation (Brewer & Donadio, 2003).
 # Spans wor + balanced; used in joint_inclusion_prob.wor marginal defect check.
@@ -39,8 +34,6 @@
 
 # Methods with C-level batch optimisation (workspace reuse).
 .batch_optimised_methods <- c("cps")
-
-# -- Resolver -----------------------------------------------------------------
 
 #' Look up the spec for a built-in method.
 #'
@@ -51,16 +44,14 @@
 .get_builtin_spec <- function(method, context) {
   specs <- switch(
     context,
-    wor    = .wor_specs,
-    wr     = .wr_specs,
+    wor = .wor_specs,
+    wr = .wr_specs,
     ep_wor = .ep_wor_specs,
-    ep_wr  = .ep_wr_specs,
+    ep_wr = .ep_wr_specs,
     stop("unknown context: ", context, call. = FALSE)
   )
   specs[[method]]
 }
-
-# -- Convenience wrappers -----------------------------------------------------
 
 #' @noRd
 .method_supports_prn <- function(method, context) {
@@ -72,10 +63,8 @@
   isTRUE(.get_builtin_spec(method, context)$fixed_size)
 }
 
-# -- Hook helpers (switch defaults) -------------------------------------------
-
 # For sampling dispatch (dispatchers + batch helpers).
-# New error path — switch currently returns NULL silently; match.arg fires
+# New error path, switch currently returns NULL silently; match.arg fires
 # first in practice, so this is unreachable for built-in methods.
 #' @noRd
 .stop_unknown_method <- function(method) {

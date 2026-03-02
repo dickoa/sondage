@@ -104,3 +104,41 @@ test_that("dispatchers reject unknown methods", {
   expect_error(unequal_prob_wr(c(1, 1), method = "lpm"))
   expect_error(equal_prob_wor(N = 10, n = 2, method = "lpm"))
 })
+
+# --- End-to-end: .stop_no_joint fires via fake design objects ---
+
+test_that("joint_inclusion_prob errors for unknown WOR method", {
+  fake <- structure(
+    list(
+      sample = 1L, pik = c(0.5, 0.5), n = 1L, N = 2L,
+      method = "fake", fixed_size = TRUE
+    ),
+    class = c("unequal_prob", "wor", "sondage_sample")
+  )
+  expect_error(
+    joint_inclusion_prob(fake),
+    "^joint_inclusion_prob not implemented for method 'fake'$"
+  )
+  expect_error(
+    joint_inclusion_prob(fake, sampled_only = TRUE),
+    "^joint_inclusion_prob not implemented for method 'fake'$"
+  )
+})
+
+test_that("joint_expected_hits errors for unknown WR method", {
+  fake <- structure(
+    list(
+      sample = 1L, prob = c(0.5, 0.5), hits = c(1L, 0L),
+      n = 1L, N = 2L, method = "fake", fixed_size = TRUE
+    ),
+    class = c("unequal_prob", "wr", "sondage_sample")
+  )
+  expect_error(
+    joint_expected_hits(fake),
+    "^joint_expected_hits not implemented for method 'fake'$"
+  )
+  expect_error(
+    joint_expected_hits(fake, sampled_only = TRUE),
+    "^joint_expected_hits not implemented for method 'fake'$"
+  )
+})
