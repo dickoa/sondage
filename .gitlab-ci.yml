@@ -24,7 +24,7 @@ check-release:
         qpdf
     - mkdir -p $R_LIBS_USER
     # Install package dependencies including vignette builders
-    - Rscript -e "install.packages(c('remotes', 'rcmdcheck'), repos='https://cloud.r-project.org')"
+    - Rscript -e "install.packages(c('curl', 'remotes', 'rcmdcheck'), repos='https://cloud.r-project.org')"
     - Rscript -e "remotes::install_deps(dependencies = TRUE)"
   script:
     - Rscript -e "rcmdcheck::rcmdcheck(args = c('--no-manual', '--as-cran'), error_on = 'error')"
@@ -40,7 +40,7 @@ check-devel:
         pandoc
         qpdf
     - mkdir -p $R_LIBS_USER
-    - Rscript -e "install.packages(c('remotes', 'rcmdcheck'), repos='https://cloud.r-project.org')"
+    - Rscript -e "install.packages(c('curl', 'remotes', 'rcmdcheck'), repos='https://cloud.r-project.org')"
     - Rscript -e "remotes::install_deps(dependencies = TRUE)"
   script:
     - Rscript -e "rcmdcheck::rcmdcheck(args = c('--no-manual', '--as-cran'), error_on = 'error')"
@@ -58,7 +58,7 @@ coverage:
         qpdf
         git
     - mkdir -p $R_LIBS_USER
-    - Rscript -e "install.packages(c('remotes', 'covr', 'xml2'), repos='https://cloud.r-project.org')"
+    - Rscript -e "install.packages(c('curl', 'remotes', 'covr', 'xml2'), repos='https://cloud.r-project.org')"
     - Rscript -e "remotes::install_deps(dependencies = TRUE)"
   script:
     - Rscript -e "covr::codecov(quiet = FALSE, token = Sys.getenv('CODECOV_TOKEN'))"
@@ -85,7 +85,7 @@ pages:
         libtiff5-dev
         libjpeg-dev
     - mkdir -p $R_LIBS_USER
-    - Rscript -e "install.packages(c('remotes', 'pkgdown'), repos='https://cloud.r-project.org')"
+    - Rscript -e "install.packages(c('curl', 'remotes', 'pkgdown'), repos='https://cloud.r-project.org')"
     - Rscript -e "remotes::install_deps(dependencies = TRUE)"
   script:
     - Rscript -e "pkgdown::build_site()"
