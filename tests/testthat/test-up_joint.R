@@ -235,6 +235,22 @@ test_that("sampled_only returns correct dims for Chromy", {
   expect_true(all(diag(sub) > 0))
 })
 
+test_that("sampled_only chromy matches full[s,s] with same seed", {
+  x <- c(10, 20, 30, 40, 50)
+  hits <- expected_hits(x, n = 3)
+  s <- unequal_prob_wr(hits, method = "chromy")
+  idx <- which(s$hits > 0)
+
+  set.seed(123)
+  full <- joint_expected_hits(s, nsim = 5000)
+
+  set.seed(123)
+  sub <- joint_expected_hits(s, sampled_only = TRUE, nsim = 5000)
+
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx, drop = FALSE])
+})
+
 test_that("sampled_only returns correct dims and values for multinomial", {
   x <- c(10, 20, 30, 40)
   hits <- expected_hits(x, n = 5)
@@ -264,6 +280,55 @@ test_that("sampled_only errors for batch WR designs", {
     joint_expected_hits(s, sampled_only = TRUE),
     "not supported for batch"
   )
+})
+
+test_that("sampled_only chromy at larger N produces valid submatrix", {
+  skip_on_cran()
+  set.seed(55)
+  N <- 200
+  n <- 10
+  x <- runif(N)
+  hits <- expected_hits(x, n = n)
+  s <- unequal_prob_wr(hits, method = "chromy")
+
+  sub <- joint_expected_hits(s, sampled_only = TRUE, nsim = 5000)
+
+  idx <- which(s$hits > 0)
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, t(sub), tolerance = 0.1)
+  expect_true(all(diag(sub) > 0))
+})
+
+test_that("sampled_only sampling_cov.wr end-to-end for chromy", {
+  set.seed(10)
+  x <- c(10, 20, 30, 40, 50)
+  hits <- expected_hits(x, n = 3)
+  s <- unequal_prob_wr(hits, method = "chromy")
+
+  set.seed(123)
+  full_cov <- sampling_cov(s, nsim = 5000)
+  set.seed(123)
+  sub_cov <- sampling_cov(s, sampled_only = TRUE, nsim = 5000)
+
+  idx <- which(s$hits > 0)
+  expect_equal(dim(sub_cov), c(length(idx), length(idx)))
+  expect_equal(sub_cov, full_cov[idx, idx, drop = FALSE])
+})
+
+test_that("sampled_only supports N > 10K for Chromy", {
+  N <- 10001
+  hits <- c(rep(1, 30), rep(0, N - 30))
+  s <- unequal_prob_wr(hits, method = "chromy")
+
+  expect_error(joint_expected_hits(s, nsim = 200), "sampled_only = TRUE")
+  sub <- expect_no_error(
+    joint_expected_hits(s, sampled_only = TRUE, nsim = 200)
+  )
+
+  idx <- which(s$hits > 0)
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, t(sub))
+  expect_true(all(diag(sub) > 0))
 })
 
 test_that("N > 10K error for joint_expected_hits suggests sampled_only", {

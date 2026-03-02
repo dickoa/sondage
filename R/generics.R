@@ -259,10 +259,15 @@ expected_hits.wor <- function(x, ...) {
 #' `srs` compute the n x n matrix directly. These methods can therefore
 #' handle arbitrarily large N (e.g. N = 50 000 with n = 200).
 #'
-#' For `cps` and `systematic`, the underlying C code requires the full
-#' N x N matrix, so the N > 10 000 guard still applies even with
-#' `sampled_only = TRUE`. For large populations with these methods,
-#' consider switching to a high-entropy method (e.g. `brewer`).
+#' For `systematic`, the C code computes the interval structure from
+#' the full population (O(N log N)) but builds the indicator matrix
+#' only for sampled units (O(n x N) instead of O(N^2)) and the pair
+#' loop is O(n^2 x N) instead of O(N^3), so large N is feasible.
+#'
+#' For `cps`, the Newton calibration and elementary symmetric
+#' polynomials are computed from the full population (O(N x n)),
+#' but only the sampled pairs are evaluated in the pair loop
+#' (O(n^2) with Aires' formula), so large N is feasible.
 #'
 #' The marginal defect diagnostic is skipped when `sampled_only = TRUE`
 #' because the row-sum identity only holds for the full matrix.
@@ -319,20 +324,6 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
         call. = FALSE
       )
     }
-    # CPS and systematic still require N x N internally
-    if (x$method %in% c("cps", "systematic") && N > 10000L) {
-      stop(
-        sprintf(
-          "N = %d is too large for method '%s' even with sampled_only = TRUE, ",
-          N,
-          x$method
-        ),
-        "because this method requires an N x N intermediate matrix. ",
-        "Consider using method = \"brewer\" or another high-entropy method, ",
-        "which can compute the n x n submatrix directly.",
-        call. = FALSE
-      )
-    }
   } else {
     if (N > 10000L) {
       stop(
@@ -351,16 +342,14 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
   if (sampled_only) {
     pikl <- switch(
       x$method,
-      cps = .Call(C_cps_jip, as.double(pik), as.double(eps))[
-        sample_idx,
-        sample_idx,
-        drop = FALSE
-      ],
-      systematic = .Call(C_up_systematic_jip, as.double(pik), as.double(eps))[
-        sample_idx,
-        sample_idx,
-        drop = FALSE
-      ],
+      cps = .Call(
+        C_cps_jip_sub, as.double(pik), as.double(eps),
+        as.integer(sample_idx)
+      ),
+      systematic = .Call(
+        C_up_systematic_jip_sub, as.double(pik), as.double(eps),
+        as.integer(sample_idx)
+      ),
       brewer = ,
       sps = ,
       pareto = ,
@@ -494,9 +483,10 @@ joint_inclusion_prob.default <- function(x, ...) {
 #'
 #' When `sampled_only = TRUE`, the submatrix is indexed by population
 #' units that were selected at least once (i.e., units with
-#' `hits > 0`). For `multinomial` and `srs`, the submatrix is computed
-#' directly at O(n_s^2). For `chromy`, the full N x N matrix is
-#' computed internally and then subset.
+#' `hits > 0`). All methods compute the n_s x n_s submatrix directly,
+#' avoiding the N x N allocation. For `chromy`, the simulation draws
+#' still iterate over the full population (O(N) per draw), but the
+#' accumulator is n_s x n_s.
 #'
 #' @return A symmetric N x N matrix (or n_s x n_s if
 #'   `sampled_only = TRUE`, where n_s is the number of distinct
@@ -556,19 +546,6 @@ joint_expected_hits.wr <- function(
         call. = FALSE
       )
     }
-    # Chromy still requires N x N internally
-    if (x$method == "chromy" && N > 10000L) {
-      stop(
-        sprintf(
-          "N = %d is too large for method 'chromy' even with sampled_only = TRUE, ",
-          N
-        ),
-        "because this method requires an N x N intermediate matrix. ",
-        "Consider using method = \"multinomial\" which can compute the ",
-        "n x n submatrix directly.",
-        call. = FALSE
-      )
-    }
   } else {
     if (N > 10000L) {
       stop(
@@ -595,8 +572,10 @@ joint_expected_hits.wr <- function(
           stop("'nsim' must be a positive integer", call. = FALSE)
         }
         nsim <- check_integer(nsim, "nsim")
-        full <- .Call(C_chromy_joint_exp, as.double(prob), as.integer(n), nsim)
-        full[sample_idx, sample_idx, drop = FALSE]
+        .Call(
+          C_chromy_joint_exp_sub, as.double(prob), as.integer(n), nsim,
+          as.integer(sample_idx)
+        )
       },
       multinomial = {
         pikl <- n * (n - 1) * outer(prob_s, prob_s)

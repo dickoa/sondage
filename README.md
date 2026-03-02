@@ -10,9 +10,7 @@ status](https://www.r-pkg.org/badges/version/sondage)](https://CRAN.R-project.or
 coverage](https://codecov.io/gl/dickoa/sondage/branch/main/graph/badge.svg)](https://app.codecov.io/gl/dickoa/sondage?branch=main)
 <!-- badges: end -->
 
-Fast survey sampling algorithms for R. Sampling functions return
-**design objects** with generics for extracting inclusion probabilities,
-joint inclusion probabilities, and variance estimation quantities.
+Fast survey sampling algorithms for R. Sampling functions return **design objects** with generics for extracting inclusion probabilities, joint inclusion probabilities, and variance estimation quantities.
 
 ## Installation
 

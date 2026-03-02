@@ -55,9 +55,10 @@ estimates at the cost of computation time.}
 
 When \code{sampled_only = TRUE}, the submatrix is indexed by population
 units that were selected at least once (i.e., units with
-\code{hits > 0}). For \code{multinomial} and \code{srs}, the submatrix is computed
-directly at O(n_s^2). For \code{chromy}, the full N x N matrix is
-computed internally and then subset.
+\code{hits > 0}). All methods compute the n_s x n_s submatrix directly,
+avoiding the N x N allocation. For \code{chromy}, the simulation draws
+still iterate over the full population (O(N) per draw), but the
+accumulator is n_s x n_s.
 }
 \examples{
 x <- c(40, 80, 50, 60, 70)

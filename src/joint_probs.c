@@ -179,6 +179,210 @@ SEXP C_cps_jip(SEXP pik_sexp, SEXP eps_sexp) {
     return result;
 }
 
+/*
+ * CPS JIP submatrix for sampled units only.
+ * idx_sexp: 1-based integer vector of sampled population indices.
+ * Returns n_s x n_s matrix instead of N x N.
+ *
+ * Calibration (the dominant cost) still runs on the full valid population,
+ * but the pair loop is O(n_target^2) instead of O(N_valid^2), and the
+ * output matrix is n_s x n_s instead of N_full x N_full.
+ */
+SEXP C_cps_jip_sub(SEXP pik_sexp, SEXP eps_sexp, SEXP idx_sexp) {
+    const int N_full = LENGTH(pik_sexp);
+    const double *pik_full = REAL(pik_sexp);
+    const double eps = REAL(eps_sexp)[0];
+    const int n_s = LENGTH(idx_sexp);
+    const int *idx_r = INTEGER(idx_sexp); /* 1-based R indices */
+
+    double n_sum = 0.0;
+    for (int k = 0; k < N_full; k++) {
+        n_sum += pik_full[k];
+    }
+    const int n = (int)(n_sum + 0.5);
+
+    /* Allocate n_s x n_s output */
+    SEXP result = PROTECT(allocMatrix(REALSXP, n_s, n_s));
+    double *pikl = REAL(result);
+    memset(pikl, 0, (size_t)n_s * n_s * sizeof(double));
+
+    for (int i = 0; i < n_s; i++) {
+        pikl[i * n_s + i] = pik_full[idx_r[i] - 1];
+    }
+
+    if (n < 2) {
+        UNPROTECT(1);
+        return result;
+    }
+
+    int N_valid = 0;
+    for (int k = 0; k < N_full; k++) {
+        if (pik_full[k] > eps && pik_full[k] < 1.0 - eps) {
+            N_valid++;
+        }
+    }
+
+    /* Handle certainty units in the output:
+     * certainty-any pair => pi_ij = pik[other] */
+    for (int i = 0; i < n_s; i++) {
+        int ki = idx_r[i] - 1;
+        if (pik_full[ki] >= 1.0 - eps) {
+            for (int j = 0; j < n_s; j++) {
+                int kj = idx_r[j] - 1;
+                pikl[j * n_s + i] = pik_full[kj];
+                pikl[i * n_s + j] = pik_full[kj];
+            }
+            pikl[i * n_s + i] = pik_full[ki];
+        }
+    }
+
+    if (N_valid < 2) {
+        UNPROTECT(1);
+        return result;
+    }
+
+    /* Build valid arrays and reverse lookup */
+    double *pik_valid = (double *) R_alloc(N_valid, sizeof(double));
+    int *pop_to_valid = (int *) R_alloc(N_full, sizeof(int));
+    for (int k = 0; k < N_full; k++) pop_to_valid[k] = -1;
+
+    int vi = 0;
+    double n_valid_sum = 0.0;
+    for (int k = 0; k < N_full; k++) {
+        if (pik_full[k] > eps && pik_full[k] < 1.0 - eps) {
+            pik_valid[vi] = pik_full[k];
+            pop_to_valid[k] = vi;
+            n_valid_sum += pik_full[k];
+            vi++;
+        }
+    }
+    const int n_valid = (int)(n_valid_sum + 0.5);
+
+    if (n_valid < 2) {
+        UNPROTECT(1);
+        return result;
+    }
+
+    /* Calibration on full valid population */
+    double *w = (double *) R_alloc(N_valid, sizeof(double));
+    double *expa = (double *) R_alloc((size_t)N_valid * n_valid, sizeof(double));
+    int cal_iters = cps_calibrate(pik_valid, N_valid, n_valid, w, expa, eps, 100);
+    if (cal_iters >= 100) {
+        Rf_warning("CPS calibration did not converge after %d iterations", 100);
+    }
+
+    /* Identify target units: sampled AND valid */
+    int n_target = 0;
+    for (int i = 0; i < n_s; i++) {
+        if (pop_to_valid[idx_r[i] - 1] >= 0) n_target++;
+    }
+
+    if (n_target < 2) {
+        UNPROTECT(1);
+        return result;
+    }
+
+    int *tgt_out = (int *) R_alloc(n_target, sizeof(int));
+    int *tgt_vi = (int *) R_alloc(n_target, sizeof(int));
+
+    int ti = 0;
+    for (int i = 0; i < n_s; i++) {
+        int v = pop_to_valid[idx_r[i] - 1];
+        if (v >= 0) {
+            tgt_out[ti] = i;
+            tgt_vi[ti] = v;
+            ti++;
+        }
+    }
+
+    /* Relative near-equality threshold (decoupled from user eps) */
+    const double tau = 16.0 * sqrt(DBL_EPSILON);
+
+    /* Check if all weights are approximately equal */
+    double w_min = w[0], w_max = w[0];
+    for (int i = 1; i < N_valid; i++) {
+        if (w[i] < w_min) w_min = w[i];
+        if (w[i] > w_max) w_max = w[i];
+    }
+    double w_scale = fmax(1.0, w_max);
+    int all_equal = (w_max - w_min) <= tau * w_scale;
+
+    if (all_equal) {
+        /* All weights equal => CPS reduces to SRS on valid subset */
+        double pi_ij = (double)n_valid * (n_valid - 1) /
+                       ((double)N_valid * (N_valid - 1));
+        for (int i = 0; i < n_target; i++) {
+            for (int jj = i + 1; jj < n_target; jj++) {
+                int si = tgt_out[i];
+                int sj = tgt_out[jj];
+                pikl[sj * n_s + si] = pi_ij;
+                pikl[si * n_s + sj] = pi_ij;
+            }
+        }
+    } else {
+        /* Full elementary symmetric polynomials E[z] = e_z(W) */
+        double *E = (double *) R_alloc(n_valid + 1, sizeof(double));
+        E[0] = 1.0;
+        for (int z = 0; z < n_valid; z++) {
+            E[z + 1] = expa[0 * n_valid + z];
+        }
+
+        /* Buffers for leave-one-out and leave-two-out ESPs */
+        double *E_i = (double *) R_alloc(n_valid + 1, sizeof(double));
+        double *E_ij = (double *) R_alloc(n_valid + 1, sizeof(double));
+
+        int prev_vi = -1;
+
+        for (int i = 0; i < n_target; i++) {
+            R_CheckUserInterrupt();
+            int vi_i = tgt_vi[i];
+
+            for (int jj = i + 1; jj < n_target; jj++) {
+                int vi_j = tgt_vi[jj];
+                double r_i = w[vi_i];
+                double r_j = w[vi_j];
+                double r_diff = r_j - r_i;
+                double scale = fmax(1.0, fmax(fabs(r_i), fabs(r_j)));
+                double pi_ij;
+
+                if (fabs(r_diff) > tau * scale) {
+                    /* Aires formula (fast O(1) path) */
+                    pi_ij = (r_j * pik_valid[vi_i] - r_i * pik_valid[vi_j]) / r_diff;
+                } else {
+                    /* ESF-based exact computation for near-equal weights */
+                    if (vi_i != prev_vi) {
+                        E_i[0] = 1.0;
+                        for (int z = 1; z <= n_valid - 2; z++) {
+                            E_i[z] = E[z] - w[vi_i] * E_i[z - 1];
+                        }
+                        prev_vi = vi_i;
+                    }
+
+                    E_ij[0] = 1.0;
+                    for (int z = 1; z <= n_valid - 2; z++) {
+                        E_ij[z] = E_i[z] - w[vi_j] * E_ij[z - 1];
+                    }
+
+                    pi_ij = r_i * r_j * E_ij[n_valid - 2] / E[n_valid];
+                }
+
+                /* Clamp tiny floating-point spillover */
+                if (pi_ij < 0.0) pi_ij = 0.0;
+                if (pi_ij > pik_valid[vi_i]) pi_ij = pik_valid[vi_i];
+                if (pi_ij > pik_valid[vi_j]) pi_ij = pik_valid[vi_j];
+
+                int si = tgt_out[i];
+                int sj = tgt_out[jj];
+                pikl[sj * n_s + si] = pi_ij;
+                pikl[si * n_s + sj] = pi_ij;
+            }
+        }
+    }
+
+    UNPROTECT(1);
+    return result;
+}
+
 SEXP C_up_systematic_jip(SEXP pik_sexp, SEXP eps_sexp) {
     const int N_full = LENGTH(pik_sexp);
     const double *pik_full = REAL(pik_sexp);
@@ -270,6 +474,158 @@ SEXP C_up_systematic_jip(SEXP pik_sexp, SEXP eps_sexp) {
             int l = valid_idx[jj];
             pikl[l * N_full + k] = pi_ij;
             pikl[k * N_full + l] = pi_ij;
+        }
+    }
+
+    UNPROTECT(1);
+    return result;
+}
+
+/*
+ * Systematic JIP submatrix for sampled units only.
+ * idx_sexp: 1-based integer vector of sampled population indices.
+ * Returns n_s x n_s matrix instead of N x N.
+ *
+ * The interval structure (Vk, cent, p) is computed from the full
+ * population, but M rows are computed on-the-fly using a single
+ * N_valid-length buffer (O(N) memory instead of O(n*N)).
+ * Short-circuit: inner M[j] is only computed when M[i] = 1.
+ */
+SEXP C_up_systematic_jip_sub(SEXP pik_sexp, SEXP eps_sexp, SEXP idx_sexp) {
+    const int N_full = LENGTH(pik_sexp);
+    const double *pik_full = REAL(pik_sexp);
+    const double eps = REAL(eps_sexp)[0];
+    const int n_s = LENGTH(idx_sexp);
+    const int *idx_r = INTEGER(idx_sexp); /* 1-based R indices */
+
+    /* Allocate n_s x n_s output */
+    SEXP result = PROTECT(allocMatrix(REALSXP, n_s, n_s));
+    double *pikl = REAL(result);
+
+    /* Initialize: pikl[i,j] = pik[i]*pik[j], diagonal = pik[i]
+     * This handles certainty-certainty (1*1), certainty-valid (1*pik_j),
+     * and zero-anything (0) pairs correctly as defaults. */
+    for (int i = 0; i < n_s; i++) {
+        double pi_i = pik_full[idx_r[i] - 1];
+        for (int j = 0; j < n_s; j++) {
+            pikl[j * n_s + i] = pi_i * pik_full[idx_r[j] - 1];
+        }
+        pikl[i * n_s + i] = pi_i;
+    }
+
+    /* Identify valid (non-certainty, non-zero) units in full population */
+    int N_valid = 0;
+    for (int k = 0; k < N_full; k++) {
+        if (pik_full[k] > eps && pik_full[k] < 1.0 - eps) N_valid++;
+    }
+
+    if (N_valid < 2) {
+        UNPROTECT(1);
+        return result;
+    }
+
+    /* Build valid pik array and reverse lookup (pop index -> valid index) */
+    double *pik_v = (double *) R_alloc(N_valid, sizeof(double));
+    int *pop_to_valid = (int *) R_alloc(N_full, sizeof(int));
+    for (int k = 0; k < N_full; k++) pop_to_valid[k] = -1;
+
+    int vi = 0;
+    for (int k = 0; k < N_full; k++) {
+        if (pik_full[k] > eps && pik_full[k] < 1.0 - eps) {
+            pik_v[vi] = pik_full[k];
+            pop_to_valid[k] = vi;
+            vi++;
+        }
+    }
+
+    /* Compute systematic intervals from full valid population */
+    double *Vk = (double *) R_alloc(N_valid, sizeof(double));
+    double *Vk1 = (double *) R_alloc(N_valid, sizeof(double));
+
+    double cumsum = 0.0;
+    for (int i = 0; i < N_valid; i++) {
+        cumsum += pik_v[i];
+        Vk[i] = cumsum;
+        Vk1[i] = fmod(Vk[i], 1.0);
+    }
+    if (Vk1[N_valid - 1] < eps || Vk1[N_valid - 1] > 1.0 - eps) {
+        Vk1[N_valid - 1] = 0.0;
+    }
+
+    double *sorted_Vk1 = (double *) R_alloc(N_valid, sizeof(double));
+    memcpy(sorted_Vk1, Vk1, N_valid * sizeof(double));
+    qsort(sorted_Vk1, N_valid, sizeof(double), compare_double);
+
+    double *r = (double *) R_alloc(N_valid + 1, sizeof(double));
+    memcpy(r, sorted_Vk1, N_valid * sizeof(double));
+    r[N_valid] = 1.0;
+
+    double *cent = (double *) R_alloc(N_valid, sizeof(double));
+    double *p = (double *) R_alloc(N_valid, sizeof(double));
+    for (int i = 0; i < N_valid; i++) {
+        cent[i] = (r[i] + r[i + 1]) / 2.0;
+        p[i] = r[i + 1] - r[i];
+    }
+
+    /* Identify target units: sampled AND valid */
+    int n_target = 0;
+    for (int i = 0; i < n_s; i++) {
+        if (pop_to_valid[idx_r[i] - 1] >= 0) n_target++;
+    }
+
+    if (n_target < 2) {
+        UNPROTECT(1);
+        return result;
+    }
+
+    /* Map target units to output and valid positions */
+    int *tgt_out = (int *) R_alloc(n_target, sizeof(int));
+    int *tgt_vi = (int *) R_alloc(n_target, sizeof(int));
+
+    int ti = 0;
+    for (int i = 0; i < n_s; i++) {
+        int v = pop_to_valid[idx_r[i] - 1];
+        if (v >= 0) {
+            tgt_out[ti] = i;
+            tgt_vi[ti] = v;
+            ti++;
+        }
+    }
+
+    /* Single-row buffer for on-the-fly M computation: O(N_valid) memory */
+    int *Mi = (int *) R_alloc(N_valid, sizeof(int));
+
+    /* Pair loop over target units only: O(n_target^2 * N_valid) */
+    for (int i = 0; i < n_target; i++) {
+        R_CheckUserInterrupt();
+        int vi = tgt_vi[i];
+
+        /* Compute Mi row on-the-fly */
+        for (int m = 0; m < N_valid; m++) {
+            double A_curr = fmod(Vk[vi] - cent[m] + 10.0, 1.0);
+            double A_prev = (vi == 0) ? fmod(-cent[m] + 10.0, 1.0)
+                                      : fmod(Vk[vi - 1] - cent[m] + 10.0, 1.0);
+            Mi[m] = (A_prev > A_curr) ? 1 : 0;
+        }
+
+        for (int jj = i + 1; jj < n_target; jj++) {
+            int vj = tgt_vi[jj];
+            double pi_ij = 0.0;
+
+            for (int m = 0; m < N_valid; m++) {
+                if (!Mi[m]) continue;  /* short-circuit: skip when Mi=0 */
+                double B_curr = fmod(Vk[vj] - cent[m] + 10.0, 1.0);
+                double B_prev = (vj == 0) ? fmod(-cent[m] + 10.0, 1.0)
+                                          : fmod(Vk[vj - 1] - cent[m] + 10.0, 1.0);
+                if (B_prev > B_curr) {
+                    pi_ij += p[m];
+                }
+            }
+
+            int si = tgt_out[i];
+            int sj = tgt_out[jj];
+            pikl[sj * n_s + si] = pi_ij;
+            pikl[si * n_s + sj] = pi_ij;
         }
     }
 

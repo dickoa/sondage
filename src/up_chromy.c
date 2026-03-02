@@ -165,6 +165,82 @@ SEXP C_up_chromy(SEXP r_x, SEXP r_n) {
     return result;
 }
 
+/*
+ * Chromy joint expected hits submatrix for sampled units only.
+ * r_idx: 1-based integer vector of target population indices.
+ * Returns n_s x n_s matrix instead of N x N.
+ *
+ * The simulation draws are still over the full population (O(N) per draw),
+ * but the accumulator is n_s x n_s instead of N x N, and only pairs
+ * where both units are in the target set are accumulated.
+ */
+SEXP C_chromy_joint_exp_sub(SEXP r_x, SEXP r_n, SEXP r_nsim, SEXP r_idx) {
+    const int N = LENGTH(r_x);
+    const double *x = REAL(r_x);
+    const int n = asInteger(r_n);
+    const int nsim = asInteger(r_nsim);
+    const int n_s = LENGTH(r_idx);
+    const int *idx_r = INTEGER(r_idx); /* 1-based R indices */
+
+    /* Reverse lookup: population index -> output position (-1 if not target) */
+    int *pop_to_out = (int *) R_alloc(N, sizeof(int));
+    for (int k = 0; k < N; k++) pop_to_out[k] = -1;
+    for (int i = 0; i < n_s; i++) pop_to_out[idx_r[i] - 1] = i;
+
+    double sum_x = 0.0;
+    for (int k = 0; k < N; k++) sum_x += x[k];
+
+    double *frac_pik = (double *)R_alloc(N, sizeof(double));
+    int *floor_hits = (int *)R_alloc(N, sizeof(int));
+    int *active = (int *)R_alloc(N, sizeof(int));
+
+    int n_active;
+    double sum_frac;
+    int total_certain = chromy_precompute(x, N, n, sum_x,
+                                          frac_pik, floor_hits, active,
+                                          &n_active, &sum_frac);
+    int n_frac = n - total_certain;
+
+    SEXP result = PROTECT(allocMatrix(REALSXP, n_s, n_s));
+    double *joint = REAL(result);
+    memset(joint, 0, (size_t)n_s * n_s * sizeof(double));
+
+    int *active_ord = (int *)R_alloc(n_active > 0 ? n_active : 1, sizeof(int));
+    int *frac_sel = (int *)R_alloc(n_frac > 0 ? n_frac : 1, sizeof(int));
+    int *sel = (int *)R_alloc(n, sizeof(int));
+
+    GetRNGstate();
+
+    for (int sim = 0; sim < nsim; sim++) {
+        if (sim % 100 == 0) R_CheckUserInterrupt();
+        int nsel = chromy_sample_once(N, frac_pik, floor_hits,
+                                      active, n_active, sum_frac, n_frac,
+                                      active_ord, frac_sel, sel);
+
+        for (int i = 0; i < nsel; i++) {
+            int oi = pop_to_out[sel[i]];
+            if (oi < 0) continue;
+            joint[oi + oi * n_s] += 1.0;
+            for (int j = i + 1; j < nsel; j++) {
+                int oj = pop_to_out[sel[j]];
+                if (oj < 0) continue;
+                joint[oi + oj * n_s] += 1.0;
+                joint[oj + oi * n_s] += 1.0;
+            }
+        }
+    }
+
+    PutRNGstate();
+
+    double inv_nsim = 1.0 / (double)nsim;
+    for (int i = 0; i < n_s * n_s; i++) {
+        joint[i] *= inv_nsim;
+    }
+
+    UNPROTECT(1);
+    return result;
+}
+
 SEXP C_chromy_joint_exp(SEXP r_x, SEXP r_n, SEXP r_nsim) {
     const int N = LENGTH(r_x);
     const double *x = REAL(r_x);

@@ -328,8 +328,71 @@ test_that("sampled_only returns n x n for CPS matching full[s,s]", {
   expect_equal(sub, full[idx, idx, drop = FALSE])
 })
 
+test_that("sampled_only CPS matches full[s,s] for larger N", {
+  set.seed(42)
+  N <- 100
+  n <- 10
+  pik <- inclusion_prob(runif(N), n = n)
+  s <- unequal_prob_wor(pik, method = "cps")
+  full <- joint_inclusion_prob(s)
+  sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx, drop = FALSE])
+})
+
+test_that("sampled_only CPS handles certainty units", {
+  pik <- c(1, 0.2, 0.3, 0.5, 1)
+  s <- unequal_prob_wor(pik, method = "cps")
+  full <- joint_inclusion_prob(s)
+  sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx, drop = FALSE])
+})
+
+test_that("sampled_only CPS handles equal-pik case", {
+  N <- 20
+  n <- 6
+  pik <- rep(n / N, N)
+  s <- unequal_prob_wor(pik, method = "cps")
+  full <- joint_inclusion_prob(s)
+  sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx, drop = FALSE])
+})
+
 test_that("sampled_only returns n x n for systematic matching full[s,s]", {
   pik <- c(0.2, 0.3, 0.5)
+  s <- unequal_prob_wor(pik, method = "systematic")
+  full <- joint_inclusion_prob(s)
+  sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx, drop = FALSE])
+})
+
+test_that("sampled_only systematic matches full[s,s] for larger N", {
+  set.seed(42)
+  N <- 100
+  n <- 10
+  pik <- inclusion_prob(runif(N), n = n)
+  s <- unequal_prob_wor(pik, method = "systematic")
+  full <- joint_inclusion_prob(s)
+  sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx, drop = FALSE])
+})
+
+test_that("sampled_only systematic handles certainty units", {
+  pik <- c(1, 0.2, 0.3, 0.5, 1)
   s <- unequal_prob_wor(pik, method = "systematic")
   full <- joint_inclusion_prob(s)
   sub <- joint_inclusion_prob(s, sampled_only = TRUE)
@@ -439,6 +502,98 @@ test_that("N > 10K error suggests sampled_only", {
     joint_inclusion_prob(unequal_prob_wor(pik, method = "poisson")),
     "sampled_only = TRUE"
   )
+})
+
+test_that("sampled_only CPS with n=1 returns diagonal only", {
+  pik <- c(0.3, 0.3, 0.4)
+  s <- unequal_prob_wor(pik, method = "cps")
+  full <- joint_inclusion_prob(s)
+  sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx, drop = FALSE])
+})
+
+test_that("sampled_only systematic with equal pik matches full[s,s]", {
+  N <- 12
+  n <- 3
+  s <- equal_prob_wor(N, n, method = "systematic")
+  full <- joint_inclusion_prob(s)
+  sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(sub, full[idx, idx, drop = FALSE])
+})
+
+test_that("sampled_only works for all WOR methods at N=500", {
+  skip_on_cran()
+  set.seed(99)
+  N <- 500
+  n <- 15
+  pik <- inclusion_prob(runif(N), n = n)
+
+  for (method in c("cps", "systematic", "brewer", "sps", "pareto")) {
+    s <- unequal_prob_wor(pik, method = method)
+    sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+    idx <- s$sample
+    expect_equal(dim(sub), c(length(idx), length(idx)),
+                 info = paste("dim for", method))
+    expect_equal(sub, t(sub), info = paste("symmetry for", method))
+    expect_equal(diag(sub), pik[idx], tolerance = 1e-8,
+                 info = paste("diagonal for", method))
+    expect_true(all(sub >= -1e-10), info = paste("non-negative for", method))
+  }
+})
+
+test_that("sampled_only supports N > 10K for CPS", {
+  N <- 10001
+  n <- 5
+  pik <- rep(n / N, N)
+  s <- unequal_prob_wor(pik, method = "cps")
+
+  expect_error(joint_inclusion_prob(s), "sampled_only = TRUE")
+  sub <- expect_no_error(joint_inclusion_prob(s, sampled_only = TRUE))
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(diag(sub), pik[idx], tolerance = 1e-10)
+})
+
+test_that("sampled_only supports N > 10K for systematic", {
+  set.seed(321)
+  N <- 10001
+  n <- 5
+  pik <- inclusion_prob(runif(N), n = n)
+  s <- unequal_prob_wor(pik, method = "systematic")
+
+  expect_error(joint_inclusion_prob(s), "sampled_only = TRUE")
+  sub <- expect_no_error(joint_inclusion_prob(s, sampled_only = TRUE))
+
+  idx <- s$sample
+  expect_equal(dim(sub), c(length(idx), length(idx)))
+  expect_equal(diag(sub), pik[idx], tolerance = 1e-10)
+})
+
+test_that("sampled_only sampling_cov end-to-end for all methods", {
+  set.seed(7)
+  N <- 50
+  n <- 8
+  pik <- inclusion_prob(runif(N), n = n)
+
+  for (method in c("cps", "systematic", "brewer")) {
+    s <- unequal_prob_wor(pik, method = method)
+    full_cov <- sampling_cov(s)
+    sub_cov <- sampling_cov(s, sampled_only = TRUE)
+
+    idx <- s$sample
+    expect_equal(dim(sub_cov), c(length(idx), length(idx)),
+                 info = paste("dim for", method))
+    expect_equal(sub_cov, full_cov[idx, idx, drop = FALSE], tolerance = 1e-10,
+                 info = paste("values for", method))
+  }
 })
 
 

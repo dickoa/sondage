@@ -82,10 +82,15 @@ O(N^2) allocation entirely. Similarly, \code{poisson}, \code{bernoulli}, and
 \code{srs} compute the n x n matrix directly. These methods can therefore
 handle arbitrarily large N (e.g. N = 50 000 with n = 200).
 
-For \code{cps} and \code{systematic}, the underlying C code requires the full
-N x N matrix, so the N > 10 000 guard still applies even with
-\code{sampled_only = TRUE}. For large populations with these methods,
-consider switching to a high-entropy method (e.g. \code{brewer}).
+For \code{systematic}, the C code computes the interval structure from
+the full population (O(N log N)) but builds the indicator matrix
+only for sampled units (O(n x N) instead of O(N^2)) and the pair
+loop is O(n^2 x N) instead of O(N^3), so large N is feasible.
+
+For \code{cps}, the Newton calibration and elementary symmetric
+polynomials are computed from the full population (O(N x n)),
+but only the sampled pairs are evaluated in the pair loop
+(O(n^2) with Aires' formula), so large N is feasible.
 
 The marginal defect diagnostic is skipped when \code{sampled_only = TRUE}
 because the row-sum identity only holds for the full matrix.
