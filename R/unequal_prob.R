@@ -129,7 +129,7 @@ unequal_prob_wor <- function(
     stop("'nrep' must be at least 1", call. = FALSE)
   }
 
-  if (!is.null(prn) && !method %in% c("sps", "pareto", "poisson")) {
+  if (!is.null(prn) && !.method_supports_prn(method, "wor")) {
     warning(
       sprintf("prn is not used by method '%s' and will be ignored", method),
       call. = FALSE
@@ -153,7 +153,8 @@ unequal_prob_wor <- function(
       systematic = .systematic_pps_sample(pik, ...),
       poisson = .poisson_pps_sample(pik, prn = prn, ...),
       sps = .sps_sample(pik, prn = prn, ...),
-      pareto = .pareto_sample(pik, prn = prn, ...)
+      pareto = .pareto_sample(pik, prn = prn, ...),
+      .stop_unknown_method(method)
     )
   } else {
     .batch_wor(pik, method, nrep, prn, ...)
@@ -234,7 +235,8 @@ unequal_prob_wr <- function(
     switch(
       method,
       chromy = .chromy_sample(hits, ...),
-      multinomial = .multinomial_sample(hits, ...)
+      multinomial = .multinomial_sample(hits, ...),
+      .stop_unknown_method(method)
     )
   } else {
     .batch_wr(hits, method, nrep, prn, ...)
@@ -439,24 +441,20 @@ unequal_prob_wr <- function(
 
 #' @noRd
 .batch_wor <- function(pik, method, nrep, prn, ...) {
-  if (method == "poisson") {
-    check_pik(pik)
-  } else {
-    check_pik(pik, fixed_size = TRUE)
-  }
+  fixed_size <- .method_is_fixed_size(method, "wor")
+  check_pik(pik, fixed_size = fixed_size)
 
   N <- length(pik)
   n <- sum(pik)
-  fixed_size <- method != "poisson"
   n_out <- if (fixed_size) as.integer(round(n)) else n
 
-  if (method == "cps") {
+  if (method %in% .batch_optimised_methods) {
     eps <- list(...)[["eps"]]
     if (is.null(eps)) eps <- 1e-06
     eps <- check_eps(eps)
     design <- .Call(C_cps_design, as.double(pik), as.double(eps))
     sample_data <- .Call(C_cps_draw_batch, design, as.integer(nrep))
-  } else if (method == "poisson") {
+  } else if (!fixed_size) {
     sample_data <- lapply(seq_len(nrep), function(i) {
       .poisson_pps_sample(pik, prn = prn, ...)$sample
     })
@@ -468,7 +466,8 @@ unequal_prob_wr <- function(
       brewer = .brewer_sample,
       systematic = .systematic_pps_sample,
       sps = .sps_sample,
-      pareto = .pareto_sample
+      pareto = .pareto_sample,
+      .stop_unknown_method(method)
     )
     for (i in seq_len(nrep)) {
       mat[, i] <- draw_fn(pik, prn = prn, ...)$sample
@@ -498,7 +497,8 @@ unequal_prob_wr <- function(
   draw_fn <- switch(
     method,
     chromy = .chromy_sample,
-    multinomial = .multinomial_sample
+    multinomial = .multinomial_sample,
+    .stop_unknown_method(method)
   )
   for (i in seq_len(nrep)) {
     d <- draw_fn(hits, ...)

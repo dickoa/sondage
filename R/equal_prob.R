@@ -62,7 +62,7 @@ equal_prob_wor <- function(
     stop("'nrep' must be at least 1", call. = FALSE)
   }
 
-  if (!is.null(prn) && method != "bernoulli") {
+  if (!is.null(prn) && !.method_supports_prn(method, "ep_wor")) {
     warning(
       sprintf("prn is not used by method '%s' and will be ignored", method),
       call. = FALSE
@@ -83,7 +83,8 @@ equal_prob_wor <- function(
       method,
       srs = .srs_wor_sample(N, n, ...),
       systematic = .systematic_ep_sample(N, n, ...),
-      bernoulli = .bernoulli_sample(N, n, prn = prn, ...)
+      bernoulli = .bernoulli_sample(N, n, prn = prn, ...),
+      .stop_unknown_method(method)
     )
   } else {
     .batch_ep_wor(N, n, method, nrep, prn, ...)
@@ -264,9 +265,9 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 #' @noRd
 .batch_ep_wor <- function(N, n, method, nrep, prn, ...) {
   N_int <- check_integer(N, "N")
-  fixed_size <- method != "bernoulli"
+  fixed_size <- .method_is_fixed_size(method, "ep_wor")
 
-  if (method == "bernoulli") {
+  if (!fixed_size) {
     p <- n / N_int
     sample_data <- lapply(seq_len(nrep), function(i) {
       .bernoulli_sample(N, n, prn = prn, ...)$sample
@@ -278,7 +279,8 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
     draw_fn <- switch(
       method,
       srs = .srs_wor_sample,
-      systematic = .systematic_ep_sample
+      systematic = .systematic_ep_sample,
+      .stop_unknown_method(method)
     )
     for (i in seq_len(nrep)) {
       mat[, i] <- draw_fn(N, n, ...)$sample

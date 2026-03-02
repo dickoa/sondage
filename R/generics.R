@@ -371,13 +371,7 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
         diag(J) <- p
         J
       },
-      stop(
-        sprintf(
-          "joint_inclusion_prob not implemented for method '%s'",
-          x$method
-        ),
-        call. = FALSE
-      )
+      .stop_no_joint(x$method, "joint_inclusion_prob")
     )
   } else {
     pikl <- switch(
@@ -400,17 +394,11 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
         diag(J) <- p
         J
       },
-      stop(
-        sprintf(
-          "joint_inclusion_prob not implemented for method '%s'",
-          x$method
-        ),
-        call. = FALSE
-      )
+      .stop_no_joint(x$method, "joint_inclusion_prob")
     )
 
     # Marginal defect diagnostic for high-entropy approximation
-    if (x$method %in% c("brewer", "sps", "pareto", "cube")) {
+    if (x$method %in% .he_jip_methods) {
       n_round <- round(n)
       if (n_round >= 2L) {
         defect <- max(abs(rowSums(pikl) - n * pik))
@@ -589,13 +577,7 @@ joint_expected_hits.wr <- function(
         diag(pikl) <- n * p * (1 - p) + (n * p)^2
         pikl
       },
-      stop(
-        sprintf(
-          "joint_expected_hits not implemented for method '%s'",
-          x$method
-        ),
-        call. = FALSE
-      )
+      .stop_no_joint(x$method, "joint_expected_hits")
     )
   } else {
     switch(
@@ -620,13 +602,7 @@ joint_expected_hits.wr <- function(
         diag(pikl) <- n * p * (1 - p) + (n * p)^2
         pikl
       },
-      stop(
-        sprintf(
-          "joint_expected_hits not implemented for method '%s'",
-          x$method
-        ),
-        call. = FALSE
-      )
+      .stop_no_joint(x$method, "joint_expected_hits")
     )
   }
 }
