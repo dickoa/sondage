@@ -205,7 +205,7 @@ pikl_sub <- joint_inclusion_prob(s_large, sampled_only = TRUE)
 dim(pikl_sub)
 ```
 
-For high-entropy methods (`brewer`, `sps`, `pareto`, `cube`), `poisson`, `bernoulli`, `srs`, and `multinomial`, the submatrix is computed directly without allocating the N x N matrix, so arbitrarily large populations are supported. For `cps`, `systematic`, and `chromy`, the full matrix is still needed internally, so the N > 10,000 guard remains. The `sampling_cov()` generic also accepts `sampled_only`:
+All methods compute the submatrix directly without allocating the N x N matrix, so arbitrarily large populations are supported. The `sampling_cov()` generic also accepts `sampled_only`:
 
 ```{r}
 delta_sub <- sampling_cov(s_large, sampled_only = TRUE)

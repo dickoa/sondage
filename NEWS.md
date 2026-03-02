@@ -1,4 +1,4 @@
-# sondage 0.7.5
+# sondage 0.7.0
 
 Initial CRAN release.
 
@@ -52,7 +52,7 @@ Five generics for variance estimation quantities:
 * Cube auxiliary conditioning: `condition_aux = TRUE` pre-conditions `aux` by weighted centering/scaling and QR-pivot rank pruning, improving numerical stability with ill-conditioned or collinear auxiliary variables.
 * Stratified cube: within-stratum size constraints are preserved exactly when per-stratum `sum(pik)` is close to an integer; otherwise a warning is issued and the design is marked random-size.
 * High-entropy joint inclusion probabilities handle certainty units (pi_k = 1) correctly and clamp values to valid bounds. A warning is issued when the marginal defect exceeds 5% of n.
-* N-size guard: `joint_inclusion_prob()` and `joint_expected_hits()` refuse N > 10,000 to prevent accidental allocation of multi-GB dense matrices. `sampled_only = TRUE` bypasses this limit for methods that can compute the n x n submatrix directly (HE, Poisson, Bernoulli, SRS, multinomial); for CPS, systematic, and Chromy the guard still applies because the algorithms require an N x N intermediate.
+* N-size guard: `joint_inclusion_prob()` and `joint_expected_hits()` refuse N > 10,000 to prevent accidental allocation of multi-GB dense matrices. `sampled_only = TRUE` bypasses this limit: all methods compute the n x n submatrix directly without allocating an N x N intermediate.
 * `sampling_cov(weighted = TRUE)` returns `NA` (not `NaN`) for undefined entries (zero joint probabilities or zero selection probabilities), with an informative warning.
 * All long-running C loops call `R_CheckUserInterrupt()` so Ctrl-C works.
 * CPS calibration warns on non-convergence.
