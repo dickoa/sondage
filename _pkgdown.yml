@@ -12,7 +12,7 @@ reference:
 - title: Package
   contents:
   - sondage-package
-  - sondage-sample
+  - sondage_sample
 
 - title: Sampling functions
   desc: Draw samples from finite populations.
