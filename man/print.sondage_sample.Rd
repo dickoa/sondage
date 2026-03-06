@@ -21,3 +21,6 @@
 \description{
 Print Sampling Design Objects
 }
+\seealso{
+\link{sondage_sample} for the documented object structure and fields.
+}

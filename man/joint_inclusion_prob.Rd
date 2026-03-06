@@ -65,7 +65,9 @@ probabilities but can become non-trivial for highly skewed
 (e.g. \eqn{n = 2}). A warning is issued when the defect
 exceeds 5\\% of \eqn{n}. Use \code{method = "cps"} when exact (up to
 numerical precision) second-order inclusion probabilities are
-required.}
+required. For \code{sps} and \code{pareto}, the approximation is built from the
+stored target \code{pik} vector returned by \code{\link[=inclusion_prob]{inclusion_prob()}}, not from the
+unknown exact finite-population first-order inclusion probabilities.}
 }
 
 For \strong{systematic PPS} sampling, some off-diagonal entries may be

@@ -46,20 +46,23 @@ Implemented as order sampling (Rosen, 1997) with ranking key
 \eqn{\xi_k = u_k / \pi_k}: the \eqn{n} units with the smallest
 \eqn{\xi_k} are selected. This is equivalent to Ohlsson's
 sequential threshold adjustment. Fixed sample size, high-entropy
-design. Supports PRN for sample coordination. First-order
-inclusion probabilities are approximately (not exactly) equal
-to the target \code{pik} for finite populations; see
-\code{\link[=inclusion_prob]{inclusion_prob()}}. Joint inclusion probabilities are
+design. Supports PRN for sample coordination. Design objects store
+the supplied \code{pik} as the design-defining target vector; see
+\code{\link[=inclusion_prob]{inclusion_prob()}}. The true finite-population first-order inclusion
+probabilities are approximately (not exactly) equal to that target
+for finite populations. Joint inclusion probabilities are
 \emph{approximated} via the high-entropy approximation.
 Complexity: O(N log N).}
 \item{\code{"pareto"}}{Pareto sampling (Rosen, 1997). Order sampling
 with odds-ratio ranking key
 \eqn{\xi_k = [u_k/(1-u_k)] / [\pi_k/(1-\pi_k)]}. Fixed sample
 size, high-entropy design. Supports PRN for sample coordination.
-First-order inclusion probabilities are approximately (not
-exactly) equal to the target \code{pik} for finite populations; see
-\code{\link[=inclusion_prob]{inclusion_prob()}}. Joint inclusion probabilities are
-\emph{approximated} via the high-entropy approximation.
+Design objects store the supplied \code{pik} as the design-defining
+target vector; see \code{\link[=inclusion_prob]{inclusion_prob()}}. The true finite-population
+first-order inclusion probabilities are approximately (not exactly)
+equal to that target for finite populations. Joint inclusion
+probabilities are \emph{approximated} via the high-entropy
+approximation.
 Complexity: O(N log N).}
 }}
 

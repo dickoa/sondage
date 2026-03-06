@@ -21,6 +21,14 @@ set.seed(1)
 
 Fast survey sampling algorithms for R. Sampling functions return **design objects** with generics for extracting inclusion probabilities, joint inclusion probabilities, and variance estimation quantities.
 
+For without-replacement designs, the stored `pik` vector is the
+design-defining target inclusion probability vector. For methods with exact
+first-order guarantees, this equals the true first-order inclusion
+probabilities. For order-sampling methods such as `sps` and `pareto`, the
+stored vector remains the target `pik`, while the true finite-population
+first-order inclusion probabilities are only approximately equal to that
+target.
+
 ## Installation
 
 ```{r, eval = FALSE}
@@ -113,7 +121,7 @@ inclusion_prob(sim) # generics still work
 ## Design queries
 
 - `inclusion_prob(x, n)` - Compute inclusion probabilities from size measures
-- `inclusion_prob(s)` - Extract inclusion probabilities from a WOR design
+- `inclusion_prob(s)` - Extract the stored design-defining `pik` vector from a WOR design
 - `expected_hits(x, n)` - Compute expected hits from size measures
 - `expected_hits(s)` - Extract expected hits from a WR design
 - `joint_inclusion_prob(s)` - Joint inclusion probabilities (WOR)
@@ -126,19 +134,36 @@ inclusion_prob(sim) # generics still work
 
 ## Method comparison
 
-| Method         | Fixed n | Exact pi_i | Exact pi_ij      | PRN support |
-|----------------|---------|------------|------------------|-------------|
-| `cps`          | yes     | yes        | yes              | no          |
-| `brewer`       | yes     | yes        | approx (HE)     | no          |
-| `systematic`   | yes     | yes        | yes (some = 0)   | no          |
-| `poisson`      | no      | yes        | yes (independent)| yes         |
-| `sps`          | yes     | approx*    | approx (HE)     | yes         |
-| `pareto`       | yes     | approx*    | approx (HE)     | yes         |
-| `multinomial`  | yes     | yes        | yes (analytic)   | no          |
-| `chromy`       | yes     | yes        | simulated        | no          |
-| `cube`         | yes     | yes        | approx (HE)     | no          |
+| Method         | Fixed n | Exact design marginals? | Exact pi_ij      | PRN support |
+|----------------|---------|-------------------------|------------------|-------------|
+| `cps`          | yes     | yes                     | yes              | no          |
+| `brewer`       | yes     | yes                     | approx (HE)      | no          |
+| `systematic`   | yes     | yes                     | yes (some = 0)   | no          |
+| `poisson`      | no      | yes                     | yes (independent)| yes         |
+| `sps`          | yes     | target only*            | approx (HE)**    | yes         |
+| `pareto`       | yes     | target only*            | approx (HE)**    | yes         |
+| `multinomial`  | yes     | yes                     | yes (analytic)   | no          |
+| `chromy`       | yes     | yes                     | simulated        | no          |
+| `cube`         | yes     | yes                     | approx (HE)      | no          |
 
-\*approx = target probabilities, exact asymptotically. HE = high-entropy approximation.
+\*For WOR methods, design marginals are first-order inclusion probabilities
+`\pi_k`. For WR methods, design marginals are expected hits `E(N_k)`.
+For `sps` and `pareto`, `inclusion_prob(s)` returns the stored
+design-defining target vector; the true finite-population first-order
+inclusion probabilities are only approximately equal to that target, with
+the discrepancy vanishing asymptotically.
+
+\**For `sps` and `pareto`, the high-entropy approximation is built from the
+stored target `pik` vector. HE = high-entropy approximation.
+
+## Choosing a method
+
+- Use `cps` when exactness matters more than speed: it is the maximum-entropy fixed-size unequal-probability design, with exact first- and second-order inclusion probabilities.
+- Use `systematic` when very fast sampling and ordering or implicit stratification are central, and structural zeros in some joint inclusion probabilities are acceptable.
+- Use `brewer` when you want exact first-order inclusion probabilities with lower computational cost than `cps`, and can work with approximate second-order quantities in `sondage`.
+- Use `poisson` when a random sample size is acceptable and independent selection is desirable.
+- Use `sps` or `pareto` as fast high-entropy order-sampling alternatives when approximate first- and second-order quantities are acceptable.
+- Use `cube` when balancing on auxiliary variables is more important than exact second-order inclusion probabilities.
 
 ## References
 

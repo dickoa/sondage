@@ -26,13 +26,15 @@ ignored when \code{x} is a design object.}
 }
 \value{
 A numeric vector of inclusion probabilities. When applied to a
-design object, returns the \strong{target} inclusion probabilities
-(i.e., the \code{pik} vector passed to \code{\link[=unequal_prob_wor]{unequal_prob_wor()}}). For most
-methods (\code{cps}, \code{brewer}, \code{systematic}, \code{poisson}), these are the
-exact first-order inclusion probabilities of the design. For order
-sampling methods (\code{sps}, \code{pareto}), the true first-order inclusion
-probabilities are approximately but not exactly equal to the target
-for finite populations; the discrepancy vanishes as N grows.
+design object, returns the stored design-defining \code{pik} vector
+(\emph{target} inclusion probabilities). For methods with exact
+first-order guarantees (\code{cps}, \code{brewer}, \code{systematic}, \code{poisson},
+\code{srs}, \code{bernoulli}, and \code{cube}), this equals the true first-order
+inclusion probabilities of the design. For order sampling methods
+(\code{sps}, \code{pareto}), the returned vector is the target \code{pik} used to
+define the design. For them, the true finite-population first-order inclusion
+probabilities are approximately, but not exactly, equal to that target,
+and the discrepancy vanishes as N grows.
 }
 \description{
 Compute inclusion probabilities from a size measure, or extract them

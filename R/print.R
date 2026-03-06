@@ -5,6 +5,8 @@
 #'
 #' @return `invisible(x)`.
 #'
+#' @seealso [sondage_sample] for the documented object structure and fields.
+#'
 #' @name print.sondage_sample
 NULL
 

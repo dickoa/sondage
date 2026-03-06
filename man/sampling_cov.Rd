@@ -56,8 +56,10 @@ the underlying joint probabilities. For \code{cps}, \code{systematic}, \code{poi
 \code{srs}, and \code{bernoulli}, the joint probabilities are exact and so is
 the covariance matrix. For \code{brewer}, \code{sps}, and \code{pareto}, the joint
 probabilities are based on the high-entropy approximation, so the
-covariance matrix is also approximate. For \code{chromy}, the pairwise
-expectations are simulation-based (controlled by \code{nsim}).
+covariance matrix is also approximate. For \code{sps} and \code{pareto}, this
+approximation is built from the stored target \code{pik} vector, not from the
+exact finite-population first-order inclusion probabilities. For \code{chromy},
+the pairwise expectations are simulation-based (controlled by \code{nsim}).
 See \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} and \code{\link[=joint_expected_hits]{joint_expected_hits()}} for details.
 
 \strong{Zero joint inclusion probabilities.}

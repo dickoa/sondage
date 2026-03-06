@@ -49,6 +49,14 @@ Use these generics to query the design:
 \item \code{\link[=joint_expected_hits]{joint_expected_hits()}} - Pairwise expectations (WR)
 \item \code{\link[=sampling_cov]{sampling_cov()}} - Sampling covariance matrix
 }
+
+For without-replacement designs, the stored \code{pik} vector is the
+design-defining target inclusion probability vector. For methods with
+exact first-order guarantees, this equals the true first-order inclusion
+probabilities. For order-sampling methods such as sequential Poisson
+(\code{"sps"}) and Pareto (\code{"pareto"}), the true finite-population
+first-order inclusion probabilities are only approximately equal to the
+stored target vector.
 }
 
 \section{Utilities}{

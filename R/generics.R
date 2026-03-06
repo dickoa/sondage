@@ -10,13 +10,15 @@
 #' @param ... Additional arguments (currently unused).
 #'
 #' @return A numeric vector of inclusion probabilities. When applied to a
-#'   design object, returns the \strong{target} inclusion probabilities
-#'   (i.e., the `pik` vector passed to [unequal_prob_wor()]). For most
-#'   methods (`cps`, `brewer`, `systematic`, `poisson`), these are the
-#'   exact first-order inclusion probabilities of the design. For order
-#'   sampling methods (`sps`, `pareto`), the true first-order inclusion
-#'   probabilities are approximately but not exactly equal to the target
-#'   for finite populations; the discrepancy vanishes as N grows.
+#'   design object, returns the stored design-defining `pik` vector
+#'   (\emph{target} inclusion probabilities). For methods with exact
+#'   first-order guarantees (`cps`, `brewer`, `systematic`, `poisson`,
+#'   `srs`, `bernoulli`, and `cube`), this equals the true first-order
+#'   inclusion probabilities of the design. For order sampling methods
+#'   (`sps`, `pareto`), the returned vector is the target `pik` used to
+#'   define the design. For them, the true finite-population first-order inclusion
+#'   probabilities are approximately, but not exactly, equal to that target,
+#'   and the discrepancy vanishes as N grows.
 #'
 #' @seealso [expected_hits()] for the with-replacement analogue,
 #'   [unequal_prob_wor()] for sampling with these probabilities.
@@ -112,7 +114,9 @@ inclusion_prob.default <- function(x, n, ...) {
   neg <- x < 0
   if (any(neg)) {
     warning(
-      "there are ", sum(neg), " negative value(s) shifted to zero",
+      "there are ",
+      sum(neg),
+      " negative value(s) shifted to zero",
       call. = FALSE
     )
   }
@@ -242,7 +246,9 @@ expected_hits.wor <- function(x, ...) {
 #'     (e.g. \eqn{n = 2}). A warning is issued when the defect
 #'     exceeds 5\% of \eqn{n}. Use `method = "cps"` when exact (up to
 #'     numerical precision) second-order inclusion probabilities are
-#'     required.}
+#'     required. For `sps` and `pareto`, the approximation is built from the
+#'     stored target `pik` vector returned by [inclusion_prob()], not from the
+#'     unknown exact finite-population first-order inclusion probabilities.}
 #' }
 #'
 #' For \strong{systematic PPS} sampling, some off-diagonal entries may be
@@ -343,11 +349,15 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
     pikl <- switch(
       x$method,
       cps = .Call(
-        C_cps_jip_sub, as.double(pik), as.double(eps),
+        C_cps_jip_sub,
+        as.double(pik),
+        as.double(eps),
         as.integer(sample_idx)
       ),
       systematic = .Call(
-        C_up_systematic_jip_sub, as.double(pik), as.double(eps),
+        C_up_systematic_jip_sub,
+        as.double(pik),
+        as.double(eps),
         as.integer(sample_idx)
       ),
       brewer = ,
@@ -561,7 +571,10 @@ joint_expected_hits.wr <- function(
         }
         nsim <- check_integer(nsim, "nsim")
         .Call(
-          C_chromy_joint_exp_sub, as.double(prob), as.integer(n), nsim,
+          C_chromy_joint_exp_sub,
+          as.double(prob),
+          as.integer(n),
+          nsim,
           as.integer(sample_idx)
         )
       },
@@ -658,8 +671,10 @@ joint_expected_hits.default <- function(x, ...) {
 #' `srs`, and `bernoulli`, the joint probabilities are exact and so is
 #' the covariance matrix. For `brewer`, `sps`, and `pareto`, the joint
 #' probabilities are based on the high-entropy approximation, so the
-#' covariance matrix is also approximate. For `chromy`, the pairwise
-#' expectations are simulation-based (controlled by `nsim`).
+#' covariance matrix is also approximate. For `sps` and `pareto`, this
+#' approximation is built from the stored target `pik` vector, not from the
+#' exact finite-population first-order inclusion probabilities. For `chromy`,
+#' the pairwise expectations are simulation-based (controlled by `nsim`).
 #' See [joint_inclusion_prob()] and [joint_expected_hits()] for details.
 #'
 #' \strong{Zero joint inclusion probabilities.}

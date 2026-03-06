@@ -33,6 +33,14 @@
 #'   \item [sampling_cov()] - Sampling covariance matrix
 #' }
 #'
+#' For without-replacement designs, the stored `pik` vector is the
+#' design-defining target inclusion probability vector. For methods with
+#' exact first-order guarantees, this equals the true first-order inclusion
+#' probabilities. For order-sampling methods such as sequential Poisson
+#' (`"sps"`) and Pareto (`"pareto"`), the true finite-population
+#' first-order inclusion probabilities are only approximately equal to the
+#' stored target vector.
+#'
 #' @section Utilities:
 #' \itemize{
 #'   \item [inclusion_prob()] - Compute inclusion probabilities from size
