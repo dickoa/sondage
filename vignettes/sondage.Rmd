@@ -26,13 +26,7 @@ set.seed(1)
 
 For the full object contract and field definitions, see `?sondage_sample`.
 
-For without-replacement designs, the stored `pik` vector is the
-design-defining target inclusion probability vector. For methods with exact
-first-order guarantees, this equals the true first-order inclusion
-probabilities. For order-sampling methods such as `sps` and `pareto`, the
-stored vector remains the target `pik`, while the true finite-population
-first-order inclusion probabilities are only approximately equal to that
-target.
+For without-replacement designs, the stored `pik` vector is the design-defining target inclusion probability vector. For methods with exact first-order guarantees, this equals the true first-order inclusion probabilities. For order-sampling methods such as `sps` and `pareto`, the stored vector remains the target `pik`, while the true finite-population first-order inclusion probabilities are only approximately equal to that target.
 
 The five entry-point functions are organised by two dimensions, plus a dedicated dispatcher for balanced sampling:
 
@@ -125,10 +119,7 @@ inclusion_prob(s)  # extract the stored design-defining target pik
 
 Other fixed-size methods include `"brewer"` (draw-by-draw, order-invariant), `"systematic"` (O(N), implicit stratification), `"sps"` [Sequential Poisson sampling, @ohlsson1998, supports PRN], and `"pareto"` [Pareto sampling, @rosen1997, supports PRN]. The `"poisson"` method produces a random sample size.
 
-For `sps` and `pareto`, `inclusion_prob(s)` still returns the stored target
-`pik` vector used to define the design. Those methods do not, in general,
-provide exact finite-population first-order inclusion probabilities equal to
-that target.
+For `sps` and `pareto`, `inclusion_prob(s)` still returns the stored target `pik` vector used to define the design. Those methods do not, in general, provide exact finite-population first-order inclusion probabilities equal to that target.
 
 ### With replacement
 

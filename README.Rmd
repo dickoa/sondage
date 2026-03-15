@@ -21,13 +21,7 @@ set.seed(1)
 
 Fast survey sampling algorithms for R. Sampling functions return **design objects** with generics for extracting inclusion probabilities, joint inclusion probabilities, and variance estimation quantities.
 
-For without-replacement designs, the stored `pik` vector is the
-design-defining target inclusion probability vector. For methods with exact
-first-order guarantees, this equals the true first-order inclusion
-probabilities. For order-sampling methods such as `sps` and `pareto`, the
-stored vector remains the target `pik`, while the true finite-population
-first-order inclusion probabilities are only approximately equal to that
-target.
+For without-replacement designs, the stored `pik` vector is the design-defining target inclusion probability vector. For methods with exact first-order guarantees, this equals the true first-order inclusion probabilities. For order-sampling methods such as `sps` and `pareto`, the stored vector remains the target `pik`, while the true finite-population first-order inclusion probabilities are only approximately equal to that target.
 
 ## Installation
 
@@ -146,19 +140,14 @@ inclusion_prob(sim) # generics still work
 | `chromy`       | yes     | yes                     | simulated        | no          |
 | `cube`         | yes     | yes                     | approx (HE)      | no          |
 
-\*For WOR methods, design marginals are first-order inclusion probabilities
-`\pi_k`. For WR methods, design marginals are expected hits `E(N_k)`.
-For `sps` and `pareto`, `inclusion_prob(s)` returns the stored
-design-defining target vector; the true finite-population first-order
-inclusion probabilities are only approximately equal to that target, with
-the discrepancy vanishing asymptotically.
+\*For WOR methods, design marginals are first-order inclusion probabilities `\pi_k`. For WR methods, design marginals are expected hits `E(N_k)`. For `sps` and `pareto`, `inclusion_prob(s)` returns the stored design-defining target vector; the true finite-population first-order inclusion probabilities are only approximately equal to that target, with the discrepancy vanishing asymptotically.
 
 \**For `sps` and `pareto`, the high-entropy approximation is built from the
 stored target `pik` vector. HE = high-entropy approximation.
 
 ## Choosing a method
 
-- Use `cps` when exactness matters more than speed: it is the maximum-entropy fixed-size unequal-probability design, with exact first- and second-order inclusion probabilities.
+- Use `cps` when exactness matters more than speed: it is the maximum-entropy fixed-size unequal-probability design, with exact first and second-order inclusion probabilities.
 - Use `systematic` when very fast sampling and ordering or implicit stratification are central, and structural zeros in some joint inclusion probabilities are acceptable.
 - Use `brewer` when you want exact first-order inclusion probabilities with lower computational cost than `cps`, and can work with approximate second-order quantities in `sondage`.
 - Use `poisson` when a random sample size is acceptable and independent selection is desirable.

@@ -193,7 +193,6 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
   # Reuse shared N/n validation; replace = TRUE since n = N is valid (p = 1)
   .check_ep_args(N, n, replace = TRUE)
   N <- check_integer(N, "N")
-  # n is the expected sample size (not necessarily integer), but must not exceed N
   if (n > N) {
     stop("'n' cannot exceed 'N'", call. = FALSE)
   }

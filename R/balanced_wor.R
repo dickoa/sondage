@@ -126,19 +126,33 @@ balanced_wor <- function(
   dots <- list(...)
   condition_aux <- isTRUE(dots[["condition_aux"]])
   qr_tol <- dots[["qr_tol"]]
-  if (is.null(qr_tol)) qr_tol <- sqrt(.Machine$double.eps)
+  if (is.null(qr_tol)) {
+    qr_tol <- sqrt(.Machine$double.eps)
+  }
   eps <- check_eps(eps)
 
   strata_fixed <- TRUE
   if (is.null(strata)) {
-    X <- .build_cube_aux(pik, aux, N, prepend_pik = TRUE,
-                         condition_aux = condition_aux, qr_tol = qr_tol)
+    X <- .build_cube_aux(
+      pik,
+      aux,
+      N,
+      prepend_pik = TRUE,
+      condition_aux = condition_aux,
+      qr_tol = qr_tol
+    )
     idx <- .Call(C_cube, as.double(pik), X, as.double(eps))
   } else {
     strata_int <- .check_strata(strata, N)
     strata_fixed <- .check_stratum_sizes(pik, strata_int)
-    X <- .build_cube_aux(pik, aux, N, prepend_pik = FALSE,
-                         condition_aux = condition_aux, qr_tol = qr_tol)
+    X <- .build_cube_aux(
+      pik,
+      aux,
+      N,
+      prepend_pik = FALSE,
+      condition_aux = condition_aux,
+      qr_tol = qr_tol
+    )
     idx <- .Call(
       C_cube_stratified,
       as.double(pik),
@@ -151,7 +165,7 @@ balanced_wor <- function(
   .new_wor_sample(
     sample = idx,
     pik = pik,
-    n = if (strata_fixed) as.integer(round(sum(pik))) else sum(pik),
+    n = ifelse(strata_fixed, as.integer(round(sum(pik))), sum(pik)),
     N = N,
     method = "cube",
     fixed_size = strata_fixed,
@@ -166,9 +180,14 @@ balanced_wor <- function(
 #' so pik is not prepended; returns a 0-column matrix when aux is NULL.
 #'
 #' @noRd
-.build_cube_aux <- function(pik, aux, N, prepend_pik,
-                            condition_aux = FALSE,
-                            qr_tol = sqrt(.Machine$double.eps)) {
+.build_cube_aux <- function(
+  pik,
+  aux,
+  N,
+  prepend_pik,
+  condition_aux = FALSE,
+  qr_tol = sqrt(.Machine$double.eps)
+) {
   pik_d <- as.double(pik)
 
   if (is.null(aux)) {
@@ -216,14 +235,14 @@ balanced_wor <- function(
 #' @noRd
 .condition_cube_aux <- function(aux, pik, qr_tol = sqrt(.Machine$double.eps)) {
   N <- nrow(aux)
-  if (N == 0L || ncol(aux) == 0L) return(aux)
+  if (N == 0L || ncol(aux) == 0L) {
+    return(aux)
+  }
 
-  # Weighted centering
   w <- pik / sum(pik)
   mu <- as.numeric(crossprod(w, aux))
   aux_cs <- sweep(aux, 2, mu, "-", check.margin = FALSE)
 
-  # Weighted scaling — drop zero-variance columns
   sdw <- sqrt(pmax(as.numeric(crossprod(w, aux_cs^2)), 0))
   keep_scale <- sdw > qr_tol
   if (!any(keep_scale)) {
@@ -233,8 +252,9 @@ balanced_wor <- function(
   sdw <- sdw[keep_scale]
   aux_cs <- sweep(aux_cs, 2, sdw, "/", check.margin = FALSE)
 
-  # QR with column pivoting to prune linearly dependent columns
-  if (ncol(aux_cs) <= 1L) return(aux_cs)
+  if (ncol(aux_cs) <= 1L) {
+    return(aux_cs)
+  }
   q <- qr(aux_cs, tol = qr_tol, LAPACK = TRUE)
   r <- q$rank
   if (r <= 0L) {
@@ -287,16 +307,26 @@ balanced_wor <- function(
   n <- sum(pik)
   dots <- list(...)
   eps <- dots[["eps"]]
-  if (is.null(eps)) eps <- 1e-10
+  if (is.null(eps)) {
+    eps <- 1e-10
+  }
   eps <- check_eps(eps)
   condition_aux <- isTRUE(dots[["condition_aux"]])
   qr_tol <- dots[["qr_tol"]]
-  if (is.null(qr_tol)) qr_tol <- sqrt(.Machine$double.eps)
+  if (is.null(qr_tol)) {
+    qr_tol <- sqrt(.Machine$double.eps)
+  }
   pik_d <- as.double(pik)
 
   if (is.null(strata)) {
-    X <- .build_cube_aux(pik, aux, N, prepend_pik = TRUE,
-                         condition_aux = condition_aux, qr_tol = qr_tol)
+    X <- .build_cube_aux(
+      pik,
+      aux,
+      N,
+      prepend_pik = TRUE,
+      condition_aux = condition_aux,
+      qr_tol = qr_tol
+    )
     sample_data <- .Call(
       C_cube_batch,
       pik_d,
@@ -308,8 +338,14 @@ balanced_wor <- function(
   } else {
     strata_int <- .check_strata(strata, N)
     fixed_size <- .check_stratum_sizes(pik, strata_int)
-    X <- .build_cube_aux(pik, aux, N, prepend_pik = FALSE,
-                         condition_aux = condition_aux, qr_tol = qr_tol)
+    X <- .build_cube_aux(
+      pik,
+      aux,
+      N,
+      prepend_pik = FALSE,
+      condition_aux = condition_aux,
+      qr_tol = qr_tol
+    )
 
     if (fixed_size) {
       sample_data <- .Call(

@@ -72,8 +72,8 @@ unknown exact finite-population first-order inclusion probabilities.}
 
 For \strong{systematic PPS} sampling, some off-diagonal entries may be
 exactly zero (pairs of units that can never co-occur in the same
-systematic sample). This has consequences for variance estimation;
-see \code{\link[=sampling_cov]{sampling_cov()}}.
+systematic sample). This has consequences for variance estimation.
+See \code{\link[=sampling_cov]{sampling_cov()}}.
 
 When \code{sampled_only = TRUE}, only the n x n submatrix for sampled
 units is returned. For methods using the high-entropy approximation

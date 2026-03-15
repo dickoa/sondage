@@ -44,28 +44,17 @@ pik <- inclusion_prob(states$Population, n = 10)
 # Draw a sample (Conditional Poisson Sampling)
 s <- unequal_prob_wor(pik, method = "cps")
 states[s$sample, ]
-#>              Population Income Illiteracy Life Exp Murder
-#> California        21198   5114        1.1    71.71   10.3
-#> Georgia            4931   4091        2.0    68.54   13.9
-#> Michigan           9111   4751        0.9    70.63   11.1
-#> Mississippi        2341   3098        2.4    68.09   12.5
-#> Missouri           4767   4254        0.8    70.69    9.3
-#> Nebraska           1544   4508        0.6    72.60    2.9
-#> New York          18076   4903        1.4    70.55   10.9
-#> Pennsylvania      11860   4449        1.0    70.43    6.1
-#> Washington         3559   4864        0.6    71.72    4.3
-#> Wisconsin          4589   4468        0.7    72.48    3.0
-#>              HS Grad Frost   Area
-#> California      62.6    20 156361
-#> Georgia         40.6    60  58073
-#> Michigan        52.8   125  56817
-#> Mississippi     41.0    50  47296
-#> Missouri        48.8   108  68995
-#> Nebraska        59.3   139  76483
-#> New York        52.7    82  47831
-#> Pennsylvania    50.2   126  44966
-#> Washington      63.5    32  66570
-#> Wisconsin       54.5   149  54464
+#>              Population Income Illiteracy Life Exp Murder HS Grad Frost   Area
+#> California        21198   5114        1.1    71.71   10.3    62.6    20 156361
+#> Georgia            4931   4091        2.0    68.54   13.9    40.6    60  58073
+#> Michigan           9111   4751        0.9    70.63   11.1    52.8   125  56817
+#> Mississippi        2341   3098        2.4    68.09   12.5    41.0    50  47296
+#> Missouri           4767   4254        0.8    70.69    9.3    48.8   108  68995
+#> Nebraska           1544   4508        0.6    72.60    2.9    59.3   139  76483
+#> New York          18076   4903        1.4    70.55   10.9    52.7    82  47831
+#> Pennsylvania      11860   4449        1.0    70.43    6.1    50.2   126  44966
+#> Washington         3559   4864        0.6    71.72    4.3    63.5    32  66570
+#> Wisconsin          4589   4468        0.7    72.48    3.0    54.5   149  54464
 ```
 
 ``` r
@@ -79,28 +68,17 @@ chk   <- sampling_cov(s, weighted = TRUE) # 1 - pi_i * pi_j / pi_ij
 # Equal probability sampling
 s <- equal_prob_wor(nrow(states), 10)
 states[s$sample, ]
-#>                Population Income Illiteracy Life Exp Murder
-#> Minnesota            3921   4675        0.6    72.96    2.3
-#> Colorado             2541   4884        0.7    72.06    6.8
-#> South Carolina       2816   3635        2.3    67.96   11.6
-#> Utah                 1203   4022        0.6    72.90    4.5
-#> Missouri             4767   4254        0.8    70.69    9.3
-#> Wisconsin            4589   4468        0.7    72.48    3.0
-#> Rhode Island          931   4558        1.3    71.90    2.4
-#> Tennessee            4173   3821        1.7    70.11   11.0
-#> Vermont               472   3907        0.6    71.64    5.5
-#> Mississippi          2341   3098        2.4    68.09   12.5
-#>                HS Grad Frost   Area
-#> Minnesota         57.6   160  79289
-#> Colorado          63.9   166 103766
-#> South Carolina    37.8    65  30225
-#> Utah              67.3   137  82096
-#> Missouri          48.8   108  68995
-#> Wisconsin         54.5   149  54464
-#> Rhode Island      46.4   127   1049
-#> Tennessee         41.8    70  41328
-#> Vermont           57.1   168   9267
-#> Mississippi       41.0    50  47296
+#>                Population Income Illiteracy Life Exp Murder HS Grad Frost   Area
+#> Minnesota            3921   4675        0.6    72.96    2.3    57.6   160  79289
+#> Colorado             2541   4884        0.7    72.06    6.8    63.9   166 103766
+#> South Carolina       2816   3635        2.3    67.96   11.6    37.8    65  30225
+#> Utah                 1203   4022        0.6    72.90    4.5    67.3   137  82096
+#> Missouri             4767   4254        0.8    70.69    9.3    48.8   108  68995
+#> Wisconsin            4589   4468        0.7    72.48    3.0    54.5   149  54464
+#> Rhode Island          931   4558        1.3    71.90    2.4    46.4   127   1049
+#> Tennessee            4173   3821        1.7    70.11   11.0    41.8    70  41328
+#> Vermont               472   3907        0.6    71.64    5.5    57.1   168   9267
+#> Mississippi          2341   3098        2.4    68.09   12.5    41.0    50  47296
 ```
 
 ``` r
@@ -124,15 +102,11 @@ sim <- unequal_prob_wor(pik, method = "cps", nrep = 1000)
 dim(sim$sample)   # 10 x 1000
 #> [1]   10 1000
 inclusion_prob(sim) # generics still work
-#>  [1] 0.17026107 0.01719095 0.10418188 0.09937783 0.99839394
-#>  [6] 0.11967728 0.14600534 0.02727003 0.38983426 0.23224269
-#> [11] 0.04088150 0.03829108 0.52736187 0.25023432 0.13474880
-#> [16] 0.10738457 0.15952261 0.17925688 0.04983021 0.19414000
-#> [21] 0.27383066 0.42911441 0.18467321 0.11025758 0.22451854
-#> [26] 0.03513548 0.07272008 0.02778811 0.03824398 0.34537328
-#> [31] 0.05388068 0.85135243 0.25626292 0.03000174 0.50560237
-#> [36] 0.12787242 0.10757297 0.55858818 0.04384870 0.13262937
-#> [41] 0.03207408 0.19654203 0.57634431 0.05665949 0.02223049
+#>  [1] 0.17026107 0.01719095 0.10418188 0.09937783 0.99839394 0.11967728 0.14600534 0.02727003 0.38983426
+#> [10] 0.23224269 0.04088150 0.03829108 0.52736187 0.25023432 0.13474880 0.10738457 0.15952261 0.17925688
+#> [19] 0.04983021 0.19414000 0.27383066 0.42911441 0.18467321 0.11025758 0.22451854 0.03513548 0.07272008
+#> [28] 0.02778811 0.03824398 0.34537328 0.05388068 0.85135243 0.25626292 0.03000174 0.50560237 0.12787242
+#> [37] 0.10757297 0.55858818 0.04384870 0.13262937 0.03207408 0.19654203 0.57634431 0.05665949 0.02223049
 #> [46] 0.23459761 0.16762355 0.08473020 0.21613500 0.01770903
 ```
 
@@ -224,7 +198,7 @@ the stored target `pik` vector. HE = high-entropy approximation.
 
 - Use `cps` when exactness matters more than speed: it is the
   maximum-entropy fixed-size unequal-probability design, with exact
-  first- and second-order inclusion probabilities.
+  first and second-order inclusion probabilities.
 - Use `systematic` when very fast sampling and ordering or implicit
   stratification are central, and structural zeros in some joint
   inclusion probabilities are acceptable.

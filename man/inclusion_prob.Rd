@@ -50,7 +50,7 @@ selection) and the remaining probabilities are recomputed with a reduced
 The result always sums to exactly \eqn{n}.
 
 This differs from \code{\link[=expected_hits]{expected_hits()}}, which uses simple proportional
-allocation \eqn{n x_k / \sum x_k} without capping -- values can exceed 1.
+allocation \eqn{n x_k / \sum x_k} without capping. Values can exceed 1.
 
 Negative values in \code{x} are treated as zero (with a warning).
 }

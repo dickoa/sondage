@@ -176,8 +176,8 @@ unequal_prob_wor <- function(
 #'   \describe{
 #'     \item{`"chromy"`}{Chromy's (1979) sequential PPS with minimum
 #'       replacement. Default method in SAS SURVEYSELECT. Pairwise
-#'       expectations \eqn{E(n_i n_j)} are estimated by simulation;
-#'       see [joint_expected_hits()]. Complexity: O(N + n).}
+#'       expectations \eqn{E(n_i n_j)} are estimated by simulation.
+#'       See [joint_expected_hits()]. Complexity: O(N + n).}
 #'     \item{`"multinomial"`}{Multinomial PPS (independent draws).
 #'       Units can be selected any number of times. Pairwise expectations
 #'       are exact: \eqn{E(n_i n_j) = n(n-1) p_i p_j}.
@@ -334,7 +334,9 @@ unequal_prob_wr <- function(
   eps <- check_eps(eps)
   N <- length(pik)
   n <- as.integer(round(sum(pik)))
-  if (is.null(prn)) prn <- stats::runif(N)
+  if (is.null(prn)) {
+    prn <- runif(N)
+  }
   check_prn(prn, N)
 
   ta <- which(pik >= 1 - eps)
@@ -366,7 +368,9 @@ unequal_prob_wr <- function(
   eps <- check_eps(eps)
   N <- length(pik)
   n <- as.integer(round(sum(pik)))
-  if (is.null(prn)) prn <- stats::runif(N)
+  if (is.null(prn)) {
+    prn <- runif(N)
+  }
   check_prn(prn, N)
 
   ta <- which(pik >= 1 - eps)
@@ -453,7 +457,9 @@ unequal_prob_wr <- function(
 
   if (method %in% .batch_optimised_methods) {
     eps <- list(...)[["eps"]]
-    if (is.null(eps)) eps <- 1e-06
+    if (is.null(eps)) {
+      eps <- 1e-06
+    }
     eps <- check_eps(eps)
     design <- .Call(C_cps_design, as.double(pik), as.double(eps))
     sample_data <- .Call(C_cps_draw_batch, design, as.integer(nrep))

@@ -21,8 +21,8 @@ selections per unit). Typically computed via \code{\link[=expected_hits]{expecte
 \describe{
 \item{\code{"chromy"}}{Chromy's (1979) sequential PPS with minimum
 replacement. Default method in SAS SURVEYSELECT. Pairwise
-expectations \eqn{E(n_i n_j)} are estimated by simulation;
-see \code{\link[=joint_expected_hits]{joint_expected_hits()}}. Complexity: O(N + n).}
+expectations \eqn{E(n_i n_j)} are estimated by simulation.
+See \code{\link[=joint_expected_hits]{joint_expected_hits()}}. Complexity: O(N + n).}
 \item{\code{"multinomial"}}{Multinomial PPS (independent draws).
 Units can be selected any number of times. Pairwise expectations
 are exact: \eqn{E(n_i n_j) = n(n-1) p_i p_j}.

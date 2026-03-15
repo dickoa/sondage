@@ -1,4 +1,4 @@
-# sondage 0.7.0
+# sondage 0.7.5
 
 Initial CRAN release.
 

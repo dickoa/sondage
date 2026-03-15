@@ -66,7 +66,7 @@ inclusion_prob.wr <- function(x, ...) {
 #' The result always sums to exactly \eqn{n}.
 #'
 #' This differs from [expected_hits()], which uses simple proportional
-#' allocation \eqn{n x_k / \sum x_k} without capping -- values can exceed 1.
+#' allocation \eqn{n x_k / \sum x_k} without capping. Values can exceed 1.
 #'
 #' Negative values in `x` are treated as zero (with a warning).
 #'
@@ -253,8 +253,8 @@ expected_hits.wor <- function(x, ...) {
 #'
 #' For \strong{systematic PPS} sampling, some off-diagonal entries may be
 #' exactly zero (pairs of units that can never co-occur in the same
-#' systematic sample). This has consequences for variance estimation;
-#' see [sampling_cov()].
+#' systematic sample). This has consequences for variance estimation.
+#' See [sampling_cov()].
 #'
 #' When `sampled_only = TRUE`, only the n x n submatrix for sampled
 #' units is returned. For methods using the high-entropy approximation
