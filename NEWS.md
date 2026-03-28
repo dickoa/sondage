@@ -47,6 +47,9 @@ Five generics for variance estimation quantities:
   algorithms into the existing dispatchers and generics. Registered methods
   work with `unequal_prob_wor()`, `unequal_prob_wr()`, `joint_inclusion_prob()`,
   `sampling_cov()`, batch mode (`nrep`), and all downstream tooling.
+* `method_spec()` queries method metadata (type, fixed size, PRN support)
+  for any method, built-in or registered. Covers all five dispatchers
+  including balanced sampling.
 * Helper functions `registered_methods()`, `is_registered_method()`, and
   `unregister_method()` manage the registry.
 * New vignette "Extending sondage with Custom Methods" with worked examples

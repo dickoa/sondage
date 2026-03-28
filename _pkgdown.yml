@@ -42,6 +42,7 @@ reference:
   - registered_methods
   - is_registered_method
   - unregister_method
+  - method_spec
 
 - title: Print methods
   contents:

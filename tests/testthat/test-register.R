@@ -440,6 +440,56 @@ test_that("sampling_cov works for registered random-size method", {
   expect_equal(diag(delta), pik * (1 - pik), tolerance = 1e-10)
 })
 
+# --- method_spec() integration with registration ---
+
+test_that("method_spec tracks register/unregister lifecycle", {
+  on.exit(unregister_method("test_spec"), add = TRUE)
+
+  expect_null(method_spec("test_spec"))
+
+  register_method("test_spec", "wor", sample_fn = identity,
+                   fixed_size = FALSE, supports_prn = TRUE)
+  spec <- method_spec("test_spec")
+  expect_equal(spec$type, "wor")
+  expect_false(spec$fixed_size)
+  expect_true(spec$supports_prn)
+
+  unregister_method("test_spec")
+  expect_null(method_spec("test_spec"))
+})
+
+test_that("method_spec returns correct metadata for toy WOR sampler", {
+  on.exit(unregister_method("toy_wor"), add = TRUE)
+  register_method("toy_wor", "wor", sample_fn = toy_wor_sample)
+
+  spec <- method_spec("toy_wor")
+  expect_equal(spec$type, "wor")
+  expect_true(spec$fixed_size)
+  expect_false(spec$supports_prn)
+})
+
+test_that("method_spec returns correct metadata for toy WR sampler", {
+  on.exit(unregister_method("toy_wr"), add = TRUE)
+  register_method("toy_wr", "wr", sample_fn = toy_wr_sample)
+
+  spec <- method_spec("toy_wr")
+  expect_equal(spec$type, "wr")
+  expect_true(spec$fixed_size)
+  expect_false(spec$supports_prn)
+})
+
+test_that("method_spec returns correct metadata for random-size PRN method", {
+  on.exit(unregister_method("poisson_prn"), add = TRUE)
+  register_method("poisson_prn", "wor",
+                   sample_fn = poisson_prn_sample,
+                   fixed_size = FALSE, supports_prn = TRUE)
+
+  spec <- method_spec("poisson_prn")
+  expect_equal(spec$type, "wor")
+  expect_false(spec$fixed_size)
+  expect_true(spec$supports_prn)
+})
+
 # --- Unknown method still errors ---
 
 test_that("unknown method (not built-in, not registered) still errors", {

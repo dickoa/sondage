@@ -28,6 +28,10 @@
   srs = list(fixed_size = TRUE, prn = FALSE)
 )
 
+.balanced_specs <- list(
+  cube = list(fixed_size = TRUE, prn = FALSE)
+)
+
 # Methods using the high-entropy JIP approximation (Brewer & Donadio, 2003).
 # Spans wor + balanced; used in joint_inclusion_prob.wor marginal defect check.
 .he_jip_methods <- c("brewer", "sps", "pareto", "cube")
@@ -51,6 +55,63 @@
     stop("unknown context: ", context, call. = FALSE)
   )
   specs[[method]]
+}
+
+#' Query Method Metadata
+#'
+#' Return the capabilities of a sampling method. Works for built-in
+#' methods and methods added via [register_method()].
+#'
+#' @param name Method name (character string), as used by the sondage
+#'   dispatchers (e.g. `"brewer"`, `"cube"`, `"srs"`).
+#'
+#' @return A list with elements `type` (`"wor"` or `"wr"`),
+#'   `fixed_size` (logical), and `supports_prn` (logical), or `NULL`
+#'   if the method is unknown.
+#'
+#' @seealso [register_method()], [registered_methods()]
+#'
+#' @examples
+#' method_spec("brewer")
+#' method_spec("cube")
+#' method_spec("nonexistent")
+#'
+#' @export
+method_spec <- function(name) {
+  if (!is.character(name) || length(name) != 1L) {
+    stop("'name' must be a single character string", call. = FALSE)
+  }
+
+  if (is_registered_method(name)) {
+    reg <- .method_registry[[name]]
+    return(list(
+      type = reg$type,
+      fixed_size = reg$fixed_size,
+      supports_prn = reg$supports_prn
+    ))
+  }
+
+  all_specs <- list(
+    wor = .wor_specs,
+    wr = .wr_specs,
+    ep_wor = .ep_wor_specs,
+    ep_wr = .ep_wr_specs,
+    balanced = .balanced_specs
+  )
+
+  for (ctx in names(all_specs)) {
+    spec <- all_specs[[ctx]][[name]]
+    if (!is.null(spec)) {
+      type <- if (ctx %in% c("wr", "ep_wr")) "wr" else "wor"
+      return(list(
+        type = type,
+        fixed_size = isTRUE(spec$fixed_size),
+        supports_prn = isTRUE(spec$prn)
+      ))
+    }
+  }
+
+  NULL
 }
 
 #' @noRd

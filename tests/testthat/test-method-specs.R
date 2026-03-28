@@ -97,6 +97,87 @@ test_that(".stop_unknown_method produces informative error", {
   )
 })
 
+# --- method_spec() ---
+
+test_that("method_spec returns correct metadata for WOR methods", {
+  spec <- method_spec("brewer")
+  expect_equal(spec$type, "wor")
+  expect_true(spec$fixed_size)
+  expect_false(spec$supports_prn)
+
+  spec <- method_spec("poisson")
+  expect_equal(spec$type, "wor")
+  expect_false(spec$fixed_size)
+  expect_true(spec$supports_prn)
+
+  spec <- method_spec("sps")
+  expect_equal(spec$type, "wor")
+  expect_true(spec$fixed_size)
+  expect_true(spec$supports_prn)
+})
+
+test_that("method_spec returns correct metadata for WR methods", {
+  spec <- method_spec("chromy")
+  expect_equal(spec$type, "wr")
+  expect_true(spec$fixed_size)
+  expect_false(spec$supports_prn)
+
+  spec <- method_spec("multinomial")
+  expect_equal(spec$type, "wr")
+  expect_true(spec$fixed_size)
+  expect_false(spec$supports_prn)
+})
+
+test_that("method_spec returns correct metadata for EP methods", {
+  spec <- method_spec("srs")
+  expect_equal(spec$type, "wor")
+  expect_true(spec$fixed_size)
+  expect_false(spec$supports_prn)
+
+  spec <- method_spec("bernoulli")
+  expect_equal(spec$type, "wor")
+  expect_false(spec$fixed_size)
+  expect_true(spec$supports_prn)
+})
+
+test_that("method_spec returns correct metadata for balanced methods", {
+  spec <- method_spec("cube")
+  expect_equal(spec$type, "wor")
+  expect_true(spec$fixed_size)
+  expect_false(spec$supports_prn)
+})
+
+test_that("method_spec returns NULL for unknown methods", {
+  expect_null(method_spec("nonexistent"))
+  expect_null(method_spec("lpm"))
+})
+
+test_that("method_spec validates input", {
+  expect_error(method_spec(42), "single character string")
+  expect_error(method_spec(c("a", "b")), "single character string")
+})
+
+test_that("method_spec returns correct metadata for registered methods", {
+  on.exit(unregister_method("test_ms"), add = TRUE)
+  register_method("test_ms", "wor", sample_fn = identity,
+                   fixed_size = FALSE, supports_prn = TRUE)
+
+  spec <- method_spec("test_ms")
+  expect_equal(spec$type, "wor")
+  expect_false(spec$fixed_size)
+  expect_true(spec$supports_prn)
+})
+
+test_that("method_spec picks up registered WR methods", {
+  on.exit(unregister_method("test_wr"), add = TRUE)
+  register_method("test_wr", "wr", sample_fn = identity)
+
+  spec <- method_spec("test_wr")
+  expect_equal(spec$type, "wr")
+  expect_true(spec$fixed_size)
+  expect_false(spec$supports_prn)
+})
+
 # --- End-to-end: dispatchers reject unknown methods ---
 
 test_that("dispatchers reject unknown methods", {
