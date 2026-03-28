@@ -85,6 +85,7 @@ pages:
         libtiff5-dev
         libjpeg-dev
         libuv1-dev
+        cmake
     - mkdir -p $R_LIBS_USER
     - Rscript -e "install.packages(c('curl', 'remotes', 'bslib', 'fs', 'rmarkdown', 'pkgdown'), repos='https://cloud.r-project.org')"
     - Rscript -e "remotes::install_deps(dependencies = TRUE)"
