@@ -84,8 +84,9 @@ pages:
         libpng-dev
         libtiff5-dev
         libjpeg-dev
+        libuv1-dev
     - mkdir -p $R_LIBS_USER
-    - Rscript -e "install.packages(c('curl', 'remotes', 'pkgdown'), repos='https://cloud.r-project.org')"
+    - Rscript -e "install.packages(c('curl', 'remotes', 'bslib', 'fs', 'rmarkdown', 'pkgdown'), repos='https://cloud.r-project.org')"
     - Rscript -e "remotes::install_deps(dependencies = TRUE)"
   script:
     - Rscript -e "pkgdown::build_site()"
