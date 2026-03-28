@@ -9,45 +9,36 @@ All sampling functions in \code{sondage} return objects inheriting from class
 the design-defining quantities needed by the query generics.
 }
 \details{
-\code{sondage_sample} objects always contain these fields:
+All \code{sondage_sample} objects contain:
 \describe{
-\item{\verb{$sample}}{Realized sample indices. For \code{nrep = 1}, an integer
-vector. For \code{nrep > 1}, a matrix for fixed-size designs or a list of
-integer vectors for random-size designs.}
-\item{\verb{$n}}{Target or expected sample size. Integer for fixed-size
-designs; may be non-integer for random-size designs such as Poisson,
-Bernoulli, or stratified cube with non-integer stratum totals.}
+\item{\verb{$sample}}{Sample indices (integer vector, or matrix/list
+when \code{nrep > 1}).}
+\item{\verb{$n}}{Target or expected sample size.}
 \item{\verb{$N}}{Population size.}
-\item{\verb{$method}}{Method name string used to generate the design.}
-\item{\verb{$fixed_size}}{Logical flag indicating whether the realized sample
-size is fixed by design.}
+\item{\verb{$method}}{Sampling method name.}
+\item{\verb{$fixed_size}}{Whether the sample size is fixed by design.}
 }
 
-Without-replacement (\code{"wor"}) objects additionally contain:
+Without-replacement (\code{"wor"}) objects also contain:
 \describe{
-\item{\verb{$pik}}{Design-defining inclusion probability vector. For methods
-with exact first-order guarantees, this equals the true first-order
-inclusion probabilities. For order-sampling methods such as \code{"sps"} and
-\code{"pareto"}, this is the stored target vector.}
+\item{\verb{$pik}}{Inclusion probability vector. For most methods this
+equals the true first-order probabilities. For \code{"sps"} and
+\code{"pareto"}, this is the target vector.}
 }
 
-With-replacement (\code{"wr"}) objects additionally contain:
+With-replacement (\code{"wr"}) objects also contain:
 \describe{
-\item{\verb{$prob}}{Selection probability vector for each draw.}
-\item{\verb{$hits}}{Realized hit counts by unit. For \code{nrep = 1}, an integer
-vector of length \code{N}. For \code{nrep > 1}, an \verb{N x nrep} integer matrix.}
+\item{\verb{$prob}}{Per-draw selection probability vector.}
+\item{\verb{$hits}}{Realized selection counts (integer vector, or
+\verb{N x nrep} matrix when \code{nrep > 1}).}
 }
 
-The class vector also records the design family:
+The class vector records the design family:
 \describe{
-\item{\code{c("equal_prob", "wor", "sondage_sample")}}{Equal-probability
-sampling without replacement.}
-\item{\code{c("equal_prob", "wr", "sondage_sample")}}{Equal-probability
-sampling with replacement.}
-\item{\code{c("unequal_prob", "wor", "sondage_sample")}}{Unequal-probability
-sampling without replacement, including balanced sampling.}
-\item{\code{c("unequal_prob", "wr", "sondage_sample")}}{Unequal-probability
-sampling with replacement or minimum replacement.}
+\item{\code{c("equal_prob", "wor", "sondage_sample")}}{Equal probability, without replacement.}
+\item{\code{c("equal_prob", "wr", "sondage_sample")}}{Equal probability, with replacement.}
+\item{\code{c("unequal_prob", "wor", "sondage_sample")}}{Unequal probability, without replacement (includes balanced).}
+\item{\code{c("unequal_prob", "wr", "sondage_sample")}}{Unequal probability, with replacement.}
 }
 }
 \seealso{

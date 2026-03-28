@@ -4,9 +4,12 @@ template:
   math-rendering: mathjax
 
 articles:
-- title: Articles
+- title: Getting started
   contents:
   - sondage
+- title: Extending
+  contents:
+  - custom-methods
 
 reference:
 - title: Package
@@ -31,6 +34,14 @@ reference:
   - joint_inclusion_prob
   - joint_expected_hits
   - sampling_cov
+
+- title: Extensibility
+  desc: Register custom sampling methods.
+  contents:
+  - register_method
+  - registered_methods
+  - is_registered_method
+  - unregister_method
 
 - title: Print methods
   contents:

@@ -16,6 +16,10 @@ extern SEXP C_cps_jip_sub(SEXP pik, SEXP eps, SEXP idx);
 extern SEXP C_up_systematic_jip(SEXP pik, SEXP eps);
 extern SEXP C_up_systematic_jip_sub(SEXP pik, SEXP eps, SEXP idx);
 extern SEXP C_high_entropy_jip(SEXP pik, SEXP eps);
+extern SEXP C_up_systematic(SEXP pik, SEXP eps);
+extern SEXP C_up_poisson(SEXP pik, SEXP prn);
+extern SEXP C_up_sps(SEXP pik, SEXP prn, SEXP eps);
+extern SEXP C_up_pareto(SEXP pik, SEXP prn, SEXP eps);
 extern SEXP C_cube(SEXP prob, SEXP X, SEXP eps);
 extern SEXP C_cube_batch(SEXP prob, SEXP X, SEXP eps, SEXP nrep);
 extern SEXP C_cube_stratified(SEXP prob, SEXP X, SEXP strata, SEXP eps);
@@ -35,6 +39,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"C_up_systematic_jip",     (DL_FUNC) &C_up_systematic_jip,     2},
     {"C_up_systematic_jip_sub", (DL_FUNC) &C_up_systematic_jip_sub, 3},
     {"C_high_entropy_jip",      (DL_FUNC) &C_high_entropy_jip,      2},
+    {"C_up_systematic",         (DL_FUNC) &C_up_systematic,         2},
+    {"C_up_poisson",            (DL_FUNC) &C_up_poisson,            2},
+    {"C_up_sps",                (DL_FUNC) &C_up_sps,                3},
+    {"C_up_pareto",             (DL_FUNC) &C_up_pareto,             3},
     {"C_cube",                  (DL_FUNC) &C_cube,                  3},
     {"C_cube_batch",            (DL_FUNC) &C_cube_batch,            4},
     {"C_cube_stratified",       (DL_FUNC) &C_cube_stratified,       4},

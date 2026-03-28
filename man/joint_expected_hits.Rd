@@ -41,24 +41,19 @@ with-replacement sampling design, where \eqn{n_k} is the number of
 times unit \eqn{k} is selected.
 }
 \details{
-The computation depends on the sampling method:
+The computation depends on the method:
 
 \describe{
-\item{Exact analytic}{\code{multinomial}
+\item{Exact}{\code{multinomial}
 (\eqn{E(n_i n_j) = n(n-1) p_i p_j}) and \code{srs}
 (\eqn{E(n_i n_j) = n(n-1)/N^2}).}
-\item{Simulation-based}{\code{chromy}: pairwise expectations are
-estimated by Monte Carlo simulation (controlled by the \code{nsim}
-parameter, default 10 000). Increase \code{nsim} for more precise
-estimates at the cost of computation time.}
+\item{Simulation}{\code{chromy}: estimated by Monte Carlo (controlled
+by \code{nsim}, default 10 000).}
 }
 
-When \code{sampled_only = TRUE}, the submatrix is indexed by population
-units that were selected at least once (i.e., units with
-\code{hits > 0}). All methods compute the n_s x n_s submatrix directly,
-avoiding the N x N allocation. For \code{chromy}, the simulation draws
-still iterate over the full population (O(N) per draw), but the
-accumulator is n_s x n_s.
+When \code{sampled_only = TRUE}, only the submatrix for units with
+\code{hits > 0} is returned. All methods compute it directly without
+allocating the full N x N matrix.
 }
 \examples{
 x <- c(40, 80, 50, 60, 70)

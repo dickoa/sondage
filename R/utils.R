@@ -5,7 +5,7 @@
 #' @param pik Vector to validate.
 #' @param allow_zero If TRUE, allow pik values of exactly 0. Default TRUE.
 #' @param allow_one If TRUE, allow pik values of exactly 1. Default TRUE.
-#' @param fixed_size If TRUE, ensure sample size is fixed .Default FALSE.
+#' @param fixed_size If TRUE, ensure sample size is fixed. Default FALSE.
 #' @param tol Tolerance for integer check.
 #'
 #' @return Invisibly returns TRUE if valid, otherwise stops with error.

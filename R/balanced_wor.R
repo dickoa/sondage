@@ -14,20 +14,20 @@
 #'   When `NULL`, only the sample size is balanced (equivalent to an
 #'   unbalanced fixed-size design).
 #' @param strata An optional integer vector (length N) of stratum
-#'   indicators (positive integers). When provided, uses the stratified
-#'   cube method (Chauvet & Tille, 2006; Chauvet, 2009) which preserves
-#'   within-stratum sample sizes while balancing on `aux`. Exact
-#'   preservation requires `sum(pik)` within each stratum to be close
-#'   to an integer; otherwise sizes will vary around the target and a
-#'   warning is issued and the design is marked as random-size
-#'   (`fixed_size = FALSE`), so batch replicates are returned as a list.
+#'   indicators (positive integers). Uses the stratified cube method
+#'   (Chauvet & Tille, 2006; Chauvet, 2009) to preserve within-stratum
+#'   sample sizes while balancing on `aux`. Requires `sum(pik)` within
+#'   each stratum to be close to an integer for exact sizes. If not, a
+#'   warning is issued and `fixed_size` is set to `FALSE`.
 #' @param method The sampling method. Currently only `"cube"`.
 #' @param nrep Number of replicate samples (default 1). When `nrep > 1`,
 #'   `$sample` holds a matrix (n x nrep) for fixed-size designs, or a
 #'   list of integer vectors when within-stratum sizes are not exact.
 #' @param ... Additional arguments passed to methods:
 #'   \describe{
-#'     \item{`eps`}{Boundary tolerance for deciding 0/1 (default `1e-10`).}
+#'     \item{`eps`}{Boundary tolerance for deciding 0/1 (default `1e-10`,
+#'       stricter than the `1e-6` used by other dispatchers because the
+#'       cube flight phase is sensitive to premature rounding).}
 #'     \item{`condition_aux`}{Logical; if `TRUE`, pre-conditions `aux` by
 #'       weighted centering/scaling and QR-pivot rank pruning to improve
 #'       numerical stability with ill-conditioned or collinear auxiliary

@@ -18,52 +18,31 @@ For fixed-size methods, \code{sum(pik)} must be close to an integer.}
 
 \item{method}{The sampling method:
 \describe{
-\item{\code{"cps"}}{Conditional Poisson Sampling (maximum entropy design;
-Chen, Dempster & Liu, 1994). Fixed sample size, exact first-order
-inclusion probabilities. Joint inclusion probabilities are exact
-(computed from the CPS design matrix); all \eqn{\pi_{ij} > 0}.
-Complexity: O(N^2).}
-\item{\code{"brewer"}}{Brewer's (1963) draw-by-draw method. Fixed sample
-size, exact first-order inclusion probabilities. Joint inclusion
-probabilities are \emph{approximated} via the high-entropy
-approximation (see \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}). Complexity: O(Nn).}
-\item{\code{"systematic"}}{Systematic PPS sampling. Fixed sample size,
-exact first-order inclusion probabilities. Joint inclusion
-probabilities are exact but \strong{some may be zero} (pairs of
-units that can never co-occur in the same systematic sample).
-This makes the Sen-Yates-Grundy variance estimator inapplicable;
-see \code{\link[=sampling_cov]{sampling_cov()}}. Complexity: O(N).}
-\item{\code{"poisson"}}{Poisson sampling. \strong{Random} sample size
-(expected size \eqn{n = \sum \pi_k}). Each unit is selected
-independently with probability \eqn{\pi_k}, so joint inclusion
-probabilities are exact: \eqn{\pi_{ij} = \pi_i \pi_j}.
-Supports PRN for sample coordination. Complexity: O(N).
-Note: the realized sample size varies across draws and may
-occasionally be zero, particularly when inclusion probabilities
-are small.}
+\item{\code{"cps"}}{Conditional Poisson Sampling (maximum entropy;
+Chen et al., 1994). Fixed size, exact joint probabilities
+with all \eqn{\pi_{ij} > 0}. O(N^2).}
+\item{\code{"brewer"}}{Brewer's (1975) draw-by-draw method. Fixed
+size, approximate joint probabilities (high-entropy
+approximation; see \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}). O(Nn).}
+\item{\code{"systematic"}}{Systematic PPS. Fixed size, exact joint
+probabilities but \strong{some may be zero} (pairs that never
+co-occur), making the SYG estimator inapplicable; see
+\code{\link[=sampling_cov]{sampling_cov()}}. O(N).}
+\item{\code{"poisson"}}{Poisson sampling. \strong{Random} sample
+size (expected \eqn{n = \sum \pi_k}). Units selected
+independently, so \eqn{\pi_{ij} = \pi_i \pi_j}. Supports
+PRN. O(N).}
 \item{\code{"sps"}}{Sequential Poisson Sampling (Ohlsson, 1998).
-Implemented as order sampling (Rosen, 1997) with ranking key
-\eqn{\xi_k = u_k / \pi_k}: the \eqn{n} units with the smallest
-\eqn{\xi_k} are selected. This is equivalent to Ohlsson's
-sequential threshold adjustment. Fixed sample size, high-entropy
-design. Supports PRN for sample coordination. Design objects store
-the supplied \code{pik} as the design-defining target vector; see
-\code{\link[=inclusion_prob]{inclusion_prob()}}. The true finite-population first-order inclusion
-probabilities are approximately (not exactly) equal to that target
-for finite populations. Joint inclusion probabilities are
-\emph{approximated} via the high-entropy approximation.
-Complexity: O(N log N).}
-\item{\code{"pareto"}}{Pareto sampling (Rosen, 1997). Order sampling
-with odds-ratio ranking key
-\eqn{\xi_k = [u_k/(1-u_k)] / [\pi_k/(1-\pi_k)]}. Fixed sample
-size, high-entropy design. Supports PRN for sample coordination.
-Design objects store the supplied \code{pik} as the design-defining
-target vector; see \code{\link[=inclusion_prob]{inclusion_prob()}}. The true finite-population
-first-order inclusion probabilities are approximately (not exactly)
-equal to that target for finite populations. Joint inclusion
-probabilities are \emph{approximated} via the high-entropy
-approximation.
-Complexity: O(N log N).}
+Order sampling with key \eqn{\xi_k = u_k / \pi_k}; the
+\eqn{n} smallest are selected. Fixed size, high-entropy.
+Supports PRN. Approximate joint probabilities. The true
+first-order inclusion probabilities are approximately equal
+to the supplied \code{pik}; see \code{\link[=inclusion_prob]{inclusion_prob()}}.
+O(N log N).}
+\item{\code{"pareto"}}{Pareto sampling (Rosen, 1997). Order
+sampling with odds-ratio key
+\eqn{\xi_k = [u_k/(1-u_k)] / [\pi_k/(1-\pi_k)]}. Same
+properties as \code{"sps"}. O(N log N).}
 }}
 
 \item{nrep}{Number of replicate samples (default 1). When \code{nrep > 1},
@@ -119,12 +98,12 @@ dim(sim$sample)  # 2 x 1000
 
 }
 \references{
-Chen, S. X., Dempster, A. P., & Liu, J. S. (1994). Weighted finite
+Chen, X. H., Dempster, A. P., & Liu, J. S. (1994). Weighted finite
 population sampling to maximize entropy. \emph{Biometrika}, 81(3),
 457-469.
 
-Brewer, K.R.W. (1963). A model of systematic sampling with unequal
-probabilities. \emph{Australian Journal of Statistics}, 5, 5-13.
+Brewer, K.R.W. (1975). A simple procedure for sampling pi-ps wor.
+\emph{Australian Journal of Statistics}, 17(3), 166-172.
 
 Ohlsson, E. (1998). Sequential Poisson sampling. \emph{Journal of
 Official Statistics}, 14(2), 149-162.

@@ -26,33 +26,24 @@ ignored when \code{x} is a design object.}
 }
 \value{
 A numeric vector of inclusion probabilities. When applied to a
-design object, returns the stored design-defining \code{pik} vector
-(\emph{target} inclusion probabilities). For methods with exact
-first-order guarantees (\code{cps}, \code{brewer}, \code{systematic}, \code{poisson},
-\code{srs}, \code{bernoulli}, and \code{cube}), this equals the true first-order
-inclusion probabilities of the design. For order sampling methods
-(\code{sps}, \code{pareto}), the returned vector is the target \code{pik} used to
-define the design. For them, the true finite-population first-order inclusion
-probabilities are approximately, but not exactly, equal to that target,
-and the discrepancy vanishes as N grows.
+design object, returns the stored \code{pik} vector. For most methods
+this equals the true first-order inclusion probabilities. For
+order-sampling methods (\code{sps}, \code{pareto}), it is the target used
+to define the design; the true probabilities are approximately
+equal and converge as N grows.
 }
 \description{
 Compute inclusion probabilities from a size measure, or extract them
 from a without-replacement design object.
 }
 \details{
-When \code{x} is a numeric vector of size measures and \code{n} is provided,
-computes \strong{exact} inclusion probabilities via an iterative
-algorithm: initial probabilities \eqn{\pi_k = n x_k / \sum x_k} are
-computed, then any unit with \eqn{\pi_k \ge 1} is set to 1 (certainty
-selection) and the remaining probabilities are recomputed with a reduced
-\eqn{n}. This process repeats until all probabilities are in \eqn{[0, 1]}.
-The result always sums to exactly \eqn{n}.
-
-This differs from \code{\link[=expected_hits]{expected_hits()}}, which uses simple proportional
-allocation \eqn{n x_k / \sum x_k} without capping. Values can exceed 1.
-
-Negative values in \code{x} are treated as zero (with a warning).
+When \code{x} is a numeric vector and \code{n} is provided, computes inclusion
+probabilities via iterative capping: units with \eqn{\pi_k \ge 1}
+are set to 1 (certainty selections) and the remaining probabilities
+are recomputed with reduced \eqn{n}. The result sums to exactly
+\eqn{n}. This differs from \code{\link[=expected_hits]{expected_hits()}}, which does simple
+proportional allocation without capping. Negative values in \code{x}
+are treated as zero (with a warning).
 }
 \examples{
 # From size measures

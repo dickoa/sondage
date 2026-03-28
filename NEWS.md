@@ -1,4 +1,4 @@
-# sondage 0.7.5
+# sondage 0.8
 
 Initial CRAN release.
 
@@ -23,7 +23,7 @@ Five generics for variance estimation quantities:
 * `joint_expected_hits()` - N x N matrix of pairwise expectations E(n_i n_j) (WR). Exact analytic for multinomial and SRS and simulation-based for Chromy (`nsim` parameter). `sampled_only = TRUE` returns only the submatrix for selected units.
 * `sampling_cov()` - Sampling covariance matrix. `weighted = TRUE` returns Sen-Yates-Grundy check quantities. `sampled_only = TRUE` computes only the submatrix for sampled units.
 
-## Sampling methods (13 total)
+## Sampling methods (13 built-in)
 
 | Method      | Dispatcher       | Fixed size | PRN | Joint probs         |
 |-------------|------------------|------------|-----|---------------------|
@@ -41,19 +41,28 @@ Five generics for variance estimation quantities:
 | multinomial | unequal_prob_wr  | yes        | no  | Exact               |
 | cube        | balanced_wor     | yes        | no  | HE approximation    |
 
+## Custom method registration
+
+* `register_method()` lets users plug custom unequal-probability sampling
+  algorithms into the existing dispatchers and generics. Registered methods
+  work with `unequal_prob_wor()`, `unequal_prob_wr()`, `joint_inclusion_prob()`,
+  `sampling_cov()`, batch mode (`nrep`), and all downstream tooling.
+* Helper functions `registered_methods()`, `is_registered_method()`, and
+  `unregister_method()` manage the registry.
+* New vignette "Extending sondage with Custom Methods" with worked examples
+  (Sampford's method with high-entropy joint probabilities, wrapping
+  `sampling::UPtille`).
+
 ## Features
 
 * All functions return design objects usable with `s$sample`, `s$pik`, `s$hits`, etc.
 * Batch sampling via `nrep` argument for Monte Carlo simulations. Fixed-size designs return a matrix; random-size designs return a list.
 * Permanent random numbers (`prn`) for sample coordination (Bernoulli, Poisson, SPS, Pareto).
-* C implementations for CPS calibration and sampling, Brewer's draw-by-draw, Chromy's sequential PPS, systematic PPS joint probabilities, high-entropy joint probabilities, cube flight/landing phases, and inclusion probability capping.
+* C implementations for all sampling algorithms.
 * CPS batch optimisation: the O(N^2) design matrix is computed once, then each replicate is a cheap sequential draw.
-* Cube batch optimisation: C-level batch entry points reuse the workspace allocation and the A = X/pi matrix across replicates, with precomputed X/pi helpers for stratified designs.
-* Cube auxiliary conditioning: `condition_aux = TRUE` pre-conditions `aux` by weighted centering/scaling and QR-pivot rank pruning, improving numerical stability with ill-conditioned or collinear auxiliary variables.
-* Stratified cube: within-stratum size constraints are preserved exactly when per-stratum `sum(pik)` is close to an integer; otherwise a warning is issued and the design is marked random-size.
-* High-entropy joint inclusion probabilities handle certainty units (pi_k = 1) correctly and clamp values to valid bounds. A warning is issued when the marginal defect exceeds 5% of n.
-* N-size guard: `joint_inclusion_prob()` and `joint_expected_hits()` refuse N > 10,000 to prevent accidental allocation of multi-GB dense matrices. `sampled_only = TRUE` bypasses this limit: all methods compute the n x n submatrix directly without allocating an N x N intermediate.
-* `sampling_cov(weighted = TRUE)` returns `NA` (not `NaN`) for undefined entries (zero joint probabilities or zero selection probabilities), with an informative warning.
+* Cube batch optimisation: C-level batch entry points reuse the workspace allocation across replicates.
+* Cube auxiliary conditioning: `condition_aux = TRUE` pre-conditions `aux` by weighted centering/scaling and QR-pivot rank pruning.
+* Stratified cube: within-stratum size constraints are preserved exactly when per-stratum `sum(pik)` is close to an integer.
+* High-entropy joint inclusion probabilities handle certainty units correctly and clamp values to valid bounds.
+* N-size guard: `joint_inclusion_prob()` and `joint_expected_hits()` refuse N > 10,000 to prevent accidental allocation of multi-GB dense matrices. `sampled_only = TRUE` bypasses this limit.
 * All long-running C loops call `R_CheckUserInterrupt()` so Ctrl-C works.
-* CPS calibration warns on non-convergence.
-* Brewer's denominator is clamped (not zeroed) for numerical safety with extreme inclusion probabilities.

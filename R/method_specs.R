@@ -55,12 +55,20 @@
 
 #' @noRd
 .method_supports_prn <- function(method, context) {
-  isTRUE(.get_builtin_spec(method, context)$prn)
+  spec <- .get_builtin_spec(method, context)
+  if (!is.null(spec)) return(isTRUE(spec$prn))
+  reg <- .method_registry[[method]]
+  if (!is.null(reg)) return(isTRUE(reg$supports_prn))
+  FALSE
 }
 
 #' @noRd
 .method_is_fixed_size <- function(method, context) {
-  isTRUE(.get_builtin_spec(method, context)$fixed_size)
+  spec <- .get_builtin_spec(method, context)
+  if (!is.null(spec)) return(isTRUE(spec$fixed_size))
+  reg <- .method_registry[[method]]
+  if (!is.null(reg)) return(isTRUE(reg$fixed_size))
+  FALSE
 }
 
 # For sampling dispatch (dispatchers + batch helpers).

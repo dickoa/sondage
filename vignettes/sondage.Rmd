@@ -339,4 +339,8 @@ simulation in `joint_expected_hits()` (controlled by `nsim`, default 10 000).
 - **Systematic designs with $\pi_{ij} = 0$**: The SYG estimator is undefined. Use successive-differences, Hartley--Rao approximations, or replication methods.
 - **With-replacement designs** (Chromy, multinomial): Use the @hansen1943 estimator, or the generalised Horvitz--Thompson framework of @chromy2009 which unifies WOR and WR variance estimation via `sampling_cov()`.
 
+## Extending sondage
+
+`register_method()` lets you plug custom unequal-probability sampling algorithms into the existing dispatchers and generics. Registered methods work with `unequal_prob_wor()`, `joint_inclusion_prob()`, `sampling_cov()`, batch mode, and all downstream tooling. See `vignette("custom-methods")` for worked examples.
+
 ## References

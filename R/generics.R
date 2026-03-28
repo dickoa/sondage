@@ -10,15 +10,11 @@
 #' @param ... Additional arguments (currently unused).
 #'
 #' @return A numeric vector of inclusion probabilities. When applied to a
-#'   design object, returns the stored design-defining `pik` vector
-#'   (\emph{target} inclusion probabilities). For methods with exact
-#'   first-order guarantees (`cps`, `brewer`, `systematic`, `poisson`,
-#'   `srs`, `bernoulli`, and `cube`), this equals the true first-order
-#'   inclusion probabilities of the design. For order sampling methods
-#'   (`sps`, `pareto`), the returned vector is the target `pik` used to
-#'   define the design. For them, the true finite-population first-order inclusion
-#'   probabilities are approximately, but not exactly, equal to that target,
-#'   and the discrepancy vanishes as N grows.
+#'   design object, returns the stored `pik` vector. For most methods
+#'   this equals the true first-order inclusion probabilities. For
+#'   order-sampling methods (`sps`, `pareto`), it is the target used
+#'   to define the design; the true probabilities are approximately
+#'   equal and converge as N grows.
 #'
 #' @seealso [expected_hits()] for the with-replacement analogue,
 #'   [unequal_prob_wor()] for sampling with these probabilities.
@@ -57,18 +53,13 @@ inclusion_prob.wr <- function(x, ...) {
 #' @rdname inclusion_prob
 #'
 #' @details
-#' When `x` is a numeric vector of size measures and `n` is provided,
-#' computes \strong{exact} inclusion probabilities via an iterative
-#' algorithm: initial probabilities \eqn{\pi_k = n x_k / \sum x_k} are
-#' computed, then any unit with \eqn{\pi_k \ge 1} is set to 1 (certainty
-#' selection) and the remaining probabilities are recomputed with a reduced
-#' \eqn{n}. This process repeats until all probabilities are in \eqn{[0, 1]}.
-#' The result always sums to exactly \eqn{n}.
-#'
-#' This differs from [expected_hits()], which uses simple proportional
-#' allocation \eqn{n x_k / \sum x_k} without capping. Values can exceed 1.
-#'
-#' Negative values in `x` are treated as zero (with a warning).
+#' When `x` is a numeric vector and `n` is provided, computes inclusion
+#' probabilities via iterative capping: units with \eqn{\pi_k \ge 1}
+#' are set to 1 (certainty selections) and the remaining probabilities
+#' are recomputed with reduced \eqn{n}. The result sums to exactly
+#' \eqn{n}. This differs from [expected_hits()], which does simple
+#' proportional allocation without capping. Negative values in `x`
+#' are treated as zero (with a warning).
 #'
 #' @examples
 #' # With certainty selections (large units)
@@ -134,7 +125,8 @@ inclusion_prob.default <- function(x, n, ...) {
 #'   ignored when `x` is a design object.
 #' @param ... Additional arguments (currently unused).
 #'
-#' @return A numeric vector of expected hits (may exceed 1 for WR designs).
+#' @return A numeric vector of expected hits. Values can exceed 1 for
+#'   with-replacement designs.
 #'
 #' @seealso [inclusion_prob()] for the without-replacement analogue,
 #'   [unequal_prob_wr()] for sampling with expected hits.
@@ -220,63 +212,36 @@ expected_hits.wor <- function(x, ...) {
 #'   for boundary tolerance).
 #'
 #' @details
-#' The computation depends on the sampling method stored in the design
-#' object. Not all methods yield exact joint probabilities:
+#' The computation depends on the method stored in the design object:
 #'
 #' \describe{
-#'   \item{Exact (up to numerical precision)}{`cps` (from the CPS design
-#'     matrix via Aires' formula and elementary symmetric polynomials),
-#'     `systematic` (combinatorial enumeration via C code), `poisson`
-#'     (\eqn{\pi_{ij} = \pi_i \pi_j}, independent selections),
-#'     `srs`, and `bernoulli`.}
-#'   \item{Approximation}{`brewer`, `sps`, `pareto`, and `cube` use the
-#'     \strong{high-entropy approximation} (Brewer & Donadio, 2003,
-#'     eq. 18):
-#'     \eqn{\pi_{ij} \approx \pi_i \pi_j (c_i + c_j) / 2}
-#'     where \eqn{c_k = (n-1) / (n - (2n-1)\pi_k/(n-1) +
-#'     \sum_l \pi_l^2/(n-1))}.
-#'     This approximation guarantees symmetry,
+#'   \item{Exact}{`cps` (elementary symmetric polynomials),
+#'     `systematic` (combinatorial enumeration), `poisson`
+#'     (\eqn{\pi_{ij} = \pi_i \pi_j}), `srs`, and `bernoulli`.}
+#'   \item{Approximate}{`brewer`, `sps`, `pareto`, and `cube` use the
+#'     high-entropy approximation (Brewer & Donadio, 2003, eq. 18):
+#'     \eqn{\pi_{ij} \approx \pi_i \pi_j (c_i + c_j) / 2}.
+#'     This guarantees symmetry,
 #'     \eqn{0 \leq \pi_{ij} \leq \min(\pi_i, \pi_j)}, and correct
-#'     diagonal (\eqn{\pi_{ii} = \pi_i}), but does \strong{not}
-#'     guarantee the fixed-size marginal identity
-#'     \eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}. The marginal
-#'     defect is typically small for well-spread inclusion
-#'     probabilities but can become non-trivial for highly skewed
-#'     \eqn{\pi_k} vectors, especially when \eqn{n} is small
-#'     (e.g. \eqn{n = 2}). A warning is issued when the defect
-#'     exceeds 5\% of \eqn{n}. Use `method = "cps"` when exact (up to
-#'     numerical precision) second-order inclusion probabilities are
-#'     required. For `sps` and `pareto`, the approximation is built from the
-#'     stored target `pik` vector returned by [inclusion_prob()], not from the
-#'     unknown exact finite-population first-order inclusion probabilities.}
+#'     diagonal, but \strong{not} the marginal identity
+#'     \eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}. The defect is
+#'     typically small but grows with skewed \eqn{\pi_k} and small
+#'     \eqn{n}. A warning is issued when it exceeds 5\% of \eqn{n}.
+#'     Use `method = "cps"` when exact second-order probabilities are
+#'     needed. For `sps` and `pareto`, the approximation uses the
+#'     stored target `pik`, not the exact finite-population
+#'     probabilities.}
 #' }
 #'
-#' For \strong{systematic PPS} sampling, some off-diagonal entries may be
-#' exactly zero (pairs of units that can never co-occur in the same
-#' systematic sample). This has consequences for variance estimation.
-#' See [sampling_cov()].
+#' For \strong{systematic PPS}, some off-diagonal entries may be
+#' exactly zero (pairs that never co-occur). See [sampling_cov()].
 #'
 #' When `sampled_only = TRUE`, only the n x n submatrix for sampled
-#' units is returned. For methods using the high-entropy approximation
-#' (`brewer`, `sps`, `pareto`, `cube`), the \eqn{c_k} coefficients are
-#' computed from the full population \eqn{\pi_k} vector (O(N)), but only
-#' the sampled pairs are assembled into a matrix (O(n^2)), avoiding the
-#' O(N^2) allocation entirely. Similarly, `poisson`, `bernoulli`, and
-#' `srs` compute the n x n matrix directly. These methods can therefore
-#' handle arbitrarily large N (e.g. N = 50 000 with n = 200).
-#'
-#' For `systematic`, the C code computes the interval structure from
-#' the full population (O(N log N)) but builds the indicator matrix
-#' only for sampled units (O(n x N) instead of O(N^2)) and the pair
-#' loop is O(n^2 x N) instead of O(N^3), so large N is feasible.
-#'
-#' For `cps`, the Newton calibration and elementary symmetric
-#' polynomials are computed from the full population (O(N x n)),
-#' but only the sampled pairs are evaluated in the pair loop
-#' (O(n^2) with Aires' formula), so large N is feasible.
-#'
-#' The marginal defect diagnostic is skipped when `sampled_only = TRUE`
-#' because the row-sum identity only holds for the full matrix.
+#' units is returned. All methods compute this directly without
+#' allocating the full N x N matrix, so large N is feasible
+#' (e.g. N = 50 000 with n = 200). The marginal defect diagnostic
+#' is skipped because the row-sum identity only holds for the full
+#' matrix.
 #'
 #' @return A symmetric N x N matrix (or n x n if `sampled_only = TRUE`)
 #'   of joint inclusion probabilities. Diagonal entries are the
@@ -381,7 +346,9 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
         diag(J) <- p
         J
       },
-      .stop_no_joint(x$method, "joint_inclusion_prob")
+      .registered_joint_or_stop(
+        x$method, pik, sample_idx, "joint_inclusion_prob", ...
+      )
     )
   } else {
     pikl <- switch(
@@ -404,7 +371,9 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
         diag(J) <- p
         J
       },
-      .stop_no_joint(x$method, "joint_inclusion_prob")
+      .registered_joint_or_stop(
+        x$method, pik, NULL, "joint_inclusion_prob", ...
+      )
     )
 
     # Marginal defect diagnostic for high-entropy approximation
@@ -467,24 +436,19 @@ joint_inclusion_prob.default <- function(x, ...) {
 #'   for simulation-based methods).
 #'
 #' @details
-#' The computation depends on the sampling method:
+#' The computation depends on the method:
 #'
 #' \describe{
-#'   \item{Exact analytic}{`multinomial`
+#'   \item{Exact}{`multinomial`
 #'     (\eqn{E(n_i n_j) = n(n-1) p_i p_j}) and `srs`
 #'     (\eqn{E(n_i n_j) = n(n-1)/N^2}).}
-#'   \item{Simulation-based}{`chromy`: pairwise expectations are
-#'     estimated by Monte Carlo simulation (controlled by the `nsim`
-#'     parameter, default 10 000). Increase `nsim` for more precise
-#'     estimates at the cost of computation time.}
+#'   \item{Simulation}{`chromy`: estimated by Monte Carlo (controlled
+#'     by `nsim`, default 10 000).}
 #' }
 #'
-#' When `sampled_only = TRUE`, the submatrix is indexed by population
-#' units that were selected at least once (i.e., units with
-#' `hits > 0`). All methods compute the n_s x n_s submatrix directly,
-#' avoiding the N x N allocation. For `chromy`, the simulation draws
-#' still iterate over the full population (O(N) per draw), but the
-#' accumulator is n_s x n_s.
+#' When `sampled_only = TRUE`, only the submatrix for units with
+#' `hits > 0` is returned. All methods compute it directly without
+#' allocating the full N x N matrix.
 #'
 #' @return A symmetric N x N matrix (or n_s x n_s if
 #'   `sampled_only = TRUE`, where n_s is the number of distinct
@@ -590,7 +554,9 @@ joint_expected_hits.wr <- function(
         diag(pikl) <- n * p * (1 - p) + (n * p)^2
         pikl
       },
-      .stop_no_joint(x$method, "joint_expected_hits")
+      .registered_joint_or_stop(
+        x$method, prob, sample_idx, "joint_expected_hits", ...
+      )
     )
   } else {
     switch(
@@ -615,7 +581,9 @@ joint_expected_hits.wr <- function(
         diag(pikl) <- n * p * (1 - p) + (n * p)^2
         pikl
       },
-      .stop_no_joint(x$method, "joint_expected_hits")
+      .registered_joint_or_stop(
+        x$method, prob, NULL, "joint_expected_hits", ...
+      )
     )
   }
 }
@@ -665,33 +633,19 @@ joint_expected_hits.default <- function(x, ...) {
 #'   [joint_expected_hits()].
 #'
 #' @details
-#' \strong{Exact vs. approximate joint probabilities.}
-#' The accuracy of the covariance matrix depends on the accuracy of
-#' the underlying joint probabilities. For `cps`, `systematic`, `poisson`,
-#' `srs`, and `bernoulli`, the joint probabilities are exact and so is
-#' the covariance matrix. For `brewer`, `sps`, and `pareto`, the joint
-#' probabilities are based on the high-entropy approximation, so the
-#' covariance matrix is also approximate. For `sps` and `pareto`, this
-#' approximation is built from the stored target `pik` vector, not from the
-#' exact finite-population first-order inclusion probabilities. For `chromy`,
-#' the pairwise expectations are simulation-based (controlled by `nsim`).
-#' See [joint_inclusion_prob()] and [joint_expected_hits()] for details.
+#' Accuracy depends on the underlying joint probabilities. For `cps`,
+#' `systematic`, `poisson`, `srs`, and `bernoulli`, joint probabilities
+#' are exact and so is the covariance. For `brewer`, `sps`, `pareto`,
+#' and `cube`, they use the high-entropy approximation. For `chromy`,
+#' they are simulation-based (see `nsim`). See [joint_inclusion_prob()]
+#' and [joint_expected_hits()].
 #'
-#' \strong{Zero joint inclusion probabilities.}
-#' Some designs (notably systematic PPS) can produce \eqn{\pi_{ij} = 0}
-#' for pairs of units that never co-occur in the same sample. When
-#' `weighted = TRUE`, the quantity \eqn{1 - \pi_i \pi_j / \pi_{ij}} is
-#' undefined for such pairs. These entries are set to `NA` and a
-#' warning is issued. The raw covariance (`weighted = FALSE`) is
-#' unaffected, since \eqn{\Delta_{ij} = 0 - \pi_i \pi_j} is finite.
-#'
-#' \strong{Implications for variance estimation.}
-#' The Sen-Yates-Grundy variance estimator requires all pairwise
-#' \eqn{\pi_{ij} > 0} in the observed sample. It is not applicable for
-#' designs with zero joint probabilities (a well-known limitation;
-#' see Tille, 2006, Ch. 5). Consider alternative variance estimators
-#' for such designs, e.g. successive-differences or Hartley-Rao
-#' approximations.
+#' Some designs (notably systematic PPS) produce \eqn{\pi_{ij} = 0} for
+#' pairs that never co-occur. When `weighted = TRUE`, the SYG quantity
+#' \eqn{1 - \pi_i \pi_j / \pi_{ij}} is undefined for such pairs and
+#' set to `NA` with a warning. The raw covariance (`weighted = FALSE`)
+#' is unaffected. The Sen-Yates-Grundy estimator is not applicable
+#' for these designs (Tille, 2006, Ch. 5).
 #'
 #' @return A symmetric N x N matrix (or n x n if `sampled_only = TRUE`).
 #'   For WOR designs with `weighted = FALSE`, off-diagonal entries are
@@ -701,7 +655,8 @@ joint_expected_hits.default <- function(x, ...) {
 #'
 #' @references
 #' Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson
-#'   estimator. \emph{Memorial JSM}.
+#'   estimator. \emph{Proceedings of the Survey Research Methods Section,
+#'   American Statistical Association}.
 #'
 #' Tille, Y. (2006). \emph{Sampling Algorithms}. Springer.
 #'

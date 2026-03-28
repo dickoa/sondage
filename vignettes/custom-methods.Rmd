@@ -1,0 +1,284 @@
+---
+title: "Extending sondage with Custom Methods"
+output: rmarkdown::html_vignette
+bibliography: references.bib
+vignette: >
+  %\VignetteIndexEntry{Extending sondage with Custom Methods}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+
+## Overview
+
+`sondage` ships with 12 built-in sampling methods, but researchers and agencies often need algorithms that are not included. The registration API lets you plug a custom unequal probability sampling method into the existing dispatchers and generics without modifying the package source.
+
+After registering a method, it works everywhere a built-in method works: `unequal_prob_wor()`, `joint_inclusion_prob()`, `sampling_cov()`, batch mode (`nrep`), etc.
+
+## The registration API
+
+A single call to `register_method()` adds a new method:
+
+```r
+library(sondage)
+register_method(
+  name,                   # unique method name (character)
+  type = "wor",           # "wor" or "wr"
+  sample_fn,              # function(pik, n, prn, ...) -> integer indices
+  joint_fn = NULL,        # function(pik, sample_idx, ...) -> matrix (optional)
+  fixed_size = TRUE,      # does the method always return exactly n units?
+  supports_prn = FALSE    # does the method support permanent random numbers?
+)
+```
+
+Two contracts must be respected:
+
+- **`sample_fn(pik, n = NULL, prn = NULL, ...)`** receives the inclusion probability vector and returns an integer vector of selected unit indices (1-based).
+- **`joint_fn(pik, sample_idx = NULL, ...)`** (optional) returns an $N \times N$ joint inclusion probability matrix when `sample_idx` is `NULL`, or a submatrix for the given indices when it is not.
+
+Helper functions `registered_methods()`, `is_registered_method()`, and `unregister_method()` manage the registry.
+
+## Example 1: Sampford's method with high-entropy joint probabilities
+
+Sampford's [-@sampford1967] rejection procedure draws exact $\pi$ps samples. The first unit is drawn with probability proportional to $\pi_k$; the remaining $n - 1$ units are drawn independently with replacement, each with probability proportional to $\pi_k / (1 -\pi_k)$. The draw is accepted only when all $n$ units are distinct.
+
+```{r sampford-fn}
+sampford_sample <- function(pik, n = NULL, prn = NULL, ...) {
+  N <- length(pik)
+  if (n == 1L) {
+    return(sample.int(N, 1L, prob = pik))
+  }
+  q <- pik / (1 - pik)
+  repeat {
+    first <- sample.int(N, 1L, prob = pik)
+    rest  <- sample.int(N, n - 1L, replace = TRUE, prob = q)
+    s <- c(first, rest)
+    if (anyDuplicated(s) == 0L)
+      return(sort(s))
+  }
+}
+```
+
+The acceptance rate decreases as $n / N$ grows, so this implementation is best suited for moderate sampling fractions.
+
+### High-entropy approximation for joint probabilities
+
+Sampford's design is a high-entropy design, so the high-entropy (HE) approximation of @brewer2003 applies:
+
+$$
+\pi_{ij} \approx \pi_i\, \pi_j \; \frac{c_i + c_j}{2}
+$$
+
+where $c_k = \frac{n - 1}{n - \frac{2n-1}{n-1}\,\pi_k +
+\frac{\sum_\ell \pi_\ell^2}{n-1}}$ and $n = \sum_k \pi_k$.
+
+We can write this directly in `R`:
+
+```{r he-joint-fn}
+he_joint <- function(pik, sample_idx = NULL, ...) {
+  n   <- sum(pik)
+  nm1 <- n - 1
+  S2  <- sum(pik^2)
+
+  ck <- nm1 / (n - (2 * n - 1) / nm1 * pik + S2 / nm1)
+
+  pikl <- outer(pik, pik) * (outer(ck, ck, "+") / 2)
+  pikl <- pmin(pikl, outer(pik, pik, pmin))   # upper bound
+  pikl[pikl < 0] <- 0                          # lower bound
+  diag(pikl) <- pik
+
+  if (!is.null(sample_idx)) {
+    pikl <- pikl[sample_idx, sample_idx, drop = FALSE]
+  }
+  pikl
+}
+```
+
+This is the same formula used internally by `sondage` for Brewer, SPS, and Pareto methods.
+
+### Registering and using Sampford's method
+
+```{r sampford-register}
+library(sondage)
+
+register_method(
+  "sampford",
+  type       = "wor",
+  sample_fn  = sampford_sample,
+  joint_fn   = he_joint,
+  fixed_size = TRUE
+)
+```
+
+Once registered, the method is available through the standard
+dispatcher:
+
+```{r sampford-use}
+pik <- inclusion_prob(c(2, 3, 4, 5, 6, 7, 8, 9), n = 4)
+pik
+
+s <- unequal_prob_wor(pik, method = "sampford")
+s
+```
+
+All generics work transparently:
+
+```{r sampford-generics}
+# Joint inclusion probabilities
+pikl <- joint_inclusion_prob(s)
+round(pikl, 4)
+
+# Sampling covariance (Sen-Yates-Grundy check quantities)
+round(sampling_cov(s, weighted = TRUE), 4)
+
+# sampled_only for large populations
+joint_inclusion_prob(s, sampled_only = TRUE)
+```
+
+### Verifying with simulation
+
+We can check that the empirical inclusion frequencies match the
+target $\pi_k$ and that the empirical pairwise frequencies match
+the HE approximation.
+
+```{r sampford-verify}
+sim <- unequal_prob_wor(pik, method = "sampford", nrep = 5000)
+dim(sim$sample) # n x nrep
+
+# First-order: empirical vs target
+freq <- tabulate(sim$sample, nbins = length(pik)) / 5000
+cbind(target = pik, empirical = freq)
+```
+
+```{r sampford-verify-joint}
+# Second-order: empirical vs HE approximation
+N <- length(pik)
+co_occur <- matrix(0, N, N)
+for (j in seq_len(5000)) {
+  idx <- sim$sample[, j]
+  co_occur[idx, idx] <- co_occur[idx, idx] + 1
+}
+diag(co_occur) <- 0
+empirical_jip <- co_occur / 5000
+diag(empirical_jip) <- freq
+
+he_pikl <- he_joint(pik)
+
+# Compare a few off-diagonal pairs
+pairs <- data.frame(
+  i      = c(1, 2, 3, 5),
+  j      = c(8, 7, 6, 8),
+  HE     = round(sapply(1:4, \(k) he_pikl[c(1,2,3,5)[k], c(8,7,6,8)[k]]), 4),
+  empirical = round(sapply(1:4, \(k) empirical_jip[c(1,2,3,5)[k], c(8,7,6,8)[k]]), 4)
+)
+pairs
+```
+
+The HE approximation is close because Sampford's design is itself
+maximum-entropy.
+
+```{r sampford-cleanup, include = FALSE}
+unregister_method("sampford")
+```
+
+
+## Example 2: Wrapping an external package (sampling::UPtille)
+
+When an algorithm is already implemented in another package, the
+wrapper is minimal. Here we wrap `UPtille` and `UPtillepi2` from the
+**sampling** package [@tille2006].
+
+```{r tille, eval = requireNamespace("sampling", quietly = TRUE)}
+tille_sample <- function(pik, n = NULL, prn = NULL, ...) {
+  which(as.logical(sampling::UPtille(pik)))
+}
+
+tille_joint <- function(pik, sample_idx = NULL, ...) {
+  pikl <- sampling::UPtillepi2(pik)
+  if (!is.null(sample_idx)) {
+    pikl <- pikl[sample_idx, sample_idx, drop = FALSE]
+  }
+  pikl
+}
+
+register_method(
+  "tille",
+  type       = "wor",
+  sample_fn  = tille_sample,
+  joint_fn   = tille_joint,
+  fixed_size = TRUE
+)
+
+pik <- inclusion_prob(c(2, 3, 4, 5, 6, 7, 8, 9), n = 4)
+s <- unequal_prob_wor(pik, method = "tille")
+s
+
+# Exact joint inclusion probabilities from UPtillepi2
+round(joint_inclusion_prob(s), 4)
+
+# Full variance estimation chain
+round(sampling_cov(s), 4)
+```
+
+```{r tille-cleanup, include = FALSE, eval = requireNamespace("sampling", quietly = TRUE)}
+unregister_method("tille")
+```
+
+
+## Writing a `joint_fn`
+
+A `joint_fn` is optional but enables `joint_inclusion_prob()`,
+`joint_expected_hits()`, and `sampling_cov()`. Three common
+strategies:
+
+1. **Exact formula.** When the design has a known closed form
+   (e.g., `UPtillepi2` above).
+
+2. **High-entropy approximation.** When the design is close to
+   maximum entropy but no exact formula exists. The HE formula
+   shown above is a good default.
+
+3. **Monte Carlo estimation.** Resample $B$ times and estimate
+   $\hat{\pi}_{ij} = B^{-1} \sum_{b=1}^B I(i \in S_b)\, I(j \in S_b)$.
+   Slow but universal:
+
+```{r mc-joint, eval = FALSE}
+mc_joint <- function(pik, sample_idx = NULL, ..., B = 5000) {
+  N <- length(pik)
+  n <- as.integer(round(sum(pik)))
+  co <- matrix(0, N, N)
+  for (b in seq_len(B)) {
+    s <- my_sampler(pik, n = n)
+    co[s, s] <- co[s, s] + 1
+  }
+  pikl <- co / B
+  diag(pikl) <- tabulate(unlist(
+    replicate(B, my_sampler(pik, n = n), simplify = FALSE)
+  ), nbins = N) / B
+  if (!is.null(sample_idx)) {
+    pikl <- pikl[sample_idx, sample_idx, drop = FALSE]
+  }
+  pikl
+}
+```
+
+The `sample_idx` argument enables the `sampled_only = TRUE` path
+in `joint_inclusion_prob()`. When `sample_idx` is non-NULL, you
+may either (a) compute the full matrix and subset as above, or
+(b) skip rows/columns not in `sample_idx` for efficiency.
+
+## Session persistence
+
+The registry lives in the package namespace and resets when
+`sondage` is reloaded. To make a registration persistent across
+sessions, place the `register_method()` call in your `.Rprofile` or
+in a project-level setup script.
+
+## References

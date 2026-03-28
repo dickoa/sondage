@@ -50,33 +50,19 @@ When \code{weighted = TRUE}, returns the Sen-Yates-Grundy check quantities:
 \eqn{1 - \pi_i \pi_j / \pi_{ij}} for WOR,
 \eqn{1 - E(n_i) E(n_j) / E(n_i n_j)} for WR.
 
-\strong{Exact vs. approximate joint probabilities.}
-The accuracy of the covariance matrix depends on the accuracy of
-the underlying joint probabilities. For \code{cps}, \code{systematic}, \code{poisson},
-\code{srs}, and \code{bernoulli}, the joint probabilities are exact and so is
-the covariance matrix. For \code{brewer}, \code{sps}, and \code{pareto}, the joint
-probabilities are based on the high-entropy approximation, so the
-covariance matrix is also approximate. For \code{sps} and \code{pareto}, this
-approximation is built from the stored target \code{pik} vector, not from the
-exact finite-population first-order inclusion probabilities. For \code{chromy},
-the pairwise expectations are simulation-based (controlled by \code{nsim}).
-See \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} and \code{\link[=joint_expected_hits]{joint_expected_hits()}} for details.
+Accuracy depends on the underlying joint probabilities. For \code{cps},
+\code{systematic}, \code{poisson}, \code{srs}, and \code{bernoulli}, joint probabilities
+are exact and so is the covariance. For \code{brewer}, \code{sps}, \code{pareto},
+and \code{cube}, they use the high-entropy approximation. For \code{chromy},
+they are simulation-based (see \code{nsim}). See \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}
+and \code{\link[=joint_expected_hits]{joint_expected_hits()}}.
 
-\strong{Zero joint inclusion probabilities.}
-Some designs (notably systematic PPS) can produce \eqn{\pi_{ij} = 0}
-for pairs of units that never co-occur in the same sample. When
-\code{weighted = TRUE}, the quantity \eqn{1 - \pi_i \pi_j / \pi_{ij}} is
-undefined for such pairs. These entries are set to \code{NA} and a
-warning is issued. The raw covariance (\code{weighted = FALSE}) is
-unaffected, since \eqn{\Delta_{ij} = 0 - \pi_i \pi_j} is finite.
-
-\strong{Implications for variance estimation.}
-The Sen-Yates-Grundy variance estimator requires all pairwise
-\eqn{\pi_{ij} > 0} in the observed sample. It is not applicable for
-designs with zero joint probabilities (a well-known limitation;
-see Tille, 2006, Ch. 5). Consider alternative variance estimators
-for such designs, e.g. successive-differences or Hartley-Rao
-approximations.
+Some designs (notably systematic PPS) produce \eqn{\pi_{ij} = 0} for
+pairs that never co-occur. When \code{weighted = TRUE}, the SYG quantity
+\eqn{1 - \pi_i \pi_j / \pi_{ij}} is undefined for such pairs and
+set to \code{NA} with a warning. The raw covariance (\code{weighted = FALSE})
+is unaffected. The Sen-Yates-Grundy estimator is not applicable
+for these designs (Tille, 2006, Ch. 5).
 }
 \examples{
 pik <- c(0.2, 0.3, 0.5)
@@ -94,7 +80,8 @@ sampling_cov(s, sampled_only = TRUE)
 }
 \references{
 Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson
-estimator. \emph{Memorial JSM}.
+estimator. \emph{Proceedings of the Survey Research Methods Section,
+American Statistical Association}.
 
 Tille, Y. (2006). \emph{Sampling Algorithms}. Springer.
 }

@@ -62,7 +62,8 @@ Chromy, J.R. (1979). Sequential sample selection methods.
 \emph{Proceedings of the Survey Research Methods Section, ASA}, 401-406.
 
 Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson
-estimator. \emph{Memorial JSM}.
+estimator. \emph{Proceedings of the Survey Research Methods Section,
+American Statistical Association}.
 }
 \seealso{
 \code{\link[=unequal_prob_wor]{unequal_prob_wor()}} for without-replacement designs,

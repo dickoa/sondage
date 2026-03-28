@@ -223,8 +223,8 @@ test_that("systematic rejects Inf inputs", {
 test_that("srs rejects NA inputs", {
   expect_error(equal_prob_wor(10, NA_real_), "non-negative")
   expect_error(equal_prob_wor(10, NA), "non-negative")
-  expect_error(equal_prob_wor(NA_real_, 3), "positive")
-  expect_error(equal_prob_wor(NA, 3), "positive")
+  expect_error(equal_prob_wor(NA_real_, 3), "must not be NA")
+  expect_error(equal_prob_wor(NA, 3), "single number")
 })
 
 test_that("systematic rejects NA inputs", {
@@ -233,8 +233,8 @@ test_that("systematic rejects NA inputs", {
     "non-negative"
   )
   expect_error(equal_prob_wor(10, NA, method = "systematic"), "non-negative")
-  expect_error(equal_prob_wor(NA_real_, 3, method = "systematic"), "positive")
-  expect_error(equal_prob_wor(NA, 3, method = "systematic"), "positive")
+  expect_error(equal_prob_wor(NA_real_, 3, method = "systematic"), "must not be NA")
+  expect_error(equal_prob_wor(NA, 3, method = "systematic"), "single number")
 })
 
 test_that("bernoulli rejects NA inputs", {
@@ -243,8 +243,8 @@ test_that("bernoulli rejects NA inputs", {
     "non-negative"
   )
   expect_error(equal_prob_wor(100, NA, method = "bernoulli"), "non-negative")
-  expect_error(equal_prob_wor(NA_real_, 50, method = "bernoulli"), "positive")
-  expect_error(equal_prob_wor(NA, 50, method = "bernoulli"), "positive")
+  expect_error(equal_prob_wor(NA_real_, 50, method = "bernoulli"), "must not be NA")
+  expect_error(equal_prob_wor(NA, 50, method = "bernoulli"), "single number")
 })
 
 test_that("srs rejects non-integer n", {

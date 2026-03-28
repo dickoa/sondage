@@ -2,7 +2,7 @@
  * Conditional Poisson Sampling (CPS)
  *
  * References:
- * - Chen, S.X., Dempster, A.P., Liu, J.S. (1994)
+ * - Chen, X.H., Dempster, A.P., Liu, J.S. (1994)
  * - Tillé, Y. (2006). Sampling Algorithms. Springer.
  */
 

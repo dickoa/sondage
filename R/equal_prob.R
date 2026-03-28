@@ -142,8 +142,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 
 #' @noRd
 .srs_wor_sample <- function(N, n, ...) {
-  .check_ep_args(N, n, replace = FALSE)
-  N <- check_integer(N, "N")
+  N <- .check_ep_args(N, n, replace = FALSE)
   n <- check_integer(n, "n")
 
   if (n == 0L) {
@@ -165,8 +164,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 
 #' @noRd
 .systematic_ep_sample <- function(N, n, ...) {
-  .check_ep_args(N, n, replace = FALSE)
-  N <- check_integer(N, "N")
+  N <- .check_ep_args(N, n, replace = FALSE)
   n <- check_integer(n, "n")
 
   if (n == 0L) {
@@ -190,9 +188,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 
 #' @noRd
 .bernoulli_sample <- function(N, n, prn = NULL, ...) {
-  # Reuse shared N/n validation; replace = TRUE since n = N is valid (p = 1)
-  .check_ep_args(N, n, replace = TRUE)
-  N <- check_integer(N, "N")
+  N <- .check_ep_args(N, n, replace = TRUE)
   if (n > N) {
     stop("'n' cannot exceed 'N'", call. = FALSE)
   }
@@ -219,8 +215,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 
 #' @noRd
 .srs_wr_sample <- function(N, n, ...) {
-  .check_ep_args(N, n, replace = TRUE)
-  N <- check_integer(N, "N")
+  N <- .check_ep_args(N, n, replace = TRUE)
   n <- check_integer(n, "n")
 
   prob <- rep(1 / N, N)
@@ -246,7 +241,8 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 
 #' @noRd
 .check_ep_args <- function(N, n, replace = FALSE) {
-  if (!is.numeric(N) || length(N) != 1 || is.na(N) || N < 1) {
+  N <- check_integer(N, "N")
+  if (N < 1L) {
     stop("'N' must be a positive integer", call. = FALSE)
   }
   if (!is.numeric(n) || length(n) != 1 || is.na(n) || n < 0) {
@@ -258,7 +254,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
       call. = FALSE
     )
   }
-  invisible(TRUE)
+  N
 }
 
 #' @noRd

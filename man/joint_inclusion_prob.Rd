@@ -39,63 +39,36 @@ Computes the matrix of joint inclusion probabilities
 without-replacement sampling design.
 }
 \details{
-The computation depends on the sampling method stored in the design
-object. Not all methods yield exact joint probabilities:
+The computation depends on the method stored in the design object:
 
 \describe{
-\item{Exact (up to numerical precision)}{\code{cps} (from the CPS design
-matrix via Aires' formula and elementary symmetric polynomials),
-\code{systematic} (combinatorial enumeration via C code), \code{poisson}
-(\eqn{\pi_{ij} = \pi_i \pi_j}, independent selections),
-\code{srs}, and \code{bernoulli}.}
-\item{Approximation}{\code{brewer}, \code{sps}, \code{pareto}, and \code{cube} use the
-\strong{high-entropy approximation} (Brewer & Donadio, 2003,
-eq. 18):
-\eqn{\pi_{ij} \approx \pi_i \pi_j (c_i + c_j) / 2}
-where \eqn{c_k = (n-1) / (n - (2n-1)\pi_k/(n-1) +
-    \sum_l \pi_l^2/(n-1))}.
-This approximation guarantees symmetry,
+\item{Exact}{\code{cps} (elementary symmetric polynomials),
+\code{systematic} (combinatorial enumeration), \code{poisson}
+(\eqn{\pi_{ij} = \pi_i \pi_j}), \code{srs}, and \code{bernoulli}.}
+\item{Approximate}{\code{brewer}, \code{sps}, \code{pareto}, and \code{cube} use the
+high-entropy approximation (Brewer & Donadio, 2003, eq. 18):
+\eqn{\pi_{ij} \approx \pi_i \pi_j (c_i + c_j) / 2}.
+This guarantees symmetry,
 \eqn{0 \leq \pi_{ij} \leq \min(\pi_i, \pi_j)}, and correct
-diagonal (\eqn{\pi_{ii} = \pi_i}), but does \strong{not}
-guarantee the fixed-size marginal identity
-\eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}. The marginal
-defect is typically small for well-spread inclusion
-probabilities but can become non-trivial for highly skewed
-\eqn{\pi_k} vectors, especially when \eqn{n} is small
-(e.g. \eqn{n = 2}). A warning is issued when the defect
-exceeds 5\\% of \eqn{n}. Use \code{method = "cps"} when exact (up to
-numerical precision) second-order inclusion probabilities are
-required. For \code{sps} and \code{pareto}, the approximation is built from the
-stored target \code{pik} vector returned by \code{\link[=inclusion_prob]{inclusion_prob()}}, not from the
-unknown exact finite-population first-order inclusion probabilities.}
+diagonal, but \strong{not} the marginal identity
+\eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}. The defect is
+typically small but grows with skewed \eqn{\pi_k} and small
+\eqn{n}. A warning is issued when it exceeds 5\\% of \eqn{n}.
+Use \code{method = "cps"} when exact second-order probabilities are
+needed. For \code{sps} and \code{pareto}, the approximation uses the
+stored target \code{pik}, not the exact finite-population
+probabilities.}
 }
 
-For \strong{systematic PPS} sampling, some off-diagonal entries may be
-exactly zero (pairs of units that can never co-occur in the same
-systematic sample). This has consequences for variance estimation.
-See \code{\link[=sampling_cov]{sampling_cov()}}.
+For \strong{systematic PPS}, some off-diagonal entries may be
+exactly zero (pairs that never co-occur). See \code{\link[=sampling_cov]{sampling_cov()}}.
 
 When \code{sampled_only = TRUE}, only the n x n submatrix for sampled
-units is returned. For methods using the high-entropy approximation
-(\code{brewer}, \code{sps}, \code{pareto}, \code{cube}), the \eqn{c_k} coefficients are
-computed from the full population \eqn{\pi_k} vector (O(N)), but only
-the sampled pairs are assembled into a matrix (O(n^2)), avoiding the
-O(N^2) allocation entirely. Similarly, \code{poisson}, \code{bernoulli}, and
-\code{srs} compute the n x n matrix directly. These methods can therefore
-handle arbitrarily large N (e.g. N = 50 000 with n = 200).
-
-For \code{systematic}, the C code computes the interval structure from
-the full population (O(N log N)) but builds the indicator matrix
-only for sampled units (O(n x N) instead of O(N^2)) and the pair
-loop is O(n^2 x N) instead of O(N^3), so large N is feasible.
-
-For \code{cps}, the Newton calibration and elementary symmetric
-polynomials are computed from the full population (O(N x n)),
-but only the sampled pairs are evaluated in the pair loop
-(O(n^2) with Aires' formula), so large N is feasible.
-
-The marginal defect diagnostic is skipped when \code{sampled_only = TRUE}
-because the row-sum identity only holds for the full matrix.
+units is returned. All methods compute this directly without
+allocating the full N x N matrix, so large N is feasible
+(e.g. N = 50 000 with n = 200). The marginal defect diagnostic
+is skipped because the row-sum identity only holds for the full
+matrix.
 }
 \examples{
 pik <- c(0.2, 0.3, 0.5)

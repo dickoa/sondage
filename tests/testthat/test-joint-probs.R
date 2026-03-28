@@ -659,7 +659,7 @@ test_that("cps jip is exact for certainty + equal valid units", {
 })
 
 test_that("cps jip row-sum identity holds for skewed pik", {
-  # Non-equal pik — verify the fix doesn't break the general case
+  # Non-equal pik - verify the fix doesn't break the general case
   pik <- tille_pik
   J <- joint_inclusion_prob(unequal_prob_wor(pik, method = "cps"))
   n <- sum(pik)

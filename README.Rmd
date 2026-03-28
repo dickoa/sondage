@@ -154,6 +154,35 @@ stored target `pik` vector. HE = high-entropy approximation.
 - Use `sps` or `pareto` as fast high-entropy order-sampling alternatives when approximate first- and second-order quantities are acceptable.
 - Use `cube` when balancing on auxiliary variables is more important than exact second-order inclusion probabilities.
 
+## Custom methods
+
+`register_method()` lets you plug any unequal-probability sampling algorithm
+into sondage's dispatchers and generics:
+
+```{r}
+# A simple Sampford wrapper
+sampford_sample <- function(pik, n = NULL, prn = NULL, ...) {
+  N <- length(pik)
+  q <- pik / (1 - pik)
+  repeat {
+    s <- c(sample.int(N, 1L, prob = pik),
+           sample.int(N, n - 1L, replace = TRUE, prob = q))
+    if (anyDuplicated(s) == 0L) return(sort(s))
+  }
+}
+
+register_method("sampford", type = "wor", sample_fn = sampford_sample)
+
+pik <- inclusion_prob(1:8, n = 3)
+s <- unequal_prob_wor(pik, method = "sampford")
+s
+
+unregister_method("sampford")
+```
+
+See `vignette("custom-methods")` for more examples, including how to provide
+a `joint_fn` for variance estimation.
+
 ## References
 
 Brewer, K.R.W. and Donadio, M.E. (2003). The High Entropy Variance of the Horvitz-Thompson Estimator. *Survey Methodology*, 29(2), 189-196.

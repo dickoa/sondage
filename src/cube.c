@@ -319,7 +319,7 @@ static void cube_update(CubeWorkspace *ws, int n_cand) {
 static void cube_flight(CubeWorkspace *ws) {
     int max_cand = ws->p + 1;
     double eps = ws->eps;
-    int max_iter = (ws->N > 46340) ? INT_MAX : ws->N * ws->N;  /* Safety limit */
+    int max_iter = (ws->N > 31622) ? 1000000000 : ws->N * ws->N;
     int iter = 0;
 
     while (ws->idx->len >= max_cand) {
@@ -347,7 +347,7 @@ static void cube_flight(CubeWorkspace *ws) {
 
 static void cube_landing(CubeWorkspace *ws) {
     double eps = ws->eps;
-    int max_iter = (ws->N > 46340) ? INT_MAX : ws->N * ws->N;  /* Safety limit */
+    int max_iter = (ws->N > 31622) ? 1000000000 : ws->N * ws->N;
     int iter = 0;
 
     while (ws->idx->len > 1) {

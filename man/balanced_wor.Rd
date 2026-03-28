@@ -18,13 +18,11 @@ When \code{NULL}, only the sample size is balanced (equivalent to an
 unbalanced fixed-size design).}
 
 \item{strata}{An optional integer vector (length N) of stratum
-indicators (positive integers). When provided, uses the stratified
-cube method (Chauvet & Tille, 2006; Chauvet, 2009) which preserves
-within-stratum sample sizes while balancing on \code{aux}. Exact
-preservation requires \code{sum(pik)} within each stratum to be close
-to an integer; otherwise sizes will vary around the target and a
-warning is issued and the design is marked as random-size
-(\code{fixed_size = FALSE}), so batch replicates are returned as a list.}
+indicators (positive integers). Uses the stratified cube method
+(Chauvet & Tille, 2006; Chauvet, 2009) to preserve within-stratum
+sample sizes while balancing on \code{aux}. Requires \code{sum(pik)} within
+each stratum to be close to an integer for exact sizes. If not, a
+warning is issued and \code{fixed_size} is set to \code{FALSE}.}
 
 \item{method}{The sampling method. Currently only \code{"cube"}.}
 
@@ -34,7 +32,9 @@ list of integer vectors when within-stratum sizes are not exact.}
 
 \item{...}{Additional arguments passed to methods:
 \describe{
-\item{\code{eps}}{Boundary tolerance for deciding 0/1 (default \code{1e-10}).}
+\item{\code{eps}}{Boundary tolerance for deciding 0/1 (default \code{1e-10},
+stricter than the \code{1e-6} used by other dispatchers because the
+cube flight phase is sensitive to premature rounding).}
 \item{\code{condition_aux}}{Logical; if \code{TRUE}, pre-conditions \code{aux} by
 weighted centering/scaling and QR-pivot rank pruning to improve
 numerical stability with ill-conditioned or collinear auxiliary

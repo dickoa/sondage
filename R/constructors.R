@@ -5,45 +5,36 @@
 #' the design-defining quantities needed by the query generics.
 #'
 #' @details
-#' `sondage_sample` objects always contain these fields:
+#' All `sondage_sample` objects contain:
 #' \describe{
-#'   \item{`$sample`}{Realized sample indices. For `nrep = 1`, an integer
-#'   vector. For `nrep > 1`, a matrix for fixed-size designs or a list of
-#'   integer vectors for random-size designs.}
-#'   \item{`$n`}{Target or expected sample size. Integer for fixed-size
-#'   designs; may be non-integer for random-size designs such as Poisson,
-#'   Bernoulli, or stratified cube with non-integer stratum totals.}
+#'   \item{`$sample`}{Sample indices (integer vector, or matrix/list
+#'   when `nrep > 1`).}
+#'   \item{`$n`}{Target or expected sample size.}
 #'   \item{`$N`}{Population size.}
-#'   \item{`$method`}{Method name string used to generate the design.}
-#'   \item{`$fixed_size`}{Logical flag indicating whether the realized sample
-#'   size is fixed by design.}
+#'   \item{`$method`}{Sampling method name.}
+#'   \item{`$fixed_size`}{Whether the sample size is fixed by design.}
 #' }
 #'
-#' Without-replacement (`"wor"`) objects additionally contain:
+#' Without-replacement (`"wor"`) objects also contain:
 #' \describe{
-#'   \item{`$pik`}{Design-defining inclusion probability vector. For methods
-#'   with exact first-order guarantees, this equals the true first-order
-#'   inclusion probabilities. For order-sampling methods such as `"sps"` and
-#'   `"pareto"`, this is the stored target vector.}
+#'   \item{`$pik`}{Inclusion probability vector. For most methods this
+#'   equals the true first-order probabilities. For `"sps"` and
+#'   `"pareto"`, this is the target vector.}
 #' }
 #'
-#' With-replacement (`"wr"`) objects additionally contain:
+#' With-replacement (`"wr"`) objects also contain:
 #' \describe{
-#'   \item{`$prob`}{Selection probability vector for each draw.}
-#'   \item{`$hits`}{Realized hit counts by unit. For `nrep = 1`, an integer
-#'   vector of length `N`. For `nrep > 1`, an `N x nrep` integer matrix.}
+#'   \item{`$prob`}{Per-draw selection probability vector.}
+#'   \item{`$hits`}{Realized selection counts (integer vector, or
+#'   `N x nrep` matrix when `nrep > 1`).}
 #' }
 #'
-#' The class vector also records the design family:
+#' The class vector records the design family:
 #' \describe{
-#'   \item{`c("equal_prob", "wor", "sondage_sample")`}{Equal-probability
-#'   sampling without replacement.}
-#'   \item{`c("equal_prob", "wr", "sondage_sample")`}{Equal-probability
-#'   sampling with replacement.}
-#'   \item{`c("unequal_prob", "wor", "sondage_sample")`}{Unequal-probability
-#'   sampling without replacement, including balanced sampling.}
-#'   \item{`c("unequal_prob", "wr", "sondage_sample")`}{Unequal-probability
-#'   sampling with replacement or minimum replacement.}
+#'   \item{`c("equal_prob", "wor", "sondage_sample")`}{Equal probability, without replacement.}
+#'   \item{`c("equal_prob", "wr", "sondage_sample")`}{Equal probability, with replacement.}
+#'   \item{`c("unequal_prob", "wor", "sondage_sample")`}{Unequal probability, without replacement (includes balanced).}
+#'   \item{`c("unequal_prob", "wr", "sondage_sample")`}{Unequal probability, with replacement.}
 #' }
 #'
 #' @seealso [equal_prob_wor()], [equal_prob_wr()], [unequal_prob_wor()],

@@ -25,7 +25,8 @@ with-replacement design object (class \code{"wr"}).}
 ignored when \code{x} is a design object.}
 }
 \value{
-A numeric vector of expected hits (may exceed 1 for WR designs).
+A numeric vector of expected hits. Values can exceed 1 for
+with-replacement designs.
 }
 \description{
 Compute expected hits from a size measure, or extract them from a

@@ -34,18 +34,17 @@
 #' }
 #'
 #' For without-replacement designs, the stored `pik` vector is the
-#' design-defining target inclusion probability vector. For methods with
-#' exact first-order guarantees, this equals the true first-order inclusion
-#' probabilities. For order-sampling methods such as sequential Poisson
-#' (`"sps"`) and Pareto (`"pareto"`), the true finite-population
-#' first-order inclusion probabilities are only approximately equal to the
-#' stored target vector.
+#' design-defining target. For most methods this equals the true
+#' first-order inclusion probabilities. For order-sampling methods
+#' (`"sps"`, `"pareto"`), the true probabilities are only approximately
+#' equal to the target.
 #'
-#' @section Utilities:
+#' @section Size-to-probability conversion:
 #' \itemize{
 #'   \item [inclusion_prob()] - Compute inclusion probabilities from size
-#'     measures
+#'     measures (with capping for certainty selections)
 #'   \item [expected_hits()] - Compute expected hits from size measures
+#'     (simple proportional allocation, no capping)
 #' }
 #'
 #' @references
@@ -53,7 +52,8 @@
 #'   Statistics.
 #'
 #' Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson
-#'   estimator. \emph{Memorial JSM}.
+#'   estimator. \emph{Proceedings of the Survey Research Methods Section,
+#'   American Statistical Association}.
 #'
 #' @importFrom stats runif rbinom
 #'

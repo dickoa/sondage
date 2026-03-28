@@ -1,7 +1,7 @@
 Package: sondage
 Type: Package
 Title: Fast Survey Sampling Algorithms
-Version: 0.7.5
+Version: 0.8
 Authors@R: c(person(given = "Ahmadou",
                     family = "Dicko",
 	            email = "mail@ahmadoudicko.com",
@@ -35,6 +35,7 @@ NeedsCompilation: yes
 Suggests:
     knitr,
     rmarkdown,
+    sampling,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
 Config/testthat/edition: 3

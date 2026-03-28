@@ -290,3 +290,32 @@ test_that("check_prn rejects invalid inputs", {
     "open interval"
   )
 })
+
+test_that("prn coordination: shared prn increases sample overlap", {
+  skip_on_cran()
+  set.seed(99)
+  N <- 50
+  sizes <- 1:N
+  pik_a <- inclusion_prob(sizes, n = 10)
+  pik_b <- inclusion_prob(sizes, n = 12)
+
+  nrep <- 500
+  overlap_prn <- numeric(nrep)
+  overlap_ind <- numeric(nrep)
+
+  for (i in seq_len(nrep)) {
+    prn <- runif(N)
+    # Coordinated: same prn
+    sa <- unequal_prob_wor(pik_a, method = "sps", prn = prn)
+    sb <- unequal_prob_wor(pik_b, method = "sps", prn = prn)
+    overlap_prn[i] <- length(intersect(sa$sample, sb$sample))
+
+    # Independent: different prn
+    sa2 <- unequal_prob_wor(pik_a, method = "sps", prn = runif(N))
+    sb2 <- unequal_prob_wor(pik_b, method = "sps", prn = runif(N))
+    overlap_ind[i] <- length(intersect(sa2$sample, sb2$sample))
+  }
+
+  # Coordinated samples should overlap substantially more
+  expect_gt(mean(overlap_prn), mean(overlap_ind) + 1)
+})

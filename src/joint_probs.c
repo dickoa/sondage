@@ -701,6 +701,7 @@ SEXP C_high_entropy_jip(SEXP pik_sexp, SEXP eps_sexp) {
 
     for (int k = 0; k < N_valid; k++) {
         double denom = n - coef1 * pik_valid[k] + coef2;
+        if (fabs(denom) < 1e-15) denom = 1e-15;
         c[k] = nm1 / denom;
     }
 
