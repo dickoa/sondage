@@ -555,7 +555,7 @@ joint_expected_hits.wr <- function(
         pikl
       },
       .registered_joint_or_stop(
-        x$method, prob, sample_idx, "joint_expected_hits", ...
+        x$method, n * prob, sample_idx, "joint_expected_hits", ...
       )
     )
   } else {
@@ -582,7 +582,7 @@ joint_expected_hits.wr <- function(
         pikl
       },
       .registered_joint_or_stop(
-        x$method, prob, NULL, "joint_expected_hits", ...
+        x$method, n * prob, NULL, "joint_expected_hits", ...
       )
     )
   }

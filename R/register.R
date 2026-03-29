@@ -98,7 +98,8 @@ register_method <- function(
     names(.wor_specs),
     names(.wr_specs),
     names(.ep_wor_specs),
-    names(.ep_wr_specs)
+    names(.ep_wr_specs),
+    names(.balanced_specs)
   ))
   if (name %in% all_builtin) {
     stop(
@@ -223,7 +224,7 @@ unregister_method <- function(name) {
     stop("'nrep' must be at least 1", call. = FALSE)
   }
 
-  if (!is.null(prn)) {
+  if (!is.null(prn) && !reg$supports_prn) {
     warning(
       sprintf("prn is not used by method '%s' and will be ignored", method),
       call. = FALSE
