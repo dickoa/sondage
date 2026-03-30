@@ -33,6 +33,19 @@
 #'   \item [sampling_cov()] - Sampling covariance matrix
 #' }
 #'
+#' @section Joint Probability Approximations:
+#' Standalone approximation functions for joint inclusion
+#' probabilities, useful as `joint_fn` arguments to
+#' [register_method()]:
+#'
+#' \itemize{
+#'   \item [he_jip()] - High-entropy approximation (Brewer &
+#'     Donadio, 2003). Recommended default for most designs.
+#'   \item [hajek_jip()] - Hajek (1964) approximation based on
+#'     conditional Poisson (rejective) sampling theory. Simpler
+#'     formula, slightly less accurate.
+#' }
+#'
 #' For without-replacement designs, the stored `pik` vector is the
 #' design-defining target. For most methods this equals the true
 #' first-order inclusion probabilities. For order-sampling methods

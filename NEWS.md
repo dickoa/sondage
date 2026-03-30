@@ -52,9 +52,13 @@ Five generics for variance estimation quantities:
   including balanced sampling.
 * Helper functions `registered_methods()`, `is_registered_method()`, and
   `unregister_method()` manage the registry.
+* `he_jip()` and `hajek_jip()` are exported joint inclusion probability
+  approximations that can be passed directly as `joint_fn` to
+  `register_method()`. `he_jip()` uses the Brewer & Donadio (2003)
+  high-entropy formula (C implementation); `hajek_jip()` uses the
+  Hajek (1964) conditional Poisson approximation.
 * New vignette "Extending sondage with Custom Methods" with worked examples
-  (Sampford's method with high-entropy joint probabilities, wrapping
-  `sampling::UPtille`).
+  (Sampford's method with `he_jip()`, wrapping `sampling::UPtille`).
 
 ## Features
 

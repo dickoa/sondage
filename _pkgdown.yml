@@ -43,6 +43,8 @@ reference:
   - is_registered_method
   - unregister_method
   - method_spec
+  - he_jip
+  - hajek_jip
 
 - title: Print methods
   contents:

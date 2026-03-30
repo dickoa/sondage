@@ -49,6 +49,21 @@ Use these generics to query the design:
 \item \code{\link[=joint_expected_hits]{joint_expected_hits()}} - Pairwise expectations (WR)
 \item \code{\link[=sampling_cov]{sampling_cov()}} - Sampling covariance matrix
 }
+}
+
+\section{Joint Probability Approximations}{
+
+Standalone approximation functions for joint inclusion
+probabilities, useful as \code{joint_fn} arguments to
+\code{\link[=register_method]{register_method()}}:
+
+\itemize{
+\item \code{\link[=he_jip]{he_jip()}} - High-entropy approximation (Brewer &
+Donadio, 2003). Recommended default for most designs.
+\item \code{\link[=hajek_jip]{hajek_jip()}} - Hajek (1964) approximation based on
+conditional Poisson (rejective) sampling theory. Simpler
+formula, slightly less accurate.
+}
 
 For without-replacement designs, the stored \code{pik} vector is the
 design-defining target. For most methods this equals the true

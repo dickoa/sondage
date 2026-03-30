@@ -68,40 +68,11 @@ sampford_sample <- function(pik, n = NULL, prn = NULL, ...) {
 
 The acceptance rate decreases as $n / N$ grows, so this implementation is best suited for moderate sampling fractions.
 
-### High-entropy approximation for joint probabilities
+### Joint probabilities via `he_jip()`
 
-Sampford's design is a high-entropy design, so the high-entropy (HE) approximation of @brewer2003 applies:
+Sampford's design is a high-entropy design, so the high-entropy (HE) approximation of @brewer2003 applies. Rather than reimplementing the formula, we use `he_jip()`, which `sondage` exports for exactly this purpose. It calls the same optimised C code used internally for Brewer, SPS, Pareto, and cube methods, and it already matches the `joint_fn` signature expected by `register_method()`.
 
-$$
-\pi_{ij} \approx \pi_i\, \pi_j \; \frac{c_i + c_j}{2}
-$$
-
-where $c_k = \frac{n - 1}{n - \frac{2n-1}{n-1}\,\pi_k +
-\frac{\sum_\ell \pi_\ell^2}{n-1}}$ and $n = \sum_k \pi_k$.
-
-We can write this directly in `R`:
-
-```{r he-joint-fn}
-he_joint <- function(pik, sample_idx = NULL, ...) {
-  n   <- sum(pik)
-  nm1 <- n - 1
-  S2  <- sum(pik^2)
-
-  ck <- nm1 / (n - (2 * n - 1) / nm1 * pik + S2 / nm1)
-
-  pikl <- outer(pik, pik) * (outer(ck, ck, "+") / 2)
-  pikl <- pmin(pikl, outer(pik, pik, pmin))   # upper bound
-  pikl[pikl < 0] <- 0                          # lower bound
-  diag(pikl) <- pik
-
-  if (!is.null(sample_idx)) {
-    pikl <- pikl[sample_idx, sample_idx, drop = FALSE]
-  }
-  pikl
-}
-```
-
-This is the same formula used internally by `sondage` for Brewer, SPS, and Pareto methods.
+For designs closer to conditional Poisson (rejective) sampling, `hajek_jip()` provides a lighter alternative based on @hajek1964.
 
 ### Registering and using Sampford's method
 
@@ -112,7 +83,7 @@ register_method(
   "sampford",
   type       = "wor",
   sample_fn  = sampford_sample,
-  joint_fn   = he_joint,
+  joint_fn   = he_jip,
   fixed_size = TRUE
 )
 ```
@@ -169,7 +140,7 @@ diag(co_occur) <- 0
 empirical_jip <- co_occur / 5000
 diag(empirical_jip) <- freq
 
-he_pikl <- he_joint(pik)
+he_pikl <- he_jip(pik)
 
 # Compare a few off-diagonal pairs
 pairs <- data.frame(
@@ -181,8 +152,7 @@ pairs <- data.frame(
 pairs
 ```
 
-The HE approximation is close because Sampford's design is itself
-maximum-entropy.
+The HE approximation is close because Sampford's design is itself a high-entropy design.
 
 ```{r sampford-cleanup, include = FALSE}
 unregister_method("sampford")
@@ -235,17 +205,34 @@ unregister_method("tille")
 ## Writing a `joint_fn`
 
 A `joint_fn` is optional but enables `joint_inclusion_prob()`,
-`joint_expected_hits()`, and `sampling_cov()`. Three common
+`joint_expected_hits()`, and `sampling_cov()`. Four common
 strategies:
 
 1. **Exact formula.** When the design has a known closed form
    (e.g., `UPtillepi2` above).
 
-2. **High-entropy approximation.** When the design is close to
-   maximum entropy but no exact formula exists. The HE formula
-   shown above is a good default.
+2. **`he_jip()`.** The high-entropy approximation
+   [@brewer2003]. Best for maximum-entropy and high-entropy
+   designs (Sampford, Tille, and most $\pi$ps procedures). Uses
+   optimised C code internally. Pass it directly:
+   `joint_fn = he_jip`.
 
-3. **Monte Carlo estimation.** Resample $B$ times and estimate
+3. **`hajek_jip()`.** The Hajek [-@hajek1964] approximation
+   based on conditional Poisson (rejective) sampling theory.
+   Simpler formula and slightly cheaper, but generally a bit
+   less accurate than `he_jip()`. Best when the design is
+   obtained by conditioning independent Poisson trials on the
+   sample size. Pass it directly: `joint_fn = hajek_jip`.
+
+4. **Other approximations**. Other methods exist in the literature and can be
+   implemented as custom `joint_fn` functions. @tille1996 reviews
+   several alternatives, including approximations based on
+   Poisson, rejective, and successive sampling theory, each with
+   different accuracy--computation trade-offs. Any function that
+   accepts `(pik, sample_idx = NULL, ...)` and returns a symmetric
+   matrix is a valid `joint_fn`.
+
+5. **Monte Carlo estimation.** Resample $B$ times and estimate
    $\hat{\pi}_{ij} = B^{-1} \sum_{b=1}^B I(i \in S_b)\, I(j \in S_b)$.
    Slow but universal:
 
