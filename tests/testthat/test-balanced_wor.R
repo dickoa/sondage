@@ -553,3 +553,19 @@ test_that("condition_aux with all-constant aux produces valid sample", {
   expect_length(s$sample, 4)
   expect_true(all(s$sample >= 1 & s$sample <= 10))
 })
+
+test_that("cube designs have 'balanced' as first class", {
+  s <- balanced_wor(rep(0.4, 10))
+  expect_s3_class(s, "balanced")
+  expect_s3_class(s, "unequal_prob")
+  expect_s3_class(s, "wor")
+  expect_s3_class(s, "sondage_sample")
+  expect_equal(class(s)[1], "balanced")
+})
+
+test_that("stratified cube also carries 'balanced' class", {
+  pik <- rep(0.4, 20)
+  strata <- rep(1:4, each = 5)
+  s <- balanced_wor(pik, strata = strata)
+  expect_s3_class(s, "balanced")
+})

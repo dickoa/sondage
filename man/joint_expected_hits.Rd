@@ -54,6 +54,11 @@ by \code{nsim}, default 10 000).}
 When \code{sampled_only = TRUE}, only the submatrix for units with
 \code{hits > 0} is returned. All methods compute it directly without
 allocating the full N x N matrix.
+
+For \code{method = "chromy"}, \code{sampled_only = TRUE} reduces memory
+(the n_s x n_s accumulator replaces an N x N one) but not
+simulation cost -- each of \code{nsim} draws still covers the full
+population.
 }
 \examples{
 x <- c(40, 80, 50, 60, 70)

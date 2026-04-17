@@ -128,19 +128,25 @@ inclusion_prob(sim) # generics still work
 
 ## Method comparison
 
-| Method         | Fixed n | Exact design marginals? | Exact pi_ij      | PRN support |
-|----------------|---------|-------------------------|------------------|-------------|
-| `cps`          | yes     | yes                     | yes              | no          |
-| `brewer`       | yes     | yes                     | approx (HE)      | no          |
-| `systematic`   | yes     | yes                     | yes (some = 0)   | no          |
-| `poisson`      | no      | yes                     | yes (independent)| yes         |
-| `sps`          | yes     | target only*            | approx (HE)**    | yes         |
-| `pareto`       | yes     | target only*            | approx (HE)**    | yes         |
-| `multinomial`  | yes     | yes                     | yes (analytic)   | no          |
-| `chromy`       | yes     | yes                     | simulated        | no          |
-| `cube`         | yes     | yes                     | approx (HE)      | no          |
+| Method        | Dispatcher         | Fixed n | Exact marginals† | Exact pi_ij        | PRN |
+|---------------|--------------------|---------|------------------|--------------------|-----|
+| `srs`         | `equal_prob_wor`   | yes     | yes              | yes                | no  |
+| `systematic`  | `equal_prob_wor`   | yes     | yes              | yes                | no  |
+| `bernoulli`   | `equal_prob_wor`   | no      | yes              | yes (independent)  | yes |
+| `srs`         | `equal_prob_wr`    | yes     | yes              | yes (analytic)     | no  |
+| `cps`         | `unequal_prob_wor` | yes     | yes              | yes                | no  |
+| `brewer`      | `unequal_prob_wor` | yes     | yes              | approx (HE)        | no  |
+| `systematic`  | `unequal_prob_wor` | yes     | yes              | yes (some = 0)     | no  |
+| `poisson`     | `unequal_prob_wor` | no      | yes              | yes (independent)  | yes |
+| `sps`         | `unequal_prob_wor` | yes     | target only*     | approx (HE)**      | yes |
+| `pareto`      | `unequal_prob_wor` | yes     | target only*     | approx (HE)**      | yes |
+| `multinomial` | `unequal_prob_wr`  | yes     | yes              | yes (analytic)     | no  |
+| `chromy`      | `unequal_prob_wr`  | yes     | yes              | simulated          | no  |
+| `cube`        | `balanced_wor`     | yes     | yes              | approx (HE)        | no  |
 
-\*For WOR methods, design marginals are first-order inclusion probabilities `\pi_k`. For WR methods, design marginals are expected hits `E(N_k)`. For `sps` and `pareto`, `inclusion_prob(s)` returns the stored design-defining target vector; the true finite-population first-order inclusion probabilities are only approximately equal to that target, with the discrepancy vanishing asymptotically.
+†For WOR methods, design marginals are first-order inclusion probabilities `\pi_k`. For WR methods, design marginals are expected hits `E(N_k)`.
+
+\*For `sps` and `pareto`, `inclusion_prob(s)` returns the stored design-defining target vector; the true finite-population first-order inclusion probabilities are only approximately equal to that target, with the discrepancy vanishing asymptotically.
 
 \**For `sps` and `pareto`, the high-entropy approximation is built from the
 stored target `pik` vector. HE = high-entropy approximation.

@@ -6,7 +6,7 @@
 \alias{sondage-package}
 \title{sondage: Fast Survey Sampling Algorithms}
 \description{
-Fast implementations of survey sampling algorithms for single-stage probability sampling from finite populations. Provides equal probability methods (simple random sampling, systematic, Bernoulli), unequal probability methods (conditional Poisson / maximum entropy, Brewer, systematic PPS, Pareto piPS, sequential Poisson, Poisson, Chromy's minimum replacement, multinomial), and balanced sampling via the cube method. All sampling functions return design objects carrying sample indices, inclusion probabilities, and design metadata. Generics compute joint inclusion probabilities, pairwise expectations, and sampling covariances for variance estimation. Mostly based on algorithms from Tille (2006, \doi{10.1007/0-387-34240-0}).
+Fast implementations of survey sampling algorithms for single-stage probability sampling from finite populations. Provides equal probability methods (simple random sampling, systematic, Bernoulli), unequal probability methods (conditional Poisson / maximum entropy, Brewer, systematic PPS, Pareto, sequential Poisson, Poisson, Chromy's minimum replacement, multinomial), and balanced sampling via the cube method. All sampling functions return design objects carrying sample indices, inclusion probabilities, and design metadata. Generics compute joint inclusion probabilities, pairwise expectations, and sampling covariances for variance estimation. Mostly based on algorithms from Tille (2006, \doi{10.1007/0-387-34240-0}).
 }
 \section{Unequal Probability Sampling}{
 

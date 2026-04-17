@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 ## Overview
 
-`sondage` ships with 12 built-in sampling methods, but researchers and agencies often need algorithms that are not included. The registration API lets you plug a custom unequal probability sampling method into the existing dispatchers and generics without modifying the package source.
+`sondage` ships with 13 built-in sampling methods, but researchers and agencies often need algorithms that are not included. The registration API lets you plug a custom unequal probability sampling method into the existing dispatchers and generics without modifying the package source.
 
 After registering a method, it works everywhere a built-in method works: `unequal_prob_wor()`, `joint_inclusion_prob()`, `sampling_cov()`, batch mode (`nrep`), etc.
 

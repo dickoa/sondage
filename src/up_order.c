@@ -16,13 +16,17 @@
 
 /*
  * Partial sort on parallel arrays: rearranges keys[], orig[] so that the
- * n_select entries with the smallest keys are in positions [0, n_select).
- * Uses quickselect (Lomuto partition), O(N) expected.
+ * n_select entries with the smallest keys are in positions [0, n_select)
+ * (in arbitrary order). Uses quickselect (Lomuto partition), O(N) expected.
+ *
+ * Precondition: 0 <= n_select <= len.
+ * When n_select == len every entry qualifies; the arrays are left
+ * untouched and the caller is responsible for any ordering it needs.
  */
 static void partial_sort_paired(double *keys, int *orig, int len,
                                 int n_select) {
-  if (n_select <= 0 || len <= 0 || n_select >= len)
-    return;
+  if (n_select <= 0 || len <= 0) return;   /* nothing to do */
+  if (n_select >= len) return;              /* all entries qualify */
 
   int lo = 0, hi = len - 1;
   while (lo < hi) {
@@ -66,13 +70,6 @@ static void partial_sort_paired(double *keys, int *orig, int len,
     else
       hi = store - 1;
   }
-}
-
-/* Integer comparison for qsort */
-static int cmp_int(const void *a, const void *b) {
-  int ia = *(const int *)a;
-  int ib = *(const int *)b;
-  return (ia > ib) - (ia < ib);
 }
 
 /* Systematic PPS */
@@ -240,7 +237,9 @@ SEXP C_up_sps(SEXP pik, SEXP prn, SEXP eps) {
     if (!has_prn)
       PutRNGstate();
 
-    /* Select the n_select smallest keys */
+    /* Select the n_select smallest keys. When n_select == n_valid the
+     * partition is a no-op; the loop below reads all n_valid entries and
+     * the outer qsort(res, ...) restores ascending-index order. */
     partial_sort_paired(keys, orig, n_valid, n_select);
 
     for (int i = 0; i < n_select; i++) {
@@ -248,8 +247,8 @@ SEXP C_up_sps(SEXP pik, SEXP prn, SEXP eps) {
     }
   }
 
-  /* Sort full result */
-  qsort(res, total, sizeof(int), cmp_int);
+  /* Sort full result (matches up_chromy.c idiom) */
+  R_isort(res, total);
 
   UNPROTECT(1);
   return result;
@@ -323,7 +322,9 @@ SEXP C_up_pareto(SEXP pik, SEXP prn, SEXP eps) {
     if (!has_prn)
       PutRNGstate();
 
-    /* Select the n_select smallest keys */
+    /* Select the n_select smallest keys. When n_select == n_valid the
+     * partition is a no-op; the loop below reads all n_valid entries and
+     * the outer qsort(res, ...) restores ascending-index order. */
     partial_sort_paired(keys, orig, n_valid, n_select);
 
     for (int i = 0; i < n_select; i++) {
@@ -331,8 +332,8 @@ SEXP C_up_pareto(SEXP pik, SEXP prn, SEXP eps) {
     }
   }
 
-  /* Sort full result */
-  qsort(res, total, sizeof(int), cmp_int);
+  /* Sort full result (matches up_chromy.c idiom) */
+  R_isort(res, total);
 
   UNPROTECT(1);
   return result;

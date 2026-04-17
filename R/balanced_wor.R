@@ -63,6 +63,10 @@
 #'   fixed-size designs, or a list of integer vectors when `fixed_size`
 #'   is `FALSE` (e.g., stratified with non-integer per-stratum sizes).
 #'
+#'   Under stratified sampling (`strata` supplied), `$sample` is a list
+#'   even when `nrep = 1` if any per-stratum `sum(pik)` is not close to
+#'   an integer; `$fixed_size` is set to `FALSE` and a warning is issued.
+#'
 #' @references
 #' Deville, J.C. and Tille, Y. (2004). Efficient balanced sampling: the
 #'   cube method. \emph{Biometrika}, 91(4), 893-912.
@@ -169,7 +173,8 @@ balanced_wor <- function(
     N = N,
     method = "cube",
     fixed_size = strata_fixed,
-    prob_class = "unequal_prob"
+    prob_class = "unequal_prob",
+    extra_class = "balanced"
   )
 }
 
@@ -377,6 +382,7 @@ balanced_wor <- function(
     N = N,
     method = "cube",
     fixed_size = fixed_size,
-    prob_class = "unequal_prob"
+    prob_class = "unequal_prob",
+    extra_class = "balanced"
   )
 }

@@ -9,7 +9,11 @@
 #' \describe{
 #'   \item{`$sample`}{Sample indices (integer vector, or matrix/list
 #'   when `nrep > 1`).}
-#'   \item{`$n`}{Target or expected sample size.}
+#'   \item{`$n`}{Sample size. For designs with `$fixed_size = TRUE`, an
+#'   integer equal to the realized sample size. For random-size designs
+#'   (`$fixed_size = FALSE`), a double equal to the expected sample size
+#'   -- `sum(pik)` for `"poisson"`, the user-supplied target for
+#'   `"bernoulli"`.}
 #'   \item{`$N`}{Population size.}
 #'   \item{`$method`}{Sampling method name.}
 #'   \item{`$fixed_size`}{Whether the sample size is fixed by design.}
@@ -33,7 +37,8 @@
 #' \describe{
 #'   \item{`c("equal_prob", "wor", "sondage_sample")`}{Equal probability, without replacement.}
 #'   \item{`c("equal_prob", "wr", "sondage_sample")`}{Equal probability, with replacement.}
-#'   \item{`c("unequal_prob", "wor", "sondage_sample")`}{Unequal probability, without replacement (includes balanced).}
+#'   \item{`c("unequal_prob", "wor", "sondage_sample")`}{Unequal probability, without replacement.}
+#'   \item{`c("balanced", "unequal_prob", "wor", "sondage_sample")`}{Balanced sampling (cube method); dispatches to `unequal_prob` / `wor` methods unless a `balanced`-specific method is defined.}
 #'   \item{`c("unequal_prob", "wr", "sondage_sample")`}{Unequal probability, with replacement.}
 #' }
 #'
@@ -47,7 +52,8 @@ NULL
 
 #' @keywords internal
 #' @noRd
-.new_wor_sample <- function(sample, pik, n, N, method, fixed_size, prob_class) {
+.new_wor_sample <- function(sample, pik, n, N, method, fixed_size,
+                            prob_class, extra_class = character(0)) {
   if (is.numeric(sample) && !is.matrix(sample)) {
     sample <- as.integer(sample)
   }
@@ -60,7 +66,7 @@ NULL
       method = method,
       fixed_size = fixed_size
     ),
-    class = c(prob_class, "wor", "sondage_sample")
+    class = c(extra_class, prob_class, "wor", "sondage_sample")
   )
 }
 

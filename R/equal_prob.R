@@ -3,9 +3,11 @@
 #' Draws a sample with equal inclusion probabilities, without replacement.
 #'
 #' @param N Population size (positive integer).
-#' @param n Expected sample size. For `"srs"` and `"systematic"`, must be
-#'   a non-negative integer not exceeding N. For `"bernoulli"`, this is the
-#'   expected sample size and `p = n/N` is used as the selection probability.
+#' @param n Sample size. For `"srs"` and `"systematic"`, a non-negative
+#'   integer not exceeding `N` (exact realized size). For `"bernoulli"`,
+#'   a non-negative number (not required to be an integer) interpreted
+#'   as the expected sample size; `p = n / N` is used as the selection
+#'   probability.
 #' @param method The sampling method:
 #'   \describe{
 #'     \item{`"srs"`}{Simple Random Sampling. Each possible sample of size n
@@ -30,6 +32,8 @@
 #'   When `nrep = 1`, `$sample` is an integer vector. When `nrep > 1`,
 #'   `$sample` is a matrix (n x nrep) for fixed-size methods, or a list
 #'   of integer vectors of varying lengths for `"bernoulli"`.
+#'   `$n` is an integer for `"srs"` and `"systematic"` (realized size)
+#'   and a double for `"bernoulli"` (expected size); see [sondage_sample].
 #'
 #' @seealso [equal_prob_wr()] for with-replacement designs,
 #'   [unequal_prob_wor()] for unequal probability designs.
@@ -87,7 +91,7 @@ equal_prob_wor <- function(
       .stop_unknown_method(method) # nocov
     )
   } else {
-    .batch_ep_wor(N, n, method, nrep, prn, ...)
+    .batch_ep_wor(N, n, method, nrep, ...)
   }
 }
 
@@ -136,7 +140,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
   if (nrep == 1L) {
     .srs_wr_sample(N, n, ...)
   } else {
-    .batch_ep_wr(N, n, method, nrep, prn, ...)
+    .batch_ep_wr(N, n, method, nrep, ...)
   }
 }
 
@@ -172,7 +176,10 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
   } else {
     k <- N / n
     u <- runif(1, 0, k)
-    idx <- as.integer(ceiling(u + k * (0:(n - 1))))
+    # u is conceptually in (0, k]; runif can return exactly 0 with
+    # vanishing probability, which would give ceiling(0) = 0. Clamp
+    # to guarantee valid 1-based indices.
+    idx <- pmax(1L, as.integer(ceiling(u + k * (0:(n - 1)))))
   }
 
   .new_wor_sample(
@@ -188,10 +195,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 
 #' @noRd
 .bernoulli_sample <- function(N, n, prn = NULL, ...) {
-  N <- .check_ep_args(N, n, replace = TRUE)
-  if (n > N) {
-    stop("'n' cannot exceed 'N'", call. = FALSE)
-  }
+  N <- .check_ep_args(N, n, replace = FALSE)
 
   p <- n / N
   if (is.null(prn)) {
@@ -258,14 +262,16 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 }
 
 #' @noRd
-.batch_ep_wor <- function(N, n, method, nrep, prn, ...) {
+.batch_ep_wor <- function(N, n, method, nrep, ...) {
+  # prn is rejected upstream in equal_prob_wor when nrep > 1; no prn
+  # forwarding here.
   N_int <- check_integer(N, "N")
   fixed_size <- .method_is_fixed_size(method, "ep_wor")
 
   if (!fixed_size) {
     p <- n / N_int
     sample_data <- lapply(seq_len(nrep), function(i) {
-      .bernoulli_sample(N, n, prn = prn, ...)$sample
+      .bernoulli_sample(N, n, ...)$sample
     })
     pik <- rep(p, N_int)
   } else {
@@ -296,7 +302,9 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 }
 
 #' @noRd
-.batch_ep_wr <- function(N, n, method, nrep, prn, ...) {
+.batch_ep_wr <- function(N, n, method, nrep, ...) {
+  # prn is rejected upstream in equal_prob_wr (srs-WR does not support
+  # PRN); no prn forwarding here.
   N_int <- check_integer(N, "N")
   n_int <- check_integer(n, "n")
   prob <- rep(1 / N_int, N_int)

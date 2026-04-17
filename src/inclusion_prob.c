@@ -23,12 +23,15 @@ SEXP C_inclusion_prob(SEXP a, SEXP n) {
     SEXP pik = PROTECT(allocVector(REALSXP, len));
     double *pik_ptr = REAL(pik);
 
+    /*
+     * The R wrapper (inclusion_prob.default) validates that x contains no
+     * NA / NaN / Inf before calling us, so we never see non-finite input
+     * here and can operate on plain doubles.
+     */
     double sum_a = 0.0;
     for (int i = 0; i < len; i++) {
         double val = a_ptr[i];
-        if (ISNA(val) || ISNAN(val)) {
-            pik_ptr[i] = NA_REAL;
-        } else if (val <= 0.0) {
+        if (val <= 0.0) {
             pik_ptr[i] = 0.0;
         } else {
             pik_ptr[i] = val;
@@ -43,9 +46,7 @@ SEXP C_inclusion_prob(SEXP a, SEXP n) {
                   (int)(n_val + 0.5));
         }
         for (int i = 0; i < len; i++) {
-            if (!ISNA(pik_ptr[i])) {
-                pik_ptr[i] = 0.0;
-            }
+            pik_ptr[i] = 0.0;
         }
         UNPROTECT(1);
         return pik;
@@ -56,15 +57,13 @@ SEXP C_inclusion_prob(SEXP a, SEXP n) {
     double sum_uncapped = 0.0;
 
     for (int i = 0; i < len; i++) {
-        if (!ISNA(pik_ptr[i])) {
-            double pi = pik_ptr[i] * scale;
-            if (pi >= 1.0) {
-                pik_ptr[i] = 1.0;
-                n_capped++;
-            } else {
-                pik_ptr[i] = pi;
-                sum_uncapped += pi;
-            }
+        double pi = pik_ptr[i] * scale;
+        if (pi >= 1.0) {
+            pik_ptr[i] = 1.0;
+            n_capped++;
+        } else {
+            pik_ptr[i] = pi;
+            sum_uncapped += pi;
         }
     }
 
@@ -77,7 +76,7 @@ SEXP C_inclusion_prob(SEXP a, SEXP n) {
         double new_sum_uncapped = 0.0;
 
         for (int i = 0; i < len; i++) {
-            if (!ISNA(pik_ptr[i]) && pik_ptr[i] < 1.0) {
+            if (pik_ptr[i] < 1.0) {
                 double pi = pik_ptr[i] * rescale;
                 if (pi >= 1.0) {
                     pik_ptr[i] = 1.0;

@@ -16,9 +16,11 @@ equal_prob_wor(
 \arguments{
 \item{N}{Population size (positive integer).}
 
-\item{n}{Expected sample size. For \code{"srs"} and \code{"systematic"}, must be
-a non-negative integer not exceeding N. For \code{"bernoulli"}, this is the
-expected sample size and \code{p = n/N} is used as the selection probability.}
+\item{n}{Sample size. For \code{"srs"} and \code{"systematic"}, a non-negative
+integer not exceeding \code{N} (exact realized size). For \code{"bernoulli"},
+a non-negative number (not required to be an integer) interpreted
+as the expected sample size; \code{p = n / N} is used as the selection
+probability.}
 
 \item{method}{The sampling method:
 \describe{
@@ -48,6 +50,8 @@ An object of class \code{c("equal_prob", "wor", "sondage_sample")}.
 When \code{nrep = 1}, \verb{$sample} is an integer vector. When \code{nrep > 1},
 \verb{$sample} is a matrix (n x nrep) for fixed-size methods, or a list
 of integer vectors of varying lengths for \code{"bernoulli"}.
+\verb{$n} is an integer for \code{"srs"} and \code{"systematic"} (realized size)
+and a double for \code{"bernoulli"} (expected size); see \link{sondage_sample}.
 }
 \description{
 Draws a sample with equal inclusion probabilities, without replacement.

@@ -316,8 +316,10 @@ test_that("sampling_cov.wor weighted returns NA (not NaN) for zero-prob units", 
   # Off-diagonals involving zero-prob unit should be NA
   expect_true(all(is.na(m[1, -1])))
   expect_true(all(is.na(m[-1, 1])))
-  # Diagonal for zero-prob unit: 1 - 0 = 1
-  expect_equal(m[1, 1], 1)
+  # Diagonal for zero-prob unit: SYG check 1 - pi_i^2/pi_ii is 0/0 here,
+  # so the correct value is NA (not the misleading `1 - 0 = 1` that the
+  # previous implementation returned).
+  expect_true(is.na(m[1, 1]))
   # Non-zero-prob entries should be finite
   expect_true(all(is.finite(m[2:5, 2:5])))
 })

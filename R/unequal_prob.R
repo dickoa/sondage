@@ -8,7 +8,8 @@
 #'   \describe{
 #'     \item{`"cps"`}{Conditional Poisson Sampling (maximum entropy;
 #'       Chen et al., 1994). Fixed size, exact joint probabilities
-#'       with all \eqn{\pi_{ij} > 0}. O(N^2).}
+#'       with all \eqn{\pi_{ij} > 0}. O(N^2) to build the ESF table,
+#'       O(Nn) per draw thereafter.}
 #'     \item{`"brewer"`}{Brewer's (1975) draw-by-draw method. Fixed
 #'       size, approximate joint probabilities (high-entropy
 #'       approximation; see [joint_inclusion_prob()]). O(Nn).}
@@ -43,12 +44,15 @@
 #'   identical replicates). Use a loop with different PRN vectors
 #'   for coordinated repeated sampling.
 #' @param ... Additional arguments passed to methods (e.g., `eps` for
-#'   boundary tolerance).
+#'   boundary tolerance; see Details).
 #'
 #' @return An object of class `c("unequal_prob", "wor", "sondage_sample")`.
 #'   When `nrep = 1`, `$sample` is an integer vector of selected unit indices.
 #'   When `nrep > 1`, `$sample` is a matrix (n x nrep) for fixed-size methods,
 #'   or a list of integer vectors of varying lengths for random-size methods (`"poisson"`).
+#'   `$n` is an integer for fixed-size methods (realized size) and a
+#'   double for `"poisson"` (expected size, `sum(pik)`); see
+#'   [sondage_sample].
 #'
 #' @references
 #' Chen, X. H., Dempster, A. P., & Liu, J. S. (1994). Weighted finite
@@ -65,6 +69,18 @@
 #'   \emph{Journal of Statistical Planning and Inference}, 62(2), 159-191.
 #'
 #' Tille, Y. (2006). \emph{Sampling Algorithms}. Springer.
+#'
+#' @details
+#' **Near-certainty inclusion probabilities (CPS).** The CPS Newton
+#' calibration converges geometrically for well-spread `pik`, but
+#' asymptotes at a non-zero defect when some `pik` are within a few
+#' decimal digits of 0 or 1 (e.g. 0.9999). When this happens the
+#' function emits a "CPS calibration did not reach tolerance" warning
+#' reporting the achieved `max_diff`. The realized first-order
+#' inclusion probabilities differ from the target by up to `max_diff` --
+#' typically 1e-5 or smaller for inputs in the 0.999-range, well within
+#' Monte Carlo error for most estimators. If the warning is unwanted,
+#' clip `pik` away from 0/1 before calling.
 #'
 #' @seealso [unequal_prob_wr()] for with-replacement designs,
 #'   [equal_prob_wor()] for equal probability designs,
@@ -142,7 +158,7 @@ unequal_prob_wor <- function(
       .stop_unknown_method(method) # nocov
     )
   } else {
-    .batch_wor(pik, method, nrep, prn, ...)
+    .batch_wor(pik, method, nrep, ...)
   }
 }
 
@@ -228,7 +244,7 @@ unequal_prob_wr <- function(
       .stop_unknown_method(method) # nocov
     )
   } else {
-    .batch_wr(hits, method, nrep, prn, ...)
+    .batch_wr(hits, method, nrep, ...)
   }
 }
 
@@ -384,7 +400,9 @@ unequal_prob_wr <- function(
 }
 
 #' @noRd
-.batch_wor <- function(pik, method, nrep, prn, ...) {
+.batch_wor <- function(pik, method, nrep, ...) {
+  # prn is rejected upstream in unequal_prob_wor when nrep > 1, so batch
+  # callers never carry a PRN vector — no prn forwarding here.
   fixed_size <- .method_is_fixed_size(method, "wor")
   check_pik(pik, fixed_size = fixed_size)
 
@@ -402,7 +420,7 @@ unequal_prob_wr <- function(
     sample_data <- .Call(C_cps_draw_batch, design, as.integer(nrep))
   } else if (!fixed_size) {
     sample_data <- lapply(seq_len(nrep), function(i) {
-      .poisson_pps_sample(pik, prn = prn, ...)$sample
+      .poisson_pps_sample(pik, ...)$sample
     })
   } else {
     n_int <- as.integer(round(n))
@@ -416,7 +434,7 @@ unequal_prob_wr <- function(
       .stop_unknown_method(method) # nocov
     )
     for (i in seq_len(nrep)) {
-      mat[, i] <- draw_fn(pik, prn = prn, ...)$sample
+      mat[, i] <- draw_fn(pik, ...)$sample
     }
     sample_data <- mat
   }
@@ -433,7 +451,9 @@ unequal_prob_wr <- function(
 }
 
 #' @noRd
-.batch_wr <- function(hits, method, nrep, prn, ...) {
+.batch_wr <- function(hits, method, nrep, ...) {
+  # prn is rejected upstream in unequal_prob_wr (WR methods do not support
+  # PRN); no prn forwarding here.
   n <- check_integer(sum(hits), "sum(hits)")
   N <- length(hits)
   prob <- hits / sum(hits)

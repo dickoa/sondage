@@ -41,6 +41,13 @@ inclusion_prob.wor <- function(x, ...) {
 }
 
 #' @rdname inclusion_prob
+#'
+#' @section With-replacement designs:
+#' `inclusion_prob()` applies only to without-replacement (`wor`)
+#' designs. Calling it on a with-replacement design object (e.g. from
+#' [equal_prob_wr()] or [unequal_prob_wr()]) is an error; use
+#' [expected_hits()] to obtain the expected number of selections.
+#'
 #' @export
 inclusion_prob.wr <- function(x, ...) {
   stop(
@@ -107,7 +114,7 @@ inclusion_prob.default <- function(x, n, ...) {
     warning(
       "there are ",
       sum(neg),
-      " negative value(s) shifted to zero",
+      " negative value(s); treated as zero",
       call. = FALSE
     )
   }
@@ -242,6 +249,12 @@ expected_hits.wor <- function(x, ...) {
 #' (e.g. N = 50 000 with n = 200). The marginal defect diagnostic
 #' is skipped because the row-sum identity only holds for the full
 #' matrix.
+#'
+#' For `cps`, the Newton calibration used to produce the joint
+#' probabilities can emit a "CPS calibration did not reach tolerance"
+#' warning for `pik` values very close to 0 or 1. The realized joint
+#' probabilities differ from their exact values by up to the reported
+#' `max_diff`; see [unequal_prob_wor()] for context and remediation.
 #'
 #' @return A symmetric N x N matrix (or n x n if `sampled_only = TRUE`)
 #'   of joint inclusion probabilities. Diagonal entries are the
@@ -449,6 +462,11 @@ joint_inclusion_prob.default <- function(x, ...) {
 #' When `sampled_only = TRUE`, only the submatrix for units with
 #' `hits > 0` is returned. All methods compute it directly without
 #' allocating the full N x N matrix.
+#'
+#' For `method = "chromy"`, `sampled_only = TRUE` reduces memory
+#' (the n_s x n_s accumulator replaces an N x N one) but not
+#' simulation cost -- each of `nsim` draws still covers the full
+#' population.
 #'
 #' @return A symmetric N x N matrix (or n_s x n_s if
 #'   `sampled_only = TRUE`, where n_s is the number of distinct
@@ -705,7 +723,7 @@ sampling_cov.wor <- function(x, weighted = FALSE, sampled_only = FALSE, ...) {
     m <- 1 - pip / pikl
     m[zero] <- NA_real_
     m[both_zero] <- NA_real_
-    diag(m) <- 1 - pik
+    diag(m) <- ifelse(pik == 0, NA_real_, 1 - pik)
     m
   } else {
     pikl - outer(pik, pik)

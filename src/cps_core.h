@@ -96,10 +96,30 @@ static void cps_compute_pik(const double *w, const double *expa,
     }
 }
 
-/* Calibrate w so CPS achieves pik_target. w[] and expa[] set on exit. */
+/*
+ * Calibrate w so CPS achieves pik_target.
+ *
+ * Outputs:
+ *   w[], expa[]      — calibrated odds and ESF table (set on exit)
+ *   *final_max_diff  — max |pik_target - pik_implied| at stop (0 on fast path)
+ *   *worst_idx       — index in pik_target where the max was achieved
+ *                      (-1 on fast path)
+ *
+ * Returns number of iterations used (1 for fast path, up to max_iter).
+ *
+ * The iteration is a Newton-style fixed-point: piktilde <- piktilde + diff
+ * until max|diff| < eps. For inclusion probabilities close to 1 the
+ * iteration asymptotes at a non-zero defect on the order of (1 - max_pik);
+ * the final_max_diff / worst_idx outputs let callers emit an informative
+ * warning when the target tolerance isn't reached.
+ */
 static int cps_calibrate(const double *pik_target, int N, int n,
                           double *w, double *expa,
-                          double eps, int max_iter) {
+                          double eps, int max_iter,
+                          double *final_max_diff, int *worst_idx) {
+    if (final_max_diff) *final_max_diff = 0.0;
+    if (worst_idx) *worst_idx = -1;
+
     if (N <= 0 || n <= 0) return 0;
 
     /*
@@ -135,6 +155,9 @@ static int cps_calibrate(const double *pik_target, int N, int n,
 
     memcpy(piktilde, pik_target, N * sizeof(double));
 
+    double last_max_diff = 0.0;
+    int    last_worst_idx = -1;
+
     for (int iter = 0; iter < max_iter; iter++) {
         R_CheckUserInterrupt();
         for (int i = 0; i < N; i++) {
@@ -148,6 +171,7 @@ static int cps_calibrate(const double *pik_target, int N, int n,
         cps_compute_pik(w, expa, N, n, pik_implied, pro);
 
         double max_diff = 0.0;
+        int    max_idx = -1;
         for (int i = 0; i < N; i++) {
             double diff = pik_target[i] - pik_implied[i];
             piktilde[i] += diff;
@@ -155,8 +179,14 @@ static int cps_calibrate(const double *pik_target, int N, int n,
             if (piktilde[i] < 1e-10) piktilde[i] = 1e-10;
             if (piktilde[i] > 1.0 - 1e-10) piktilde[i] = 1.0 - 1e-10;
 
-            if (fabs(diff) > max_diff) max_diff = fabs(diff);
+            if (fabs(diff) > max_diff) {
+                max_diff = fabs(diff);
+                max_idx = i;
+            }
         }
+
+        last_max_diff = max_diff;
+        last_worst_idx = max_idx;
 
         if (max_diff < eps) {
             for (int i = 0; i < N; i++) {
@@ -166,11 +196,63 @@ static int cps_calibrate(const double *pik_target, int N, int n,
                 w[i] = p / (1.0 - p);
             }
             cps_compute_expa(w, N, n, expa);
+            if (final_max_diff) *final_max_diff = max_diff;
+            if (worst_idx) *worst_idx = max_idx;
             return iter + 1;
         }
     }
 
+    if (final_max_diff) *final_max_diff = last_max_diff;
+    if (worst_idx) *worst_idx = last_worst_idx;
     return max_iter;
+}
+
+/*
+ * Emit an informative warning when cps_calibrate did not reach the target
+ * tolerance. The message reports the final max_diff and, when available,
+ * counts and flags the 1-based population indices of units whose targets
+ * are within boundary_thresh of 0 or 1 (those are the usual culprits).
+ *
+ * idx_map maps the valid-subset index to the 0-based population index;
+ * N_valid is the size of pik_valid.
+ */
+static void cps_warn_nonconverge(const char *ctx,
+                                 int max_iter, double tol, double max_diff,
+                                 const double *pik_valid, int N_valid,
+                                 const int *idx_map) {
+    const double boundary_thresh = 1e-3;
+    int near_boundary = 0;
+    int first_boundary = -1;
+    if (pik_valid && idx_map && N_valid > 0) {
+        for (int i = 0; i < N_valid; i++) {
+            double p = pik_valid[i];
+            if (p < boundary_thresh || p > 1.0 - boundary_thresh) {
+                if (first_boundary < 0) first_boundary = idx_map[i] + 1;
+                near_boundary++;
+            }
+        }
+    }
+
+    if (near_boundary > 0) {
+        Rf_warning(
+            "%sCPS calibration did not reach tolerance after %d iterations "
+            "(max_diff = %.2e, tolerance = %.2e). %d unit(s) have pik "
+            "within %.0e of 0 or 1 (first at index %d); this is the usual "
+            "cause. Realized first-order inclusion probabilities will "
+            "differ from the target by up to max_diff. To silence this, "
+            "clip pik away from the boundary before calling.",
+            ctx, max_iter, max_diff, tol,
+            near_boundary, boundary_thresh, first_boundary
+        );
+    } else {
+        Rf_warning(
+            "%sCPS calibration did not reach tolerance after %d iterations "
+            "(max_diff = %.2e, tolerance = %.2e). Realized first-order "
+            "inclusion probabilities will differ from the target by up to "
+            "max_diff.",
+            ctx, max_iter, max_diff, tol
+        );
+    }
 }
 
 /*

@@ -102,10 +102,15 @@ SEXP C_cps_single(SEXP pik_sexp, SEXP eps_sexp) {
     double *w = (double *) R_alloc(N, sizeof(double));
     double *expa = (double *) R_alloc((size_t)N * n_work, sizeof(double));
 
-    int cal_iters = cps_calibrate(pik_work, N, n_work, w, expa, 1e-9, 100);
-    if (cal_iters >= 100) {
-        Rf_warning("CPS calibration did not converge after %d iterations", 100);
+    double cal_max_diff = 0.0;
+    int    cal_worst_idx = -1;
+    int cal_iters = cps_calibrate(pik_work, N, n_work, w, expa, 1e-9, 500,
+                                  &cal_max_diff, &cal_worst_idx);
+    if (cal_iters >= 500) {
+        cps_warn_nonconverge("", 500, 1e-9, cal_max_diff,
+                             pik_valid, N, idx_map);
     }
+    (void) cal_worst_idx;
 
     int *sample_idx = (int *) R_alloc(n_work, sizeof(int));
     int *selected_idx = sample_idx;
@@ -204,12 +209,16 @@ SEXP C_cps_design(SEXP pik_sexp, SEXP eps_sexp) {
         w_arr = (double *) R_alloc(N, sizeof(double));
         expa_arr = (double *) R_alloc((size_t)N * n_work, sizeof(double));
 
+        double cal_max_diff = 0.0;
+        int    cal_worst_idx = -1;
         int cal_iters = cps_calibrate(pik_work, N, n_work, w_arr, expa_arr,
-                                      1e-9, 100);
-        if (cal_iters >= 100) {
-            Rf_warning("CPS calibration did not converge after %d iterations",
-                       100);
+                                      1e-9, 500, &cal_max_diff,
+                                      &cal_worst_idx);
+        if (cal_iters >= 500) {
+            cps_warn_nonconverge("", 500, 1e-9, cal_max_diff,
+                                 pik_valid, N, idx_map);
         }
+        (void) cal_worst_idx;
     }
 
     SEXP result = PROTECT(allocVector(VECSXP, 10));

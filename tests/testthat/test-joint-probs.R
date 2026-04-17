@@ -669,3 +669,39 @@ test_that("cps jip row-sum identity holds for skewed pik", {
     expect_equal(row_sum, (n - 1) * pik[i], tolerance = 1e-5)
   }
 })
+
+test_that("sampling_cov.wor with weighted=TRUE returns NA on diagonal for zero-pik units", {
+  # Regression for the diag(m) <- 1-pik override that was clobbering NAs.
+  pik <- c(0, 0.3, 0.5, 0.7, 0)
+  s <- unequal_prob_wor(pik, method = "poisson")
+  cv <- sampling_cov(s, weighted = TRUE)
+  # Zero-pik units should have NA on the diagonal (SYG check is undefined)
+  expect_true(is.na(cv[1, 1]))
+  expect_true(is.na(cv[5, 5]))
+  # Non-zero entries on the diagonal match 1 - pik
+  expect_equal(cv[2, 2], 1 - 0.3)
+  expect_equal(cv[3, 3], 1 - 0.5)
+  expect_equal(cv[4, 4], 1 - 0.7)
+})
+
+test_that("sampling_cov.wor with weighted=FALSE handles zero-pik units cleanly", {
+  # The non-weighted path was never buggy; pin this behavior too.
+  pik <- c(0, 0.3, 0.5, 0.7, 0)
+  s <- unequal_prob_wor(pik, method = "poisson")
+  cv <- sampling_cov(s)
+  expect_equal(cv[1, ], rep(0, 5))
+  expect_equal(cv[, 5], rep(0, 5))
+})
+
+test_that("sampling_cov.wr with weighted=TRUE returns NA on diagonal for zero-hits units", {
+  # Parallel to the WOR fix: the WR path already does the right thing via
+  # ifelse(d == 0, NA_real_, ...), but we pin the behavior to lock
+  # future WOR/WR symmetry.
+  hits <- c(0, 1.5, 2.0, 0, 1.5)  # sum = 5
+  s <- unequal_prob_wr(hits, method = "multinomial")
+  cv <- sampling_cov(s, weighted = TRUE)
+  expect_true(is.na(cv[1, 1]))
+  expect_true(is.na(cv[4, 4]))
+  expect_false(is.na(cv[2, 2]))
+  expect_false(is.na(cv[3, 3]))
+})

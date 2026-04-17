@@ -20,7 +20,8 @@ For fixed-size methods, \code{sum(pik)} must be close to an integer.}
 \describe{
 \item{\code{"cps"}}{Conditional Poisson Sampling (maximum entropy;
 Chen et al., 1994). Fixed size, exact joint probabilities
-with all \eqn{\pi_{ij} > 0}. O(N^2).}
+with all \eqn{\pi_{ij} > 0}. O(N^2) to build the ESF table,
+O(Nn) per draw thereafter.}
 \item{\code{"brewer"}}{Brewer's (1975) draw-by-draw method. Fixed
 size, approximate joint probabilities (high-entropy
 approximation; see \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}). O(Nn).}
@@ -58,16 +59,31 @@ identical replicates). Use a loop with different PRN vectors
 for coordinated repeated sampling.}
 
 \item{...}{Additional arguments passed to methods (e.g., \code{eps} for
-boundary tolerance).}
+boundary tolerance; see Details).}
 }
 \value{
 An object of class \code{c("unequal_prob", "wor", "sondage_sample")}.
 When \code{nrep = 1}, \verb{$sample} is an integer vector of selected unit indices.
 When \code{nrep > 1}, \verb{$sample} is a matrix (n x nrep) for fixed-size methods,
 or a list of integer vectors of varying lengths for random-size methods (\code{"poisson"}).
+\verb{$n} is an integer for fixed-size methods (realized size) and a
+double for \code{"poisson"} (expected size, \code{sum(pik)}); see
+\link{sondage_sample}.
 }
 \description{
 Draws a sample with unequal inclusion probabilities, without replacement.
+}
+\details{
+\strong{Near-certainty inclusion probabilities (CPS).} The CPS Newton
+calibration converges geometrically for well-spread \code{pik}, but
+asymptotes at a non-zero defect when some \code{pik} are within a few
+decimal digits of 0 or 1 (e.g. 0.9999). When this happens the
+function emits a "CPS calibration did not reach tolerance" warning
+reporting the achieved \code{max_diff}. The realized first-order
+inclusion probabilities differ from the target by up to \code{max_diff} --
+typically 1e-5 or smaller for inputs in the 0.999-range, well within
+Monte Carlo error for most estimators. If the warning is unwanted,
+clip \code{pik} away from 0/1 before calling.
 }
 \examples{
 pik <- c(0.2, 0.4, 0.6, 0.8)

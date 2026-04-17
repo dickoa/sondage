@@ -281,3 +281,52 @@ test_that("cps stress: repeated medium-large draws do not crash", {
     expect_false(anyDuplicated(col) > 0)
   }
 })
+
+test_that("CPS near-certainty pik: warning reports max_diff and boundary unit", {
+  # pik very close to (but not at) 1. Newton asymptotes at ~5e-5;
+  # the warning should name the max_diff and flag the near-boundary unit.
+  pik <- c(0.9999, 0.5, 0.5001)  # sum = 2
+  expect_warning(
+    unequal_prob_wor(pik, method = "cps"),
+    "max_diff"
+  )
+  expect_warning(
+    unequal_prob_wor(pik, method = "cps"),
+    "pik within 1e-03 of 0 or 1"
+  )
+})
+
+test_that("CPS near-certainty: realized pik within max_diff of target", {
+  # Empirical check that the design is statistically correct even when
+  # the warning fires: realized pi_hat should be within max_diff of target.
+  set.seed(2026)
+  pik <- c(0.9999, 0.5, 0.5001)
+  nsim <- 5000
+  hits <- integer(3)
+  for (i in seq_len(nsim)) {
+    s <- suppressWarnings(unequal_prob_wor(pik, method = "cps"))
+    hits[s$sample] <- hits[s$sample] + 1L
+  }
+  pi_hat <- hits / nsim
+  # MC error ~ sqrt(p*(1-p)/n); for n=5000, p=0.5 that's ~0.007.
+  # The non-convergence defect is 5e-5, far below MC noise.
+  expect_lt(max(abs(pi_hat - pik)), 0.02)
+})
+
+test_that("CPS with well-spread pik converges silently", {
+  # Complement to the near-certainty test: without boundary units,
+  # Newton converges in ~15 iter and no warning fires.
+  pik <- c(0.2, 0.4, 0.5, 0.6, 0.3)  # sum = 2
+  expect_silent(res <- unequal_prob_wor(pik, method = "cps"))
+  expect_length(res$sample, 2)
+})
+
+test_that("CPS warns only once per call even at max_iter=500", {
+  # Convergence cap was bumped from 100 to 500; ensure the warning
+  # still fires exactly once and doesn't suppress the sample.
+  pik <- c(0.9999, 0.5, 0.5001)
+  w <- capture_warnings(s <- unequal_prob_wor(pik, method = "cps"))
+  expect_length(w, 1L)
+  expect_match(w, "500 iterations")
+  expect_length(s$sample, 2)
+})

@@ -83,10 +83,17 @@ SEXP C_cps_jip(SEXP pik_sexp, SEXP eps_sexp) {
 
     double *w = (double *) R_alloc(N_valid, sizeof(double));
     double *expa = (double *) R_alloc((size_t)N_valid * n_valid, sizeof(double));
-    int cal_iters = cps_calibrate(pik_valid, N_valid, n_valid, w, expa, eps, 100);
-    if (cal_iters >= 100) {
-        Rf_warning("CPS calibration did not converge after %d iterations", 100);
+    double cal_max_diff = 0.0;
+    int    cal_worst_idx = -1;
+    /* eps is the boundary/certainty threshold (user-facing); the Newton
+     * calibration uses its own fixed numerical tolerance. */
+    int cal_iters = cps_calibrate(pik_valid, N_valid, n_valid, w, expa, 1e-9,
+                                  500, &cal_max_diff, &cal_worst_idx);
+    if (cal_iters >= 500) {
+        cps_warn_nonconverge("joint_inclusion_prob: ", 500, 1e-9,
+                             cal_max_diff, pik_valid, N_valid, valid_idx);
     }
+    (void) cal_worst_idx;
 
     /* Relative near-equality threshold (decoupled from user eps) */
     const double tau = 16.0 * sqrt(DBL_EPSILON);
@@ -263,13 +270,29 @@ SEXP C_cps_jip_sub(SEXP pik_sexp, SEXP eps_sexp, SEXP idx_sexp) {
         return result;
     }
 
-    /* Calibration on full valid population */
+    /* Calibration on full valid population.
+     * eps is the boundary/certainty threshold (user-facing); the Newton
+     * calibration uses its own fixed numerical tolerance. */
     double *w = (double *) R_alloc(N_valid, sizeof(double));
     double *expa = (double *) R_alloc((size_t)N_valid * n_valid, sizeof(double));
-    int cal_iters = cps_calibrate(pik_valid, N_valid, n_valid, w, expa, eps, 100);
-    if (cal_iters >= 100) {
-        Rf_warning("CPS calibration did not converge after %d iterations", 100);
+    double cal_max_diff = 0.0;
+    int    cal_worst_idx = -1;
+    int cal_iters = cps_calibrate(pik_valid, N_valid, n_valid, w, expa, 1e-9,
+                                  500, &cal_max_diff, &cal_worst_idx);
+    if (cal_iters >= 500) {
+        /*
+         * valid_idx isn't built here (we only have pop_to_valid). Build a
+         * valid-to-pop map inline so the warning can flag 1-based population
+         * indices of near-boundary units.
+         */
+        int *valid_to_pop = (int *) R_alloc(N_valid, sizeof(int));
+        for (int k = 0; k < N_full; k++) {
+            if (pop_to_valid[k] >= 0) valid_to_pop[pop_to_valid[k]] = k;
+        }
+        cps_warn_nonconverge("joint_inclusion_prob: ", 500, 1e-9,
+                             cal_max_diff, pik_valid, N_valid, valid_to_pop);
     }
+    (void) cal_worst_idx;
 
     /* Identify target units: sampled AND valid */
     int n_target = 0;

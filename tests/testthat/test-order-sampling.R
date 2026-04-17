@@ -319,3 +319,22 @@ test_that("prn coordination: shared prn increases sample overlap", {
   # Coordinated samples should overlap substantially more
   expect_gt(mean(overlap_prn), mean(overlap_ind) + 1)
 })
+
+test_that("sps selects all valid units when round(sum(pik)) == n_valid", {
+  # Exercises the partial_sort_paired n_select == n_valid early-return:
+  # all pik below certainty threshold (eps = 1e-6 → 1 - eps = 0.999999)
+  # but their sum rounds to N, so every valid unit must be selected.
+  pik <- rep(0.99999, 10)
+  expect_lt(max(pik), 1 - 1e-6)   # not classified as certainty
+  expect_equal(round(sum(pik)), 10L)
+  s <- unequal_prob_wor(pik, method = "sps")
+  expect_equal(sort(s$sample), 1:10)
+  expect_length(s$sample, 10L)
+})
+
+test_that("pareto selects all valid units when round(sum(pik)) == n_valid", {
+  pik <- rep(0.99999, 10)
+  s <- unequal_prob_wor(pik, method = "pareto")
+  expect_equal(sort(s$sample), 1:10)
+  expect_length(s$sample, 10L)
+})

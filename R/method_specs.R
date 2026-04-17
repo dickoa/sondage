@@ -42,7 +42,8 @@
 #' Look up the spec for a built-in method.
 #'
 #' @param method Method name string.
-#' @param context One of `"wor"`, `"wr"`, `"ep_wor"`, `"ep_wr"`.
+#' @param context One of `"wor"`, `"wr"`, `"ep_wor"`, `"ep_wr"`,
+#'   `"balanced"`.
 #' @return The spec list, or `NULL` if `method` is not in the table.
 #' @noRd
 .get_builtin_spec <- function(method, context) {
@@ -52,6 +53,7 @@
     wr = .wr_specs,
     ep_wor = .ep_wor_specs,
     ep_wr = .ep_wr_specs,
+    balanced = .balanced_specs,
     stop("unknown context: ", context, call. = FALSE)
   )
   specs[[method]]

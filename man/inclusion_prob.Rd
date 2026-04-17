@@ -45,6 +45,14 @@ are recomputed with reduced \eqn{n}. The result sums to exactly
 proportional allocation without capping. Negative values in \code{x}
 are treated as zero (with a warning).
 }
+\section{With-replacement designs}{
+
+\code{inclusion_prob()} applies only to without-replacement (\code{wor})
+designs. Calling it on a with-replacement design object (e.g. from
+\code{\link[=equal_prob_wr]{equal_prob_wr()}} or \code{\link[=unequal_prob_wr]{unequal_prob_wr()}}) is an error; use
+\code{\link[=expected_hits]{expected_hits()}} to obtain the expected number of selections.
+}
+
 \examples{
 # From size measures
 size <- c(10, 20, 30, 40)

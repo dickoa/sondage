@@ -209,6 +209,14 @@ test_that("bernoulli rejects invalid input", {
   )
 })
 
+test_that("bernoulli accepts non-integer n as expected sample size", {
+  # Documented behavior: for Bernoulli, n is the expected sample size
+  # (not required to be an integer). Lock this so it doesn't regress.
+  expect_silent(s <- equal_prob_wor(100, 2.7, method = "bernoulli"))
+  expect_equal(s$n, 2.7)
+  expect_type(s$n, "double")
+})
+
 test_that("srs rejects Inf inputs", {
   expect_error(equal_prob_wor(10, Inf), "cannot exceed")
   expect_error(equal_prob_wor(Inf, 3), "finite")

@@ -3,8 +3,10 @@
 0 errors | 0 warnings | 1 note
 
 * checking compilation flags used ... NOTE
-  Non-portable flags from the system Makevars (Arch Linux).
-  Not caused by the package.
+  The non-portable flags reported in this NOTE come from the local
+  Arch Linux system Makevars (/etc/R/Makeconf), not from the package
+  own Makevars. The package itself does not ship or require any
+  non-portable flags.
 
 ## Test environments
 

@@ -219,3 +219,38 @@ test_that("inclusion_prob correctly sums to n after certainty capping", {
   expect_equal(pik[3], 1)
   expect_equal(pik[4], 1)
 })
+
+# Behavior lock tests (pre-flight for issue #5 dead-branch removal).
+# These exercise the C paths that survived, and also assert the R-layer
+# refuses non-finite inputs so the C-level NA handling is provably
+# unreachable via the public API.
+
+test_that("inclusion_prob handles all-zero input without NaN", {
+  expect_equal(inclusion_prob(c(0, 0, 0, 0), n = 0), c(0, 0, 0, 0))
+  expect_error(
+    inclusion_prob(c(0, 0, 0), n = 1),
+    "exceeds the number of units with positive size"
+  )
+})
+
+test_that("inclusion_prob mixed zero and positive", {
+  pik <- inclusion_prob(c(0, 10, 20, 30), n = 2)
+  expect_equal(pik[1], 0)
+  expect_equal(sum(pik), 2)
+})
+
+test_that("inclusion_prob iterative capping with several certainty selections", {
+  # Multiple capping rounds, the rescale loop must handle the cascade.
+  pik <- inclusion_prob(c(1, 1, 1, 1000, 1000, 1000), n = 4)
+  expect_equal(sum(pik[4:6]), 3)
+  expect_equal(sum(pik), 4)
+  expect_equal(sum(pik[1:3]), 1)
+})
+
+test_that("inclusion_prob rejects NA, NaN, Inf at the R layer", {
+  # These lock in the R-layer gate that keeps non-finite out of C.
+  expect_error(inclusion_prob(c(NA, 1, 2, 3), n = 2), "missing values")
+  expect_error(inclusion_prob(c(NaN, 1, 2, 3), n = 2), "missing values|finite")
+  expect_error(inclusion_prob(c(Inf, 1, 2, 3), n = 2), "finite")
+  expect_error(inclusion_prob(c(-Inf, 1, 2, 3), n = 2), "finite")
+})

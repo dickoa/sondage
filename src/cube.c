@@ -302,6 +302,15 @@ static void cube_update(CubeWorkspace *ws, int n_cand) {
         }
     }
 
+    /*
+     * Two-tier guard:
+     * (1) If no candidate had a meaningful null-vector entry (fabs(u) >=
+     *     tol), lambda1 and lambda2 stayed at their DBL_MAX initializers.
+     *     Summing would overflow to +Inf and defeat the < tol test, so
+     *     check the sentinel explicitly.
+     * (2) Otherwise, ensure the feasible movement range is non-degenerate.
+     */
+    if (lambda1 == DBL_MAX || lambda2 == DBL_MAX) return;
     if (lambda1 + lambda2 < tol) return;
 
     double lambda = (unif_rand() * (lambda1 + lambda2) < lambda2)

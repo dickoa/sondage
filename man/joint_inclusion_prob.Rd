@@ -69,6 +69,12 @@ allocating the full N x N matrix, so large N is feasible
 (e.g. N = 50 000 with n = 200). The marginal defect diagnostic
 is skipped because the row-sum identity only holds for the full
 matrix.
+
+For \code{cps}, the Newton calibration used to produce the joint
+probabilities can emit a "CPS calibration did not reach tolerance"
+warning for \code{pik} values very close to 0 or 1. The realized joint
+probabilities differ from their exact values by up to the reported
+\code{max_diff}; see \code{\link[=unequal_prob_wor]{unequal_prob_wor()}} for context and remediation.
 }
 \examples{
 pik <- c(0.2, 0.3, 0.5)

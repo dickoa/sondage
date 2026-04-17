@@ -13,7 +13,11 @@ All \code{sondage_sample} objects contain:
 \describe{
 \item{\verb{$sample}}{Sample indices (integer vector, or matrix/list
 when \code{nrep > 1}).}
-\item{\verb{$n}}{Target or expected sample size.}
+\item{\verb{$n}}{Sample size. For designs with \verb{$fixed_size = TRUE}, an
+integer equal to the realized sample size. For random-size designs
+(\verb{$fixed_size = FALSE}), a double equal to the expected sample size
+-- \code{sum(pik)} for \code{"poisson"}, the user-supplied target for
+\code{"bernoulli"}.}
 \item{\verb{$N}}{Population size.}
 \item{\verb{$method}}{Sampling method name.}
 \item{\verb{$fixed_size}}{Whether the sample size is fixed by design.}
@@ -37,7 +41,8 @@ The class vector records the design family:
 \describe{
 \item{\code{c("equal_prob", "wor", "sondage_sample")}}{Equal probability, without replacement.}
 \item{\code{c("equal_prob", "wr", "sondage_sample")}}{Equal probability, with replacement.}
-\item{\code{c("unequal_prob", "wor", "sondage_sample")}}{Unequal probability, without replacement (includes balanced).}
+\item{\code{c("unequal_prob", "wor", "sondage_sample")}}{Unequal probability, without replacement.}
+\item{\code{c("balanced", "unequal_prob", "wor", "sondage_sample")}}{Balanced sampling (cube method); dispatches to \code{unequal_prob} / \code{wor} methods unless a \code{balanced}-specific method is defined.}
 \item{\code{c("unequal_prob", "wr", "sondage_sample")}}{Unequal probability, with replacement.}
 }
 }

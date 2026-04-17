@@ -223,3 +223,12 @@ test_that("joint_expected_hits errors for unknown WR method", {
     "^joint_expected_hits not implemented for method 'fake'$"
   )
 })
+
+test_that(".get_builtin_spec resolves balanced context", {
+  spec <- sondage:::.get_builtin_spec("cube", "balanced")
+  expect_type(spec, "list")
+  expect_true(isTRUE(spec$fixed_size))
+  expect_false(isTRUE(spec$prn))
+  # Non-cube method in balanced context returns NULL
+  expect_null(sondage:::.get_builtin_spec("srs", "balanced"))
+})

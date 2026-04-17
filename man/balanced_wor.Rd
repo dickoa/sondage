@@ -49,6 +49,10 @@ When \code{nrep = 1}, \verb{$sample} is an integer vector of selected unit
 indices. When \code{nrep > 1}, \verb{$sample} is a matrix (n x nrep) for
 fixed-size designs, or a list of integer vectors when \code{fixed_size}
 is \code{FALSE} (e.g., stratified with non-integer per-stratum sizes).
+
+Under stratified sampling (\code{strata} supplied), \verb{$sample} is a list
+even when \code{nrep = 1} if any per-stratum \code{sum(pik)} is not close to
+an integer; \verb{$fixed_size} is set to \code{FALSE} and a warning is issued.
 }
 \description{
 Draws a balanced sample using the cube method (Deville & Tille, 2004).

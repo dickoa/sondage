@@ -276,3 +276,19 @@ test_that("multinomial rejects NaN in hits", {
     "missing values"
   )
 })
+
+test_that("$n type matches the fixed_size rule", {
+  # Fixed-size methods: integer $n (realized sample size)
+  s1 <- equal_prob_wor(10, 3, method = "srs")
+  expect_type(s1$n, "integer")
+  s2 <- equal_prob_wor(10, 3, method = "systematic")
+  expect_type(s2$n, "integer")
+  s3 <- unequal_prob_wor(c(0.2, 0.3, 0.5), method = "cps")
+  expect_type(s3$n, "integer")
+
+  # Random-size methods: double $n (expected sample size)
+  s4 <- equal_prob_wor(10, 3, method = "bernoulli")
+  expect_type(s4$n, "double")
+  s5 <- unequal_prob_wor(c(0.1, 0.2, 0.3), method = "poisson")
+  expect_type(s5$n, "double")
+})
