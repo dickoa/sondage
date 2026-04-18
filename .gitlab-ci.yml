@@ -20,6 +20,7 @@ check-release:
         libcurl4-openssl-dev
         libssl-dev
         libxml2-dev
+        libuv1-dev
         pandoc
         qpdf
     - mkdir -p $R_LIBS_USER
@@ -37,6 +38,7 @@ check-devel:
         libcurl4-openssl-dev
         libssl-dev
         libxml2-dev
+        libuv1-dev
         pandoc
         qpdf
     - mkdir -p $R_LIBS_USER
@@ -54,6 +56,7 @@ coverage:
         libcurl4-openssl-dev
         libssl-dev
         libxml2-dev
+        libuv1-dev
         pandoc
         qpdf
         git
