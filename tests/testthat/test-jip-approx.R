@@ -1,8 +1,6 @@
 # Tille Example 10 (page 86), known exact values
 tille_pik <- c(0.07, 0.17, 0.41, 0.61, 0.83, 0.91)
 
-# ---- he_jip ----
-
 test_that("he_jip returns correct dimensions", {
   pik <- c(0.2, 0.3, 0.5)
   pikl <- he_jip(pik)
@@ -99,7 +97,9 @@ test_that("he_jip validates inputs", {
 test_that("he_jip works as joint_fn in register_method", {
   sampford_sample <- function(pik, n = NULL, prn = NULL, ...) {
     N <- length(pik)
-    if (n == 1L) return(sample.int(N, 1L, prob = pik))
+    if (n == 1L) {
+      return(sample.int(N, 1L, prob = pik))
+    }
     q <- pik / (1 - pik)
     repeat {
       first <- sample.int(N, 1L, prob = pik)
@@ -160,8 +160,16 @@ test_that("he_jip with sample_idx and certainty units", {
   expect_equal(sub, full[idx, idx, drop = FALSE])
 })
 
-
-# ---- hajek_jip ----
+test_that(".he_jip_sampled handles sample with no valid units", {
+  # all certainty units => valid_s has length 0, hits the early return branch
+  pik <- c(1, 1, 1, 0.5, 0.5)
+  set.seed(1)
+  s <- unequal_prob_wor(pik, method = "brewer")
+  J <- joint_inclusion_prob(s, sampled_only = TRUE)
+  expect_equal(dim(J), c(sum(pik), sum(pik)))
+  # certainty rows are filled with pik of sampled units
+  expect_true(all(is.finite(J)))
+})
 
 test_that("hajek_jip returns correct dimensions", {
   pik <- c(0.2, 0.3, 0.5)

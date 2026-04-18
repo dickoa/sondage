@@ -1,14 +1,48 @@
 # Tille Example 10 (page 86), known exact values
 tille_pik <- c(0.07, 0.17, 0.41, 0.61, 0.83, 0.91)
 
-tille_expected <- matrix(c(
-  0.07,   0.0049, 0.0130, 0.0215, 0.0447, 0.0559,
-  0.0049, 0.17,   0.0324, 0.0537, 0.1113, 0.1377,
-  0.0130, 0.0324, 0.41,   0.1407, 0.2888, 0.3452,
-  0.0215, 0.0537, 0.1407, 0.61,   0.4691, 0.5351,
-  0.0447, 0.1113, 0.2888, 0.4691, 0.83,   0.7461,
-  0.0559, 0.1377, 0.3452, 0.5351, 0.7461, 0.91
-), nrow = 6, byrow = TRUE)
+tille_expected <- matrix(
+  c(
+    0.07,
+    0.0049,
+    0.0130,
+    0.0215,
+    0.0447,
+    0.0559,
+    0.0049,
+    0.17,
+    0.0324,
+    0.0537,
+    0.1113,
+    0.1377,
+    0.0130,
+    0.0324,
+    0.41,
+    0.1407,
+    0.2888,
+    0.3452,
+    0.0215,
+    0.0537,
+    0.1407,
+    0.61,
+    0.4691,
+    0.5351,
+    0.0447,
+    0.1113,
+    0.2888,
+    0.4691,
+    0.83,
+    0.7461,
+    0.0559,
+    0.1377,
+    0.3452,
+    0.5351,
+    0.7461,
+    0.91
+  ),
+  nrow = 6,
+  byrow = TRUE
+)
 
 test_that("joint_inclusion_prob.cps returns correct dimensions", {
   pik <- c(0.2, 0.3, 0.5)
@@ -202,6 +236,23 @@ test_that("joint_expected_hits.chromy returns valid matrix", {
   expect_equal(diag(joint), pik, tolerance = 0.05)
 })
 
+test_that("joint_expected_hits rejects non-positive nsim (full matrix)", {
+  set.seed(1)
+  s <- unequal_prob_wr(c(0.2, 0.3, 0.5) * 2, method = "chromy")
+  expect_error(joint_expected_hits(s, nsim = 0), "nsim")
+  expect_error(joint_expected_hits(s, nsim = NA), "nsim")
+  expect_error(joint_expected_hits(s, nsim = "x"), "nsim")
+})
+
+test_that("joint_expected_hits rejects non-positive nsim (sampled_only)", {
+  set.seed(1)
+  s <- unequal_prob_wr(c(0.2, 0.3, 0.5) * 2, method = "chromy")
+  expect_error(
+    joint_expected_hits(s, sampled_only = TRUE, nsim = 0),
+    "nsim"
+  )
+})
+
 test_that("all joint_inclusion_prob methods agree on diagonal", {
   pik <- c(0.2, 0.3, 0.5)
 
@@ -227,7 +278,8 @@ test_that("all joint methods produce symmetric matrices", {
 })
 
 test_that("equal-prob systematic JIP differs from SRS", {
-  N <- 12; n <- 3
+  N <- 12
+  n <- 3
   s <- equal_prob_wor(N, n, method = "systematic")
   pikl <- joint_inclusion_prob(s)
 
@@ -246,8 +298,16 @@ test_that("equal-prob systematic JIP differs from SRS", {
 
 test_that("high-entropy JIP warns on large marginal defect", {
   # Skewed pik with n=2 → defect/n ≈ 6.9%, should warn
-  pik_skewed <- c(0.190194, 0.702073, 0.168549, 0.026420,
-                  0.441842, 0.304860, 0.109806, 0.056257)
+  pik_skewed <- c(
+    0.190194,
+    0.702073,
+    0.168549,
+    0.026420,
+    0.441842,
+    0.304860,
+    0.109806,
+    0.056257
+  )
   s <- unequal_prob_wor(pik_skewed, method = "brewer")
   expect_warning(joint_inclusion_prob(s), "marginal defect")
 })
@@ -261,10 +321,31 @@ test_that("high-entropy JIP does not warn for well-spread pik", {
 
 test_that("high-entropy JIP handles certainty units correctly", {
   pik <- c(
-    1, 1, 0.191473, 1, 0.636845, 0.653934, 0.292246, 1, 1,
-    0.214227, 0.846962, 0.224352, 1, 0.437642, 0.758233,
-    0.618972, 0.178129, 0.795222, 1, 0.87704, 0.452308,
-    0.703438, 1, 0.423387, 0.69559
+    1,
+    1,
+    0.191473,
+    1,
+    0.636845,
+    0.653934,
+    0.292246,
+    1,
+    1,
+    0.214227,
+    0.846962,
+    0.224352,
+    1,
+    0.437642,
+    0.758233,
+    0.618972,
+    0.178129,
+    0.795222,
+    1,
+    0.87704,
+    0.452308,
+    0.703438,
+    1,
+    0.423387,
+    0.69559
   )
   upper <- outer(pik, pik, pmin)
   cert <- which(pik == 1)
@@ -284,8 +365,12 @@ test_that("high-entropy JIP handles certainty units correctly", {
     # Certainty-other pairs = pik[other]
     for (ci in cert) {
       others <- setdiff(seq_along(pik), ci)
-      expect_equal(J[ci, others], pik[others], tolerance = 1e-10,
-                   info = paste(m, "cert-other for unit", ci))
+      expect_equal(
+        J[ci, others],
+        pik[others],
+        tolerance = 1e-10,
+        info = paste(m, "cert-other for unit", ci)
+      )
     }
   }
 })
@@ -315,7 +400,25 @@ test_that("joint methods work with larger populations", {
 })
 
 
-# ---- sampled_only = TRUE ----
+test_that("joint_inclusion_prob for srs with n=1 returns diag matrix", {
+  set.seed(1)
+  s <- equal_prob_wor(5, 1)
+  J <- joint_inclusion_prob(s)
+  expect_equal(dim(J), c(5, 5))
+  # off-diagonal must be zero when n<2
+  offdiag <- J
+  diag(offdiag) <- 0
+  expect_equal(sum(offdiag), 0)
+  expect_equal(diag(J), rep(1 / 5, 5))
+})
+
+test_that("joint_inclusion_prob srs sampled_only with n=1", {
+  set.seed(1)
+  s <- equal_prob_wor(5, 1)
+  J <- joint_inclusion_prob(s, sampled_only = TRUE)
+  expect_equal(dim(J), c(1, 1))
+  expect_equal(as.numeric(J), 1 / 5)
+})
 
 test_that("sampled_only returns n x n for CPS matching full[s,s]", {
   pik <- tille_pik
@@ -329,7 +432,7 @@ test_that("sampled_only returns n x n for CPS matching full[s,s]", {
 })
 
 test_that("sampled_only CPS matches full[s,s] for larger N", {
-  set.seed(42)
+  set.seed(1)
   N <- 100
   n <- 10
   pik <- inclusion_prob(runif(N), n = n)
@@ -378,7 +481,7 @@ test_that("sampled_only returns n x n for systematic matching full[s,s]", {
 })
 
 test_that("sampled_only systematic matches full[s,s] for larger N", {
-  set.seed(42)
+  set.seed(123)
   N <- 100
   n <- 10
   pik <- inclusion_prob(runif(N), n = n)
@@ -414,10 +517,17 @@ test_that("sampled_only returns n x n for HE methods matching full[s,s]", {
     sub <- joint_inclusion_prob(s, sampled_only = TRUE)
 
     idx <- s$sample
-    expect_equal(dim(sub), c(length(idx), length(idx)),
-                 info = paste("dim for", method))
-    expect_equal(sub, full[idx, idx, drop = FALSE], tolerance = 1e-10,
-                 info = paste("values for", method))
+    expect_equal(
+      dim(sub),
+      c(length(idx), length(idx)),
+      info = paste("dim for", method)
+    )
+    expect_equal(
+      sub,
+      full[idx, idx, drop = FALSE],
+      tolerance = 1e-10,
+      info = paste("values for", method)
+    )
   }
 })
 
@@ -448,7 +558,7 @@ test_that("sampled_only returns n x n for SRS WOR matching full[s,s]", {
 })
 
 test_that("sampled_only returns n x n for Bernoulli matching full[s,s]", {
-  set.seed(42)
+  set.seed(2)
   s <- equal_prob_wor(10, 3, method = "bernoulli")
   full <- joint_inclusion_prob(s)
   sub <- joint_inclusion_prob(s, sampled_only = TRUE)
@@ -478,8 +588,16 @@ test_that("sampled_only errors for random-size batch WOR designs", {
 
 test_that("sampled_only skips marginal defect warning for HE", {
   # This pik vector triggers marginal defect warning when sampled_only=FALSE
-  pik_skewed <- c(0.190194, 0.702073, 0.168549, 0.026420,
-                  0.441842, 0.304860, 0.109806, 0.056257)
+  pik_skewed <- c(
+    0.190194,
+    0.702073,
+    0.168549,
+    0.026420,
+    0.441842,
+    0.304860,
+    0.109806,
+    0.056257
+  )
   s <- unequal_prob_wor(pik_skewed, method = "brewer")
   expect_warning(joint_inclusion_prob(s), "marginal defect")
   expect_no_warning(joint_inclusion_prob(s, sampled_only = TRUE))
@@ -539,11 +657,18 @@ test_that("sampled_only works for all WOR methods at N=500", {
     sub <- joint_inclusion_prob(s, sampled_only = TRUE)
 
     idx <- s$sample
-    expect_equal(dim(sub), c(length(idx), length(idx)),
-                 info = paste("dim for", method))
+    expect_equal(
+      dim(sub),
+      c(length(idx), length(idx)),
+      info = paste("dim for", method)
+    )
     expect_equal(sub, t(sub), info = paste("symmetry for", method))
-    expect_equal(diag(sub), pik[idx], tolerance = 1e-8,
-                 info = paste("diagonal for", method))
+    expect_equal(
+      diag(sub),
+      pik[idx],
+      tolerance = 1e-8,
+      info = paste("diagonal for", method)
+    )
     expect_true(all(sub >= -1e-10), info = paste("non-negative for", method))
   }
 })
@@ -589,10 +714,17 @@ test_that("sampled_only sampling_cov end-to-end for all methods", {
     sub_cov <- sampling_cov(s, sampled_only = TRUE)
 
     idx <- s$sample
-    expect_equal(dim(sub_cov), c(length(idx), length(idx)),
-                 info = paste("dim for", method))
-    expect_equal(sub_cov, full_cov[idx, idx, drop = FALSE], tolerance = 1e-10,
-                 info = paste("values for", method))
+    expect_equal(
+      dim(sub_cov),
+      c(length(idx), length(idx)),
+      info = paste("dim for", method)
+    )
+    expect_equal(
+      sub_cov,
+      full_cov[idx, idx, drop = FALSE],
+      tolerance = 1e-10,
+      info = paste("values for", method)
+    )
   }
 })
 
@@ -649,7 +781,7 @@ test_that("cps jip is exact for certainty + equal valid units", {
 
   # Valid-valid off-diagonal: n_valid*(n_valid-1)/(N_valid*(N_valid-1))
   N_valid <- 8
-  n_valid <- 3  # sum(pik[3:10])
+  n_valid <- 3 # sum(pik[3:10])
   target <- n_valid * (n_valid - 1) / (N_valid * (N_valid - 1))
   for (i in 3:9) {
     for (j in (i + 1):10) {
@@ -697,7 +829,7 @@ test_that("sampling_cov.wr with weighted=TRUE returns NA on diagonal for zero-hi
   # Parallel to the WOR fix: the WR path already does the right thing via
   # ifelse(d == 0, NA_real_, ...), but we pin the behavior to lock
   # future WOR/WR symmetry.
-  hits <- c(0, 1.5, 2.0, 0, 1.5)  # sum = 5
+  hits <- c(0, 1.5, 2.0, 0, 1.5) # sum = 5
   s <- unequal_prob_wr(hits, method = "multinomial")
   cv <- sampling_cov(s, weighted = TRUE)
   expect_true(is.na(cv[1, 1]))

@@ -53,8 +53,6 @@ test_that("joint_inclusion_prob.systematic returns symmetric matrix", {
   expect_equal(diag(pikl), pik, tolerance = 1e-10)
 })
 
-# ---- joint_inclusion_prob for equal probability designs ----
-
 test_that("joint_inclusion_prob.srs returns known formula", {
   s <- equal_prob_wor(10, 3)
   pikl <- joint_inclusion_prob(s)
@@ -216,9 +214,6 @@ test_that("sampling_cov weighted off-diagonal is non-positive for high-entropy d
   expect_true(all(off_diag_b <= 1e-10))
   expect_equal(diag(chk_brewer), 1 - pik, tolerance = 1e-10)
 })
-
-
-# ---- sampled_only = TRUE for WR designs ----
 
 test_that("sampled_only returns correct dims for Chromy", {
   x <- c(10, 20, 30, 40, 50)

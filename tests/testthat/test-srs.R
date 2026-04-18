@@ -241,7 +241,10 @@ test_that("systematic rejects NA inputs", {
     "non-negative"
   )
   expect_error(equal_prob_wor(10, NA, method = "systematic"), "non-negative")
-  expect_error(equal_prob_wor(NA_real_, 3, method = "systematic"), "must not be NA")
+  expect_error(
+    equal_prob_wor(NA_real_, 3, method = "systematic"),
+    "must not be NA"
+  )
   expect_error(equal_prob_wor(NA, 3, method = "systematic"), "single number")
 })
 
@@ -251,7 +254,10 @@ test_that("bernoulli rejects NA inputs", {
     "non-negative"
   )
   expect_error(equal_prob_wor(100, NA, method = "bernoulli"), "non-negative")
-  expect_error(equal_prob_wor(NA_real_, 50, method = "bernoulli"), "must not be NA")
+  expect_error(
+    equal_prob_wor(NA_real_, 50, method = "bernoulli"),
+    "must not be NA"
+  )
   expect_error(equal_prob_wor(NA, 50, method = "bernoulli"), "single number")
 })
 
@@ -280,4 +286,44 @@ test_that("bernoulli rejects non-integer N", {
     equal_prob_wor(10.7, 5, method = "bernoulli"),
     "not close to an integer"
   )
+})
+
+test_that("equal_prob_wor rejects nrep < 1", {
+  expect_error(equal_prob_wor(10, 3, nrep = 0), "'nrep' must be at least 1")
+})
+
+test_that("equal_prob_wr rejects nrep < 1", {
+  expect_error(equal_prob_wr(10, 3, nrep = 0), "'nrep' must be at least 1")
+})
+
+test_that("equal_prob_wr with nrep > 1 returns batch sample", {
+  set.seed(1)
+  s <- equal_prob_wr(20, 5, nrep = 4)
+  expect_s3_class(s, "sondage_sample")
+  expect_s3_class(s, "wr")
+  expect_true(is.matrix(s$sample))
+  expect_equal(dim(s$sample), c(5, 4))
+  expect_true(is.matrix(s$hits))
+  expect_equal(dim(s$hits), c(20, 4))
+  expect_equal(s$method, "srs")
+})
+
+test_that("equal_prob_wr warns on prn (not supported)", {
+  expect_warning(
+    equal_prob_wr(10, 3, prn = runif(10)),
+    "prn is not used"
+  )
+})
+
+test_that("systematic equal-prob with n=0 returns empty sample", {
+  s <- equal_prob_wor(10, 0, method = "systematic")
+  expect_length(s$sample, 0)
+  expect_equal(s$n, 0)
+})
+
+test_that("srs equal-prob WR with n=0 returns empty sample", {
+  s <- equal_prob_wr(10, 0)
+  expect_length(s$sample, 0)
+  expect_equal(s$n, 0)
+  expect_equal(sum(s$hits), 0)
 })

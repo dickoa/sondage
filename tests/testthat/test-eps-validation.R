@@ -42,3 +42,23 @@ test_that("joint_inclusion_prob validates eps", {
 test_that("bernoulli accepts non-integer expected sample size", {
   expect_no_error(equal_prob_wor(10, 2.5, method = "bernoulli"))
 })
+
+test_that("eps must be numeric and length 1", {
+  pik <- c(0.2, 0.4, 0.6, 0.8)
+  expect_error(
+    unequal_prob_wor(pik, method = "cps", eps = "x"),
+    "single numeric"
+  )
+  expect_error(
+    unequal_prob_wor(pik, method = "cps", eps = c(1e-6, 1e-6)),
+    "single numeric"
+  )
+})
+
+test_that("eps must not be NA", {
+  pik <- c(0.2, 0.4, 0.6, 0.8)
+  expect_error(
+    unequal_prob_wor(pik, method = "cps", eps = NA_real_),
+    "must not be NA"
+  )
+})
