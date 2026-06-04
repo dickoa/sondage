@@ -213,7 +213,7 @@ strategies:
 
 2. **`he_jip()`.** The high-entropy approximation
    [@brewer2003]. Best for maximum-entropy and high-entropy
-   designs (Sampford, Tille, and most $\pi$ps procedures). Uses
+   designs (Sampford, Tillé, and most $\pi$ps procedures). Uses
    optimised C code internally. Pass it directly:
    `joint_fn = he_jip`.
 

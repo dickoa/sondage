@@ -16,9 +16,9 @@
 #'
 #' @section Balanced Sampling:
 #' \itemize{
-#'   \item [balanced_wor()] - Cube method (Deville & Tille, 2004) for
+#'   \item [balanced_wor()] - Cube method (Deville & \enc{Tillé}{Tille}, 2004) for
 #'     balanced sampling with unequal probabilities, with optional
-#'     stratification (Chauvet & Tille, 2006)
+#'     stratification (Chauvet, 2009)
 #' }
 #'
 #' @section Design Queries:
@@ -61,7 +61,7 @@
 #' }
 #'
 #' @references
-#' Tille, Y. (2006). \emph{Sampling Algorithms}. Springer Series in
+#' \enc{Tillé}{Tille}, Y. (2006). \emph{Sampling Algorithms}. Springer Series in
 #'   Statistics.
 #'
 #' Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson

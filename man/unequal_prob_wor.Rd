@@ -127,7 +127,7 @@ Official Statistics}, 14(2), 149-162.
 Rosen, B. (1997). On sampling with probability proportional to size.
 \emph{Journal of Statistical Planning and Inference}, 62(2), 159-191.
 
-Tille, Y. (2006). \emph{Sampling Algorithms}. Springer.
+\enc{Tillé}{Tille}, Y. (2006). \emph{Sampling Algorithms}. Springer.
 }
 \seealso{
 \code{\link[=unequal_prob_wr]{unequal_prob_wr()}} for with-replacement designs,

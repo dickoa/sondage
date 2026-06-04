@@ -4,9 +4,9 @@
 \name{sondage-package}
 \alias{sondage}
 \alias{sondage-package}
-\title{sondage: Fast Survey Sampling Algorithms}
+\title{sondage: Survey Sampling Algorithms}
 \description{
-Fast implementations of survey sampling algorithms for single-stage probability sampling from finite populations. Provides equal probability methods (simple random sampling, systematic, Bernoulli), unequal probability methods (conditional Poisson / maximum entropy, Brewer, systematic PPS, Pareto, sequential Poisson, Poisson, Chromy's minimum replacement, multinomial), and balanced sampling via the cube method. All sampling functions return design objects carrying sample indices, inclusion probabilities, and design metadata. Generics compute joint inclusion probabilities, pairwise expectations, and sampling covariances for variance estimation. Mostly based on algorithms from Tille (2006, \doi{10.1007/0-387-34240-0}).
+Fast implementations of survey sampling algorithms for single-stage probability sampling from finite populations, written in C. Provides equal probability methods (simple random sampling, systematic, Bernoulli), unequal probability methods (conditional Poisson / maximum entropy, Brewer, systematic PPS, Pareto, sequential Poisson, Poisson, Chromy's minimum replacement, multinomial), and balanced sampling via the cube method. All sampling functions return design objects carrying sample indices, inclusion probabilities, and design metadata. Generics compute joint inclusion probabilities, pairwise expectations, and sampling covariances for variance estimation. Mostly based on algorithms from Tille (2006, \doi{10.1007/0-387-34240-0}).
 }
 \section{Unequal Probability Sampling}{
 
@@ -31,9 +31,9 @@ Bernoulli (random size)
 \section{Balanced Sampling}{
 
 \itemize{
-\item \code{\link[=balanced_wor]{balanced_wor()}} - Cube method (Deville & Tille, 2004) for
+\item \code{\link[=balanced_wor]{balanced_wor()}} - Cube method (Deville & \enc{Tillé}{Tille}, 2004) for
 balanced sampling with unequal probabilities, with optional
-stratification (Chauvet & Tille, 2006)
+stratification (Chauvet, 2009)
 }
 }
 
@@ -83,7 +83,7 @@ measures (with capping for certainty selections)
 }
 
 \references{
-Tille, Y. (2006). \emph{Sampling Algorithms}. Springer Series in
+\enc{Tillé}{Tille}, Y. (2006). \emph{Sampling Algorithms}. Springer Series in
 Statistics.
 
 Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson
@@ -95,12 +95,17 @@ Useful links:
 \itemize{
   \item \url{https://dickoa.gitlab.io/sondage}
   \item \url{https://gitlab.com/dickoa/sondage}
-  \item Report bugs at \url{https://gitlab.com/dickoa/sondage/-/issues}
+  \item Report bugs at \url{https://gitlab.com/dickoa/sondage/-/work_items}
 }
 
 }
 \author{
 \strong{Maintainer}: Ahmadou Dicko \email{mail@ahmadoudicko.com} (\href{https://orcid.org/0000-0002-9654-7582}{ORCID})
+
+Authors:
+\itemize{
+  \item Ahmadou Dicko \email{mail@ahmadoudicko.com} (\href{https://orcid.org/0000-0002-9654-7582}{ORCID})
+}
 
 Other contributors:
 \itemize{

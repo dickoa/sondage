@@ -1,6 +1,6 @@
 Package: sondage
 Type: Package
-Title: Fast Survey Sampling Algorithms
+Title: Survey Sampling Algorithms
 Version: 0.8
 Authors@R: c(person(given = "Ahmadou",
                     family = "Dicko",
@@ -12,7 +12,8 @@ Authors@R: c(person(given = "Ahmadou",
 	            email = "t.lumley@auckland.ac.nz",
                     role = "ctb"))
 Description: Fast implementations of survey sampling algorithms for
-    single-stage probability sampling from finite populations.
+    single-stage probability sampling from finite populations,
+    written in C.
     Provides equal probability methods (simple random sampling,
     systematic, Bernoulli), unequal probability methods (conditional
     Poisson / maximum entropy, Brewer, systematic PPS, Pareto,
@@ -28,9 +29,8 @@ License: GPL (>= 2)
 Encoding: UTF-8
 URL: https://dickoa.gitlab.io/sondage,
         https://gitlab.com/dickoa/sondage
-BugReports: https://gitlab.com/dickoa/sondage/-/issues
+BugReports: https://gitlab.com/dickoa/sondage/-/work_items
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
 NeedsCompilation: yes
 Suggests:
     knitr,
@@ -39,3 +39,4 @@ Suggests:
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
 Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0

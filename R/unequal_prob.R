@@ -68,7 +68,7 @@
 #' Rosen, B. (1997). On sampling with probability proportional to size.
 #'   \emph{Journal of Statistical Planning and Inference}, 62(2), 159-191.
 #'
-#' Tille, Y. (2006). \emph{Sampling Algorithms}. Springer.
+#' \enc{Tillé}{Tille}, Y. (2006). \emph{Sampling Algorithms}. Springer.
 #'
 #' @details
 #' **Near-certainty inclusion probabilities (CPS).** The CPS Newton
@@ -402,7 +402,7 @@ unequal_prob_wr <- function(
 #' @noRd
 .batch_wor <- function(pik, method, nrep, ...) {
   # prn is rejected upstream in unequal_prob_wor when nrep > 1, so batch
-  # callers never carry a PRN vector — no prn forwarding here.
+  # callers never carry a PRN vector, so no prn forwarding here.
   fixed_size <- .method_is_fixed_size(method, "wor")
   check_pik(pik, fixed_size = fixed_size)
 

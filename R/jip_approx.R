@@ -24,7 +24,7 @@
 #' The high-entropy (HE) approximation is the recommended default
 #' for designs that are close to maximum entropy, which includes
 #' most common unequal-probability without-replacement designs:
-#' Brewer, Sampford, Tille, SPS, Pareto, cube, and CPS itself.
+#' Brewer, Sampford, \enc{Tillé}{Tille}, SPS, Pareto, cube, and CPS itself.
 #'
 #' The approximation guarantees symmetry,
 #' \eqn{0 \le \pi_{ij} \le \min(\pi_i, \pi_j)}, and correct

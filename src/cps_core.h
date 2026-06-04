@@ -100,9 +100,9 @@ static void cps_compute_pik(const double *w, const double *expa,
  * Calibrate w so CPS achieves pik_target.
  *
  * Outputs:
- *   w[], expa[]      — calibrated odds and ESF table (set on exit)
- *   *final_max_diff  — max |pik_target - pik_implied| at stop (0 on fast path)
- *   *worst_idx       — index in pik_target where the max was achieved
+ *   w[], expa[]      - calibrated odds and ESF table (set on exit)
+ *   *final_max_diff  - max |pik_target - pik_implied| at stop (0 on fast path)
+ *   *worst_idx       - index in pik_target where the max was achieved
  *                      (-1 on fast path)
  *
  * Returns number of iterations used (1 for fast path, up to max_iter).

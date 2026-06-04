@@ -160,7 +160,7 @@ inclusion_prob(sim) # generics still work
 **Balanced sampling without replacement** (`balanced_wor`):
 
 - `balanced_wor(pik, aux, method = "cube")` - Cube method (Deville &
-  Tille, 2004)
+  Tillé, 2004)
 - `balanced_wor(pik, aux, strata, method = "cube")` - Stratified cube
   (Chauvet, 2009)
 
@@ -262,6 +262,24 @@ unregister_method("sampford")
 See `vignette("custom-methods")` for more examples, including how to
 provide a `joint_fn` for variance estimation.
 
+## Why not sampling?
+
+The `sampling` package (Tillé and Matei) is the reference toolkit for
+survey sampling in R, and it is more comprehensive than `sondage`. Many
+of the algorithms here follow the methods it established, and `sondage`
+would not exist without it.
+
+What `sondage` adds is speed. The sampling algorithms are written in C,
+so they scale better to large populations. Every sampling function also
+returns a design object with generics for inclusion probabilities, joint
+inclusion probabilities, and variance quantities, so the results are
+easy to carry into downstream work.
+
+The two packages are complementary rather than competing. With
+`register_method()` you can plug any unequal probability algorithm from
+`sampling` into the `sondage` dispatchers and generics, so they can be
+used together.
+
 ## References
 
 Brewer, K.R.W. and Donadio, M.E. (2003). The High Entropy Variance of
@@ -270,10 +288,15 @@ the Horvitz-Thompson Estimator. *Survey Methodology*, 29(2), 189-196.
 Chauvet, G. (2009). Stratified balanced sampling. *Survey Methodology*,
 35, 115-119.
 
-Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson
-estimator. *Memorial JSM*.
+Chromy, J.R. (1979). Sequential sample selection methods. *Proceedings
+of the Survey Research Methods Section, American Statistical
+Association*, 401-406.
 
-Deville, J.C. and Tille, Y. (2004). Efficient balanced sampling: the
+Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson
+estimator. *Proceedings of the Survey Research Methods Section, American
+Statistical Association*.
+
+Deville, J.C. and Tillé, Y. (2004). Efficient balanced sampling: the
 cube method. *Biometrika*, 91(4), 893-912.
 
-Tille, Y. (2006). *Sampling Algorithms*. Springer.
+Tillé, Y. (2006). *Sampling Algorithms*. Springer.

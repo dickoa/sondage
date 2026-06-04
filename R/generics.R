@@ -663,7 +663,7 @@ joint_expected_hits.default <- function(x, ...) {
 #' \eqn{1 - \pi_i \pi_j / \pi_{ij}} is undefined for such pairs and
 #' set to `NA` with a warning. The raw covariance (`weighted = FALSE`)
 #' is unaffected. The Sen-Yates-Grundy estimator is not applicable
-#' for these designs (Tille, 2006, Ch. 5).
+#' for these designs (\enc{Tillé}{Tille}, 2006, Ch. 5).
 #'
 #' @return A symmetric N x N matrix (or n x n if `sampled_only = TRUE`).
 #'   For WOR designs with `weighted = FALSE`, off-diagonal entries are
@@ -676,7 +676,7 @@ joint_expected_hits.default <- function(x, ...) {
 #'   estimator. \emph{Proceedings of the Survey Research Methods Section,
 #'   American Statistical Association}.
 #'
-#' Tille, Y. (2006). \emph{Sampling Algorithms}. Springer.
+#' \enc{Tillé}{Tille}, Y. (2006). \emph{Sampling Algorithms}. Springer.
 #'
 #' @examples
 #' pik <- c(0.2, 0.3, 0.5)

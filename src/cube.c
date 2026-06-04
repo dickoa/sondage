@@ -774,7 +774,7 @@ SEXP C_cube_batch(SEXP prob_sexp, SEXP X_sexp, SEXP eps_sexp,
 }
 
 /*
- * C_cube_stratified: Stratified cube method (Chauvet & Tille, 2006/2009)
+ * C_cube_stratified: Stratified cube method (Chauvet & Tillé, 2006/2009)
  *
  * Three phases:
  *   1. Per-stratum flight: balance within each stratum

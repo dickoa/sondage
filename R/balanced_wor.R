@@ -1,6 +1,6 @@
 #' Balanced Sampling Without Replacement
 #'
-#' Draws a balanced sample using the cube method (Deville & Tille, 2004).
+#' Draws a balanced sample using the cube method (Deville & \enc{Tillé}{Tille}, 2004).
 #' A balanced sample satisfies (approximately) the balancing equations
 #' \eqn{\sum_{k \in S} x_k / \pi_k \approx \sum_{k \in U} x_k} for each
 #' auxiliary variable \eqn{x}.
@@ -15,7 +15,7 @@
 #'   unbalanced fixed-size design).
 #' @param strata An optional integer vector (length N) of stratum
 #'   indicators (positive integers). Uses the stratified cube method
-#'   (Chauvet & Tille, 2006; Chauvet, 2009) to preserve within-stratum
+#'   (Chauvet & \enc{Tillé}{Tille}, 2006; Chauvet, 2009) to preserve within-stratum
 #'   sample sizes while balancing on `aux`. Requires `sum(pik)` within
 #'   each stratum to be close to an integer for exact sizes. If not, a
 #'   warning is issued and `fixed_size` is set to `FALSE`.
@@ -68,10 +68,10 @@
 #'   an integer; `$fixed_size` is set to `FALSE` and a warning is issued.
 #'
 #' @references
-#' Deville, J.C. and Tille, Y. (2004). Efficient balanced sampling: the
+#' Deville, J.C. and \enc{Tillé}{Tille}, Y. (2004). Efficient balanced sampling: the
 #'   cube method. \emph{Biometrika}, 91(4), 893-912.
 #'
-#' Chauvet, G. and Tille, Y. (2006). A fast algorithm for balanced sampling.
+#' Chauvet, G. and \enc{Tillé}{Tille}, Y. (2006). A fast algorithm for balanced sampling.
 #'   \emph{Computational Statistics}, 21(1), 53-62.
 #'
 #' Chauvet, G. (2009). Stratified balanced sampling. \emph{Survey

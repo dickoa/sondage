@@ -62,7 +62,7 @@ pairs that never co-occur. When \code{weighted = TRUE}, the SYG quantity
 \eqn{1 - \pi_i \pi_j / \pi_{ij}} is undefined for such pairs and
 set to \code{NA} with a warning. The raw covariance (\code{weighted = FALSE})
 is unaffected. The Sen-Yates-Grundy estimator is not applicable
-for these designs (Tille, 2006, Ch. 5).
+for these designs (\enc{Tillé}{Tille}, 2006, Ch. 5).
 }
 \examples{
 pik <- c(0.2, 0.3, 0.5)
@@ -83,5 +83,5 @@ Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson
 estimator. \emph{Proceedings of the Survey Research Methods Section,
 American Statistical Association}.
 
-Tille, Y. (2006). \emph{Sampling Algorithms}. Springer.
+\enc{Tillé}{Tille}, Y. (2006). \emph{Sampling Algorithms}. Springer.
 }
