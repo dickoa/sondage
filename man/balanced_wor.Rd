@@ -17,7 +17,9 @@ balanced_wor(
 }
 \arguments{
 \item{pik}{A numeric vector of inclusion probabilities (length N).
-\code{sum(pik)} must be close to an integer.}
+\code{sum(pik)} must be an integer to floating-point accuracy; see
+\code{\link[=unequal_prob_wor]{unequal_prob_wor()}} for the exact-0/1 handling of boundary
+values.}
 
 \item{aux}{An optional numeric matrix (N x p) of auxiliary balancing
 variables. Each column defines a balancing constraint. The sample
@@ -60,9 +62,12 @@ list of integer vectors when within-stratum sizes are not exact.}
 
 \item{...}{Additional arguments passed to methods:
 \describe{
-\item{\code{eps}}{Boundary tolerance for deciding 0/1 (default \code{1e-10},
-stricter than the \code{1e-6} used by other dispatchers because the
-cube flight phase is sensitive to premature rounding).}
+\item{\code{eps}}{Flight-phase boundary tolerance (default \code{1e-10}):
+decides when an updated \emph{working} probability has
+numerically reached 0 or 1. It never reclassifies the input;
+supplied \code{pik} inside \verb{(0, eps]} or \verb{[1 - eps, 1)} are
+rejected. Only \code{pik} of exactly 0 or exactly 1 enter the
+flight phase as already-resolved units.}
 \item{\code{condition_aux}}{Logical; if \code{TRUE}, pre-conditions \code{aux} by
 weighted centering/scaling and QR-pivot rank pruning to improve
 numerical stability with ill-conditioned or collinear auxiliary

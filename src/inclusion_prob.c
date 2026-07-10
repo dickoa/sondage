@@ -27,19 +27,17 @@ SEXP C_inclusion_prob(SEXP a, SEXP n) {
      * The R wrapper (inclusion_prob.default) validates that x contains no
      * NA / NaN / Inf before calling us, so we never see non-finite input
      * here and can operate on plain doubles.
+     *
+     * Sizes are divided by their maximum before summation so the result
+     * is invariant to rescaling of x: raw sums of very large sizes would
+     * overflow to Inf, and sums of subnormal sizes lose all precision.
      */
-    double sum_a = 0.0;
+    double max_a = 0.0;
     for (int i = 0; i < len; i++) {
-        double val = a_ptr[i];
-        if (val <= 0.0) {
-            pik_ptr[i] = 0.0;
-        } else {
-            pik_ptr[i] = val;
-            sum_a += val;
-        }
+        if (a_ptr[i] > max_a) max_a = a_ptr[i];
     }
 
-    if (sum_a == 0.0) {
+    if (max_a == 0.0) {
         if (n_val > 0.5) {
             UNPROTECT(1);
             error("'n' (%d) exceeds the number of units with positive size (0)",
@@ -50,6 +48,17 @@ SEXP C_inclusion_prob(SEXP a, SEXP n) {
         }
         UNPROTECT(1);
         return pik;
+    }
+
+    double sum_a = 0.0;
+    for (int i = 0; i < len; i++) {
+        double val = a_ptr[i];
+        if (val <= 0.0) {
+            pik_ptr[i] = 0.0;
+        } else {
+            pik_ptr[i] = val / max_a;
+            sum_a += pik_ptr[i];
+        }
     }
 
     const double scale = n_val / sum_a;

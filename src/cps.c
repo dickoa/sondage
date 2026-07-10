@@ -32,9 +32,8 @@ static int cps_complement_to_selected(const int *comp_idx, int m, int N,
     return 0;
 }
 
-SEXP C_cps_single(SEXP pik_sexp, SEXP eps_sexp) {
+SEXP C_cps_single(SEXP pik_sexp) {
     const double *pik_full = REAL(pik_sexp);
-    const double epsilon = REAL(eps_sexp)[0];
     const int N_full = LENGTH(pik_sexp);
 
     int N = 0;
@@ -43,9 +42,9 @@ SEXP C_cps_single(SEXP pik_sexp, SEXP eps_sexp) {
 
     for (int k = 0; k < N_full; k++) {
         double pk = pik_full[k];
-        if (pk >= 1.0 - epsilon) {
+        if (pk >= 1.0) {
             N_certain++;
-        } else if (pk > epsilon) {
+        } else if (pk > 0.0) {
             N++;
             n_sum += pk;
         }
@@ -71,9 +70,9 @@ SEXP C_cps_single(SEXP pik_sexp, SEXP eps_sexp) {
     int j = 0;
     for (int k = 0; k < N_full; k++) {
         double pk = pik_full[k];
-        if (pk >= 1.0 - epsilon) {
+        if (pk >= 1.0) {
             out[out_idx++] = k + 1;
-        } else if (pk > epsilon) {
+        } else if (pk > 0.0) {
             pik_valid[j] = pk;
             idx_map[j] = k;
             j++;
@@ -100,11 +99,11 @@ SEXP C_cps_single(SEXP pik_sexp, SEXP eps_sexp) {
     }
 
     double *w = (double *) R_alloc(N, sizeof(double));
-    double *expa = (double *) R_alloc((size_t)N * n_work, sizeof(double));
+    double *f = (double *) R_alloc(CPS_TABLE_SIZE(N, n_work), sizeof(double));
 
     double cal_max_diff = 0.0;
     int    cal_worst_idx = -1;
-    int cal_iters = cps_calibrate(pik_work, N, n_work, w, expa, 1e-9, 500,
+    int cal_iters = cps_calibrate(pik_work, N, n_work, w, f, 1e-9, 500,
                                   &cal_max_diff, &cal_worst_idx);
     if (cal_iters >= 500) {
         cps_warn_nonconverge("", 500, 1e-9, cal_max_diff,
@@ -120,7 +119,7 @@ SEXP C_cps_single(SEXP pik_sexp, SEXP eps_sexp) {
 
     int selected = 0;
     GetRNGstate();
-    selected = cps_sample(w, expa, N, n_work, sample_idx);
+    selected = cps_sample(w, f, N, n_work, sample_idx);
     PutRNGstate();
 
     if (selected != n_work) {
@@ -150,9 +149,8 @@ SEXP C_cps_single(SEXP pik_sexp, SEXP eps_sexp) {
     return result;
 }
 
-SEXP C_cps_design(SEXP pik_sexp, SEXP eps_sexp) {
+SEXP C_cps_design(SEXP pik_sexp) {
     const double *pik_full = REAL(pik_sexp);
-    const double epsilon = REAL(eps_sexp)[0];
     const int N_full = LENGTH(pik_sexp);
 
     int N = 0;
@@ -161,9 +159,9 @@ SEXP C_cps_design(SEXP pik_sexp, SEXP eps_sexp) {
 
     for (int k = 0; k < N_full; k++) {
         double pk = pik_full[k];
-        if (pk >= 1.0 - epsilon) {
+        if (pk >= 1.0) {
             N_certain++;
-        } else if (pk > epsilon) {
+        } else if (pk > 0.0) {
             N++;
             n_sum += pk;
         }
@@ -188,9 +186,9 @@ SEXP C_cps_design(SEXP pik_sexp, SEXP eps_sexp) {
     int j = 0, c = 0;
     for (int k = 0; k < N_full; k++) {
         double pk = pik_full[k];
-        if (pk >= 1.0 - epsilon) {
+        if (pk >= 1.0) {
             certain_idx[c++] = k;
-        } else if (pk > epsilon) {
+        } else if (pk > 0.0) {
             pik_valid[j] = pk;
             idx_map[j] = k;
             j++;
@@ -198,7 +196,7 @@ SEXP C_cps_design(SEXP pik_sexp, SEXP eps_sexp) {
     }
 
     double *w_arr = NULL;
-    double *expa_arr = NULL;
+    double *f_arr = NULL;
 
     if (N > 0 && n_work > 0) {
         double *pik_work = (double *) R_alloc(N, sizeof(double));
@@ -207,11 +205,11 @@ SEXP C_cps_design(SEXP pik_sexp, SEXP eps_sexp) {
         }
 
         w_arr = (double *) R_alloc(N, sizeof(double));
-        expa_arr = (double *) R_alloc((size_t)N * n_work, sizeof(double));
+        f_arr = (double *) R_alloc(CPS_TABLE_SIZE(N, n_work), sizeof(double));
 
         double cal_max_diff = 0.0;
         int    cal_worst_idx = -1;
-        int cal_iters = cps_calibrate(pik_work, N, n_work, w_arr, expa_arr,
+        int cal_iters = cps_calibrate(pik_work, N, n_work, w_arr, f_arr,
                                       1e-9, 500, &cal_max_diff,
                                       &cal_worst_idx);
         if (cal_iters >= 500) {
@@ -257,14 +255,17 @@ SEXP C_cps_design(SEXP pik_sexp, SEXP eps_sexp) {
     SET_VECTOR_ELT(result, 6, w_sexp);
     SET_STRING_ELT(names, 6, mkChar("w"));
 
-    SEXP expa_sexp = PROTECT(allocMatrix(REALSXP, N,
-                                         (n_work > 0) ? n_work : 1));
+    /* Suffix probability table; stored as a flat (N+1) x (n_work+1)
+     * buffer. Only the raw doubles matter to C_cps_draw_batch. */
+    SEXP f_sexp = PROTECT(allocMatrix(REALSXP, N + 1, n_work + 1));
     if (N > 0 && n_work > 0) {
-        memcpy(REAL(expa_sexp), expa_arr,
-               (size_t)N * n_work * sizeof(double));
+        memcpy(REAL(f_sexp), f_arr,
+               CPS_TABLE_SIZE(N, n_work) * sizeof(double));
+    } else {
+        memset(REAL(f_sexp), 0, CPS_TABLE_SIZE(N, n_work) * sizeof(double));
     }
-    SET_VECTOR_ELT(result, 7, expa_sexp);
-    SET_STRING_ELT(names, 7, mkChar("expa"));
+    SET_VECTOR_ELT(result, 7, f_sexp);
+    SET_STRING_ELT(names, 7, mkChar("f"));
 
     SET_VECTOR_ELT(result, 8, ScalarInteger(use_complement));
     SET_STRING_ELT(names, 8, mkChar("use_complement"));
@@ -288,7 +289,7 @@ SEXP C_cps_draw_batch(SEXP design, SEXP n_samples_sexp) {
     const int *idx_map = INTEGER(VECTOR_ELT(design, 3));
     const int *certain_idx = INTEGER(VECTOR_ELT(design, 5));
     const double *w = REAL(VECTOR_ELT(design, 6));
-    const double *expa = REAL(VECTOR_ELT(design, 7));
+    const double *f = REAL(VECTOR_ELT(design, 7));
     const int n_samples = INTEGER(n_samples_sexp)[0];
 
     int n_total = n + N_certain;
@@ -329,7 +330,7 @@ SEXP C_cps_draw_batch(SEXP design, SEXP n_samples_sexp) {
 
     for (int s = 0; s < n_samples; s++) {
         if (s % 100 == 0) R_CheckUserInterrupt();
-        int selected = cps_sample(w, expa, N, n_work, sample_idx);
+        int selected = cps_sample(w, f, N, n_work, sample_idx);
         if (selected != n_work) {
             PutRNGstate();
             UNPROTECT(1);

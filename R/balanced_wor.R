@@ -6,7 +6,9 @@
 #' auxiliary variable \eqn{x}.
 #'
 #' @param pik A numeric vector of inclusion probabilities (length N).
-#'   `sum(pik)` must be close to an integer.
+#'   `sum(pik)` must be an integer to floating-point accuracy; see
+#'   [unequal_prob_wor()] for the exact-0/1 handling of boundary
+#'   values.
 #' @param aux An optional numeric matrix (N x p) of auxiliary balancing
 #'   variables. Each column defines a balancing constraint. The sample
 #'   size constraint is always included automatically; `aux` specifies
@@ -42,9 +44,12 @@
 #'   list of integer vectors when within-stratum sizes are not exact.
 #' @param ... Additional arguments passed to methods:
 #'   \describe{
-#'     \item{`eps`}{Boundary tolerance for deciding 0/1 (default `1e-10`,
-#'       stricter than the `1e-6` used by other dispatchers because the
-#'       cube flight phase is sensitive to premature rounding).}
+#'     \item{`eps`}{Flight-phase boundary tolerance (default `1e-10`):
+#'       decides when an updated \emph{working} probability has
+#'       numerically reached 0 or 1. It never reclassifies the input;
+#'       supplied `pik` inside `(0, eps]` or `[1 - eps, 1)` are
+#'       rejected. Only `pik` of exactly 0 or exactly 1 enter the
+#'       flight phase as already-resolved units.}
 #'     \item{`condition_aux`}{Logical; if `TRUE`, pre-conditions `aux` by
 #'       weighted centering/scaling and QR-pivot rank pruning to improve
 #'       numerical stability with ill-conditioned or collinear auxiliary
@@ -242,6 +247,7 @@ balanced_wor <- function(
     qr_tol <- sqrt(.Machine$double.eps)
   }
   eps <- check_eps(eps)
+  .check_cube_eps_classification(pik, eps)
 
   strata_fixed <- TRUE
   if (is.null(strata)) {
@@ -297,6 +303,35 @@ balanced_wor <- function(
     out$bounds <- bounds
   }
   out
+}
+
+#' Reject pik values that the flight-phase tolerance would reclassify.
+#'
+#' `eps` is the cube flight-phase boundary tolerance: it decides when an
+#' updated *working* probability has numerically reached 0 or 1. It must
+#' not reinterpret the *input* design. A supplied pik inside (0, eps] or
+#' [1 - eps, 1) would be treated as already resolved, silently changing
+#' the design and breaking the fixed-size contract, so it is rejected.
+#'
+#' @noRd
+.check_cube_eps_classification <- function(pik, eps) {
+  bad <- (pik > 0 & pik <= eps) | (pik >= 1 - eps & pik < 1)
+  if (any(bad)) {
+    stop(
+      sprintf(
+        paste0(
+          "%d 'pik' value(s) lie within eps = %.2g of 0 or 1 without being ",
+          "exactly 0 or exactly 1. 'eps' is the flight-phase boundary ",
+          "tolerance, not a trimming rule: units are excluded or selected ",
+          "with certainty only when pik is exactly 0 or exactly 1. ",
+          "Round those values yourself or use a smaller eps."
+        ),
+        sum(bad), eps
+      ),
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
 }
 
 #' Build the balancing matrix for the cube C code.
@@ -528,7 +563,10 @@ balanced_wor <- function(
   if (ncol(aux_cs) <= 1L) {
     return(aux_cs)
   }
-  q <- qr(aux_cs, tol = qr_tol, LAPACK = TRUE)
+  # LINPACK path: rank-revealing pivoted QR that honors `tol`. The LAPACK
+  # path ignores `tol` and always reports full column rank, so it cannot
+  # detect dependent balancing constraints.
+  q <- qr(aux_cs, tol = qr_tol)
   r <- q$rank
   if (r <= 0L) {
     return(matrix(0, nrow = N, ncol = 0))
@@ -584,6 +622,7 @@ balanced_wor <- function(
     eps <- 1e-10
   }
   eps <- check_eps(eps)
+  .check_cube_eps_classification(pik, eps)
   condition_aux <- isTRUE(dots[["condition_aux"]])
   qr_tol <- dots[["qr_tol"]]
   if (is.null(qr_tol)) {

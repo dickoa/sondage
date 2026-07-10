@@ -14,14 +14,21 @@ unequal_prob_wor(
 }
 \arguments{
 \item{pik}{A numeric vector of inclusion probabilities.
-For fixed-size methods, \code{sum(pik)} must be close to an integer.}
+For fixed-size methods, \code{sum(pik)} must be an integer to
+floating-point accuracy: an exact fixed-size design cannot have a
+non-integer sum, so looser sums are rejected rather than silently
+rounded. Units with \code{pik} of exactly 0 are never selected and
+units with exactly 1 are always selected; values in between --
+however close to the boundary -- are sampled as given.}
 
 \item{method}{The sampling method:
 \describe{
 \item{\code{"cps"}}{Conditional Poisson Sampling (maximum entropy;
 Chen et al., 1994). Fixed size, exact joint probabilities
-with all \eqn{\pi_{ij} > 0}. O(N^2) to build the ESF table,
-O(Nn) per draw thereafter.}
+with all \eqn{\pi_{ij} > 0}. Calibration and the conditional
+probability table are O(Nn) (probability-domain
+Poisson-binomial recurrence); each draw is O(N) thereafter.
+Equal \code{pik} are drawn directly as SRS.}
 \item{\code{"brewer"}}{Brewer's (1975) draw-by-draw method. Fixed
 size, approximate joint probabilities (high-entropy
 approximation; see \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}). O(Nn).}
@@ -39,11 +46,12 @@ Order sampling with key \eqn{\xi_k = u_k / \pi_k}; the
 Supports PRN. Approximate joint probabilities. The true
 first-order inclusion probabilities are approximately equal
 to the supplied \code{pik}; see \code{\link[=inclusion_prob]{inclusion_prob()}}.
-O(N log N).}
+Expected O(N). Tied keys (possible with duplicated \code{prn}
+values) are broken toward the smallest population index.}
 \item{\code{"pareto"}}{Pareto sampling (Rosen, 1997). Order
 sampling with odds-ratio key
 \eqn{\xi_k = [u_k/(1-u_k)] / [\pi_k/(1-\pi_k)]}. Same
-properties as \code{"sps"}. O(N log N).}
+properties as \code{"sps"}. Expected O(N).}
 }}
 
 \item{nrep}{Number of replicate samples (default 1). When \code{nrep > 1},
@@ -58,8 +66,10 @@ Cannot be used with \code{nrep > 1} (identical PRN would produce
 identical replicates). Use a loop with different PRN vectors
 for coordinated repeated sampling.}
 
-\item{...}{Additional arguments passed to methods (e.g., \code{eps} for
-boundary tolerance; see Details).}
+\item{...}{Additional arguments passed to methods registered via
+\code{\link[=register_method]{register_method()}}. Built-in methods take no additional
+arguments; the former \code{eps} boundary-trimming argument was
+removed because it silently changed the design.}
 }
 \value{
 An object of class \code{c("unequal_prob", "wor", "sondage_sample")}.
@@ -74,8 +84,9 @@ double for \code{"poisson"} (expected size, \code{sum(pik)}); see
 Draws a sample with unequal inclusion probabilities, without replacement.
 }
 \details{
-\strong{Near-certainty inclusion probabilities (CPS).} The CPS Newton
-calibration converges geometrically for well-spread \code{pik}, but
+\strong{Near-certainty inclusion probabilities (CPS).} The CPS
+fixed-point calibration converges geometrically for well-spread
+\code{pik}, but
 asymptotes at a non-zero defect when some \code{pik} are within a few
 decimal digits of 0 or 1 (e.g. 0.9999). When this happens the
 function emits a "CPS calibration did not reach tolerance" warning

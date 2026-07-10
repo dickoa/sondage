@@ -54,7 +54,7 @@ test_that("sps top-up coordination: n subset of n+1", {
 })
 
 test_that("sps handles certainty units", {
-  pik <- c(0.999999, 0.999999, 0.3, 0.4, 0.3)
+  pik <- c(1.0, 1.0, 0.3, 0.4, 0.3)
   s <- unequal_prob_wor(pik, method = "sps")
   expect_true(all(c(1L, 2L) %in% s$sample))
 })
@@ -120,7 +120,7 @@ test_that("pareto top-up coordination: n subset of n+1", {
 })
 
 test_that("pareto handles certainty units", {
-  pik <- c(0.999999, 0.999999, 0.3, 0.4, 0.3)
+  pik <- c(1.0, 1.0, 0.3, 0.4, 0.3)
   s <- unequal_prob_wor(pik, method = "pareto")
   expect_true(all(c(1L, 2L) %in% s$sample))
 })
@@ -322,10 +322,10 @@ test_that("prn coordination: shared prn increases sample overlap", {
 
 test_that("sps selects all valid units when round(sum(pik)) == n_valid", {
   # Exercises the partial_sort_paired n_select == n_valid early-return:
-  # all pik below certainty threshold (eps = 1e-6 → 1 - eps = 0.999999)
-  # but their sum rounds to N, so every valid unit must be selected.
-  pik <- rep(0.99999, 10)
-  expect_lt(max(pik), 1 - 1e-6)   # not classified as certainty
+  # all pik strictly below 1 (not certainty units) but their sum is N to
+  # floating-point accuracy, so every valid unit must be selected.
+  pik <- rep(1 - 1e-12, 10)
+  expect_lt(max(pik), 1)          # not classified as certainty
   expect_equal(round(sum(pik)), 10L)
   s <- unequal_prob_wor(pik, method = "sps")
   expect_equal(sort(s$sample), 1:10)
@@ -333,7 +333,7 @@ test_that("sps selects all valid units when round(sum(pik)) == n_valid", {
 })
 
 test_that("pareto selects all valid units when round(sum(pik)) == n_valid", {
-  pik <- rep(0.99999, 10)
+  pik <- rep(1 - 1e-12, 10)
   s <- unequal_prob_wor(pik, method = "pareto")
   expect_equal(sort(s$sample), 1:10)
   expect_length(s$sample, 10L)

@@ -20,19 +20,18 @@ static inline int binary_search(const double *cumprob, int n, double u) {
     return lo;
 }
 
-SEXP C_up_brewer(SEXP pik, SEXP eps) {
+SEXP C_up_brewer(SEXP pik) {
     const int N_full = LENGTH(pik);
     const double *pik_ptr = REAL(pik);
-    const double epsilon = REAL(eps)[0];
 
     int N = 0;
     int N_certain = 0;
     double n = 0.0;
     for (int k = 0; k < N_full; k++) {
         double pk = pik_ptr[k];
-        if (pk >= 1.0 - epsilon) {
+        if (pk >= 1.0) {
             N_certain++;
-        } else if (pk > epsilon) {
+        } else if (pk > 0.0) {
             N++;
             n += pk;
         }
@@ -47,7 +46,7 @@ SEXP C_up_brewer(SEXP pik, SEXP eps) {
 
     if (N == 0 || n_draws == 0) {
         for (int k = 0; k < N_full; k++) {
-            if (pik_ptr[k] >= 1.0 - epsilon) {
+            if (pik_ptr[k] >= 1.0) {
                 s_ptr[s_idx++] = k + 1;
             }
         }
@@ -62,9 +61,9 @@ SEXP C_up_brewer(SEXP pik, SEXP eps) {
     int j = 0;
     for (int k = 0; k < N_full; k++) {
         double pk = pik_ptr[k];
-        if (pk >= 1.0 - epsilon) {
+        if (pk >= 1.0) {
             s_ptr[s_idx++] = k + 1;
-        } else if (pk > epsilon) {
+        } else if (pk > 0.0) {
             pikb[j] = pk;
             orig_idx[j] = k;
             j++;

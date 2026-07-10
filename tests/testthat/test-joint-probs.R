@@ -306,7 +306,7 @@ test_that("high-entropy JIP warns on large marginal defect", {
     0.441842,
     0.304860,
     0.109806,
-    0.056257
+    0.056256
   )
   s <- unequal_prob_wor(pik_skewed, method = "brewer")
   expect_warning(joint_inclusion_prob(s), "marginal defect")
@@ -596,7 +596,7 @@ test_that("sampled_only skips marginal defect warning for HE", {
     0.441842,
     0.304860,
     0.109806,
-    0.056257
+    0.056256
   )
   s <- unequal_prob_wor(pik_skewed, method = "brewer")
   expect_warning(joint_inclusion_prob(s), "marginal defect")

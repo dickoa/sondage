@@ -2,8 +2,11 @@
  * C implementations for systematic PPS, Poisson, SPS, and Pareto sampling.
  *
  * These replace the previous pure-R implementations for performance.
- * All functions handle certainty units (pik >= 1-eps) by selecting
- * them unconditionally and running the algorithm on valid units only.
+ * All functions select certainty units (pik exactly 1) unconditionally,
+ * exclude impossible units (pik exactly 0), and run the algorithm on the
+ * remaining units. Values close to but not exactly 0 or 1 are sampled as
+ * given; callers validate that the pik sum is integer to floating-point
+ * accuracy for fixed-size methods.
  */
 
 #include <R.h>
@@ -14,10 +17,57 @@
 
 /* helpers for order sampling (SPS / Pareto) */
 
+static void swap_pair(double *keys, int *orig, int a, int b) {
+  double tk = keys[a];
+  keys[a] = keys[b];
+  keys[b] = tk;
+  int ti = orig[a];
+  orig[a] = orig[b];
+  orig[b] = ti;
+}
+
 /*
- * Partial sort on parallel arrays: rearranges keys[], orig[] so that the
- * n_select entries with the smallest keys are in positions [0, n_select)
- * (in arbitrary order). Uses quickselect (Lomuto partition), O(N) expected.
+ * Quickselect on orig[] within [band_lo, band_hi] (whose keys are all
+ * equal): move the k smallest population indices to the front of the
+ * band. orig values are unique, so this always terminates.
+ */
+static void tie_select_by_index(double *keys, int *orig,
+                                int band_lo, int band_hi, int k) {
+  if (k <= 0 || k > band_hi - band_lo) return; /* empty or full band */
+
+  int lo = band_lo, hi = band_hi;
+  const int want = band_lo + k; /* exclusive selection boundary */
+  while (lo < hi) {
+    int pivot = orig[lo + (hi - lo) / 2];
+    int lt = lo, i = lo, gt = hi;
+    while (i <= gt) {
+      if (orig[i] < pivot)
+        swap_pair(keys, orig, i++, lt++);
+      else if (orig[i] > pivot)
+        swap_pair(keys, orig, i, gt--);
+      else
+        i++;
+    }
+    if (want <= lt)
+      hi = lt - 1;
+    else if (want > gt + 1)
+      lo = gt + 1;
+    else
+      return; /* boundary inside the (singleton) pivot position */
+  }
+}
+
+/*
+ * Partial selection on parallel arrays: rearranges keys[], orig[] so
+ * that the n_select entries with the smallest keys are in positions
+ * [0, n_select). Three-way quickselect: elements equal to the pivot are
+ * grouped in a middle band, so fully or heavily tied keys partition in
+ * linear time (a two-way Lomuto partition degrades to O(len^2) when
+ * many keys are identical). Expected O(len) overall.
+ *
+ * Ties that straddle the selection boundary are broken toward the
+ * smallest population index: deterministic and reproducible for
+ * user-supplied permanent random numbers without consuming RNG values.
  *
  * Precondition: 0 <= n_select <= len.
  * When n_select == len every entry qualifies; the arrays are left
@@ -30,69 +80,53 @@ static void partial_sort_paired(double *keys, int *orig, int len,
 
   int lo = 0, hi = len - 1;
   while (lo < hi) {
-    int mid = lo + (hi - lo) / 2;
-    /* Move pivot to end */
-    {
-      double tk = keys[mid];
-      keys[mid] = keys[hi];
-      keys[hi] = tk;
-      int ti = orig[mid];
-      orig[mid] = orig[hi];
-      orig[hi] = ti;
+    double pivot = keys[lo + (hi - lo) / 2];
+
+    /* Dutch-national-flag partition:
+     * [lo, lt) < pivot, [lt, gt] == pivot, (gt, hi] > pivot */
+    int lt = lo, i = lo, gt = hi;
+    while (i <= gt) {
+      if (keys[i] < pivot)
+        swap_pair(keys, orig, i++, lt++);
+      else if (keys[i] > pivot)
+        swap_pair(keys, orig, i, gt--);
+      else
+        i++;
     }
 
-    double pivot = keys[hi];
-    int store = lo;
-    for (int j = lo; j < hi; j++) {
-      if (keys[j] < pivot) {
-        double tk = keys[store];
-        keys[store] = keys[j];
-        keys[j] = tk;
-        int ti = orig[store];
-        orig[store] = orig[j];
-        orig[j] = ti;
-        store++;
-      }
+    if (n_select <= lt) {
+      hi = lt - 1;
+    } else if (n_select > gt + 1) {
+      lo = gt + 1;
+    } else {
+      /* Boundary falls inside the tie band: deterministically keep the
+       * tied units with the smallest population indices. */
+      tie_select_by_index(keys, orig, lt, gt, n_select - lt);
+      return;
     }
-    {
-      double tk = keys[store];
-      keys[store] = keys[hi];
-      keys[hi] = tk;
-      int ti = orig[store];
-      orig[store] = orig[hi];
-      orig[hi] = ti;
-    }
-
-    if (store == n_select - 1)
-      break;
-    if (store < n_select - 1)
-      lo = store + 1;
-    else
-      hi = store - 1;
   }
 }
 
 /* Systematic PPS */
 
 /*
- * C_up_systematic(pik, eps)
+ * C_up_systematic(pik)
  *
  * Single-pass systematic PPS: accumulate pik, select unit k when
  * the cumulative sum crosses an integer boundary (shifted by u).
  * Returns sorted 1-based indices.
  */
-SEXP C_up_systematic(SEXP pik, SEXP eps) {
+SEXP C_up_systematic(SEXP pik) {
   const int N = LENGTH(pik);
   const double *pk = REAL(pik);
-  const double epsilon = REAL(eps)[0];
 
   /* Count certainty units and compute n */
   int n_certain = 0;
   double n_valid = 0.0;
   for (int i = 0; i < N; i++) {
-    if (pk[i] >= 1.0 - epsilon)
+    if (pk[i] >= 1.0)
       n_certain++;
-    else if (pk[i] > epsilon)
+    else if (pk[i] > 0.0)
       n_valid += pk[i];
   }
   int n_select = (int)(n_valid + 0.5);
@@ -104,25 +138,45 @@ SEXP C_up_systematic(SEXP pik, SEXP eps) {
 
   /* Certainty units first */
   for (int i = 0; i < N; i++) {
-    if (pk[i] >= 1.0 - epsilon)
+    if (pk[i] >= 1.0)
       res[j++] = i + 1;
   }
 
   if (n_select > 0) {
+    /*
+     * Normalize the cumulative walk so it ends at exactly n_select:
+     * callers guarantee |n_valid - n_select| is at floating-point scale,
+     * and without this the walk could cross one extra (or one fewer)
+     * integer boundary than there are slots.
+     */
+    const double scale = (double)n_select / n_valid;
+
     GetRNGstate();
     double u = unif_rand();
     PutRNGstate();
 
     double cs = 0.0;
     for (int i = 0; i < N; i++) {
-      if (pk[i] <= epsilon || pk[i] >= 1.0 - epsilon)
+      if (pk[i] <= 0.0 || pk[i] >= 1.0)
         continue;
       double prev = cs;
-      cs += pk[i];
+      cs += pk[i] * scale;
       if (floor(cs - u) > floor(prev - u)) {
+        if (j >= total) {
+          UNPROTECT(1);
+          error(
+            "systematic sampling produced more than the expected %d selections",
+            total
+          );
+        }
         res[j++] = i + 1;
       }
     }
+  }
+
+  if (j != total) {
+    UNPROTECT(1);
+    error("systematic sampling produced %d selections, expected %d", j, total);
   }
 
   /* Result is already sorted (sequential scan) */
@@ -174,16 +228,15 @@ SEXP C_up_poisson(SEXP pik, SEXP prn) {
 /* SPS (Sequential Poisson Sampling) */
 
 /*
- * C_up_sps(pik, prn, eps)
+ * C_up_sps(pik, prn)
  *
  * Key: xi_k = u_k / pik_k.  Select the n smallest keys among valid units.
  * prn is R_NilValue when NULL (generate uniforms internally).
  * Returns sorted 1-based indices.
  */
-SEXP C_up_sps(SEXP pik, SEXP prn, SEXP eps) {
+SEXP C_up_sps(SEXP pik, SEXP prn) {
   const int N = LENGTH(pik);
   const double *pk = REAL(pik);
-  const double epsilon = REAL(eps)[0];
   int has_prn = !isNull(prn);
   const double *u_ext = has_prn ? REAL(prn) : NULL;
 
@@ -191,9 +244,9 @@ SEXP C_up_sps(SEXP pik, SEXP prn, SEXP eps) {
   int n_certain = 0;
   double n_sum = 0.0;
   for (int i = 0; i < N; i++) {
-    if (pk[i] >= 1.0 - epsilon)
+    if (pk[i] >= 1.0)
       n_certain++;
-    else if (pk[i] > epsilon)
+    else if (pk[i] > 0.0)
       n_sum += pk[i];
   }
   int n = (int)(n_sum + n_certain + 0.5);
@@ -206,7 +259,7 @@ SEXP C_up_sps(SEXP pik, SEXP prn, SEXP eps) {
 
   /* Certainty units */
   for (int i = 0; i < N; i++) {
-    if (pk[i] >= 1.0 - epsilon)
+    if (pk[i] >= 1.0)
       res[j++] = i + 1;
   }
 
@@ -214,8 +267,16 @@ SEXP C_up_sps(SEXP pik, SEXP prn, SEXP eps) {
     /* Build key array for valid units */
     int n_valid = 0;
     for (int i = 0; i < N; i++) {
-      if (pk[i] > epsilon && pk[i] < 1.0 - epsilon)
+      if (pk[i] > 0.0 && pk[i] < 1.0)
         n_valid++;
+    }
+
+    if (n_select > n_valid) {
+      UNPROTECT(1);
+      error(
+        "sps sampling needs %d units but only %d have 0 < pik < 1",
+        n_select, n_valid
+      );
     }
 
     double *keys = (double *)R_alloc(n_valid, sizeof(double));
@@ -226,7 +287,7 @@ SEXP C_up_sps(SEXP pik, SEXP prn, SEXP eps) {
 
     int vi = 0;
     for (int i = 0; i < N; i++) {
-      if (pk[i] > epsilon && pk[i] < 1.0 - epsilon) {
+      if (pk[i] > 0.0 && pk[i] < 1.0) {
         double u_i = has_prn ? u_ext[i] : unif_rand();
         keys[vi] = u_i / pk[i];
         orig[vi] = i + 1; /* 1-based */
@@ -257,17 +318,16 @@ SEXP C_up_sps(SEXP pik, SEXP prn, SEXP eps) {
 /* Pareto sampling */
 
 /*
- * C_up_pareto(pik, prn, eps)
+ * C_up_pareto(pik, prn)
  *
  * Key: xi_k = [u_k/(1-u_k)] / [pik_k/(1-pik_k)].
  * Select the n smallest keys among valid units.
  * prn is R_NilValue when NULL (generate uniforms internally).
  * Returns sorted 1-based indices.
  */
-SEXP C_up_pareto(SEXP pik, SEXP prn, SEXP eps) {
+SEXP C_up_pareto(SEXP pik, SEXP prn) {
   const int N = LENGTH(pik);
   const double *pk = REAL(pik);
-  const double epsilon = REAL(eps)[0];
   int has_prn = !isNull(prn);
   const double *u_ext = has_prn ? REAL(prn) : NULL;
 
@@ -275,9 +335,9 @@ SEXP C_up_pareto(SEXP pik, SEXP prn, SEXP eps) {
   int n_certain = 0;
   double n_sum = 0.0;
   for (int i = 0; i < N; i++) {
-    if (pk[i] >= 1.0 - epsilon)
+    if (pk[i] >= 1.0)
       n_certain++;
-    else if (pk[i] > epsilon)
+    else if (pk[i] > 0.0)
       n_sum += pk[i];
   }
   int n = (int)(n_sum + n_certain + 0.5);
@@ -290,15 +350,23 @@ SEXP C_up_pareto(SEXP pik, SEXP prn, SEXP eps) {
 
   /* Certainty units */
   for (int i = 0; i < N; i++) {
-    if (pk[i] >= 1.0 - epsilon)
+    if (pk[i] >= 1.0)
       res[j++] = i + 1;
   }
 
   if (n_select > 0) {
     int n_valid = 0;
     for (int i = 0; i < N; i++) {
-      if (pk[i] > epsilon && pk[i] < 1.0 - epsilon)
+      if (pk[i] > 0.0 && pk[i] < 1.0)
         n_valid++;
+    }
+
+    if (n_select > n_valid) {
+      UNPROTECT(1);
+      error(
+        "pareto sampling needs %d units but only %d have 0 < pik < 1",
+        n_select, n_valid
+      );
     }
 
     double *keys = (double *)R_alloc(n_valid, sizeof(double));
@@ -309,7 +377,7 @@ SEXP C_up_pareto(SEXP pik, SEXP prn, SEXP eps) {
 
     int vi = 0;
     for (int i = 0; i < N; i++) {
-      if (pk[i] > epsilon && pk[i] < 1.0 - epsilon) {
+      if (pk[i] > 0.0 && pk[i] < 1.0) {
         double u_i = has_prn ? u_ext[i] : unif_rand();
         double odds_u = u_i / (1.0 - u_i);
         double odds_p = pk[i] / (1.0 - pk[i]);

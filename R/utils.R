@@ -6,7 +6,13 @@
 #' @param allow_zero If TRUE, allow pik values of exactly 0. Default TRUE.
 #' @param allow_one If TRUE, allow pik values of exactly 1. Default TRUE.
 #' @param fixed_size If TRUE, ensure sample size is fixed. Default FALSE.
-#' @param tol Tolerance for integer check.
+#' @param tol Tolerance for integer check. The default (`NULL`) uses a
+#'   strict floating-point tolerance scaled by the number and magnitude
+#'   of the terms: large enough to absorb accumulation error from
+#'   `inclusion_prob()` at large N, but far below any statistically
+#'   meaningful deviation. An exact fixed-size design cannot have
+#'   `sum(pik)` away from an integer, so looser sums are rejected
+#'   rather than silently rounded.
 #'
 #' @return Invisibly returns TRUE if valid, otherwise stops with error.
 #'
@@ -17,7 +23,7 @@ check_pik <- function(
   allow_zero = TRUE,
   allow_one = TRUE,
   fixed_size = FALSE,
-  tol = 1e-4
+  tol = NULL
 ) {
   if (!is.numeric(pik)) {
     stop("'pik' must be a numeric vector", call. = FALSE)
@@ -39,6 +45,9 @@ check_pik <- function(
   }
   if (fixed_size) {
     s <- sum(pik)
+    if (is.null(tol)) {
+      tol <- max(1e-10, 64 * .Machine$double.eps * (length(pik) + s))
+    }
     if (abs(s - round(s)) > tol) {
       stop(
         sprintf(
@@ -119,6 +128,24 @@ check_integer <- function(x, name = "n", tol = 1e-4) {
     )
   }
   as.integer(r)
+}
+
+#' Reject the removed design-modifying 'eps' argument
+#'
+#' The sampling methods formerly excluded units with pik <= eps and
+#' force-selected units with pik >= 1 - eps. That silently changed the
+#' design (and could break the fixed-size contract), so it was removed:
+#' only exact 0 and exact 1 receive special treatment now.
+#'
+#' @keywords internal
+#' @noRd
+.stop_eps_removed <- function() {
+  stop(
+    "'eps' no longer modifies the design. Units are excluded or selected ",
+    "with certainty only when pik is exactly 0 or exactly 1; all other ",
+    "values are sampled as given.",
+    call. = FALSE
+  )
 }
 
 #' Validate numerical tolerance parameter

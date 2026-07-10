@@ -321,8 +321,8 @@ test_that("cube handles certainty units (pik = 1)", {
   }
 })
 
-test_that("cube handles near-zero pik", {
-  pik <- c(1e-8, 0.5, 0.5)
+test_that("cube handles exact-zero pik", {
+  pik <- c(0, 0.5, 0.5)
   x <- matrix(c(10, 20, 30))
   set.seed(42)
   for (i in 1:50) {

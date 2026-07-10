@@ -43,7 +43,7 @@ test_that("brewer achieves correct inclusion probabilities", {
 })
 
 test_that("brewer handles certainty selections", {
-  pik <- c(0.999999, 0.5, 0.5)
+  pik <- c(1.0, 0.5, 0.5)
   set.seed(123)
   for (i in 1:50) {
     idx <- unequal_prob_wor(pik, method = "brewer")$sample
@@ -51,8 +51,8 @@ test_that("brewer handles certainty selections", {
   }
 })
 
-test_that("brewer excludes near-zero units", {
-  pik <- c(1e-8, 0.5, 0.5)
+test_that("brewer excludes exact-zero units", {
+  pik <- c(0, 0.5, 0.5)
   set.seed(123)
   for (i in 1:50) {
     idx <- unequal_prob_wor(pik, method = "brewer")$sample
@@ -114,8 +114,8 @@ test_that("brewer handles all-certainty pik", {
   expect_equal(sort(s$sample), 1:3)
 })
 
-test_that("brewer denom clamp handles near-certainty units with tight eps", {
-  # With small eps, high-pik units enter the active pool and the Brewer
+test_that("brewer denom clamp handles near-certainty units", {
+  # Near-1 (but not exactly 1) pik enter the active pool and the Brewer
 
   # denominator (m - pk*r) can become extremely small. A previous guard
   # that zeroed the draw probability when denom < 1e-10 would incorrectly
@@ -127,7 +127,7 @@ test_that("brewer denom clamp handles near-certainty units with tight eps", {
   counts <- integer(4)
   nrep <- 200
   for (i in seq_len(nrep)) {
-    s <- unequal_prob_wor(pik, method = "brewer", eps = 1e-12)
+    s <- unequal_prob_wor(pik, method = "brewer")
     counts[s$sample] <- counts[s$sample] + 1L
   }
   # Near-certainty units must be selected every time

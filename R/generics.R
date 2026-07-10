@@ -183,10 +183,13 @@ expected_hits.default <- function(x, n, ...) {
   if (any(x < 0)) {
     stop("'x' values must be non-negative", call. = FALSE)
   }
-  if (sum(x) == 0) {
+  if (max(x) == 0) {
     stop("sum of 'x' must be positive", call. = FALSE)
   }
-  n * x / sum(x)
+  # Scale by the largest size first so the result is invariant to
+  # rescaling of x and immune to overflow/underflow of sum(x).
+  xs <- x / max(x)
+  n * xs / sum(xs)
 }
 
 #' @rdname expected_hits
@@ -215,15 +218,15 @@ expected_hits.wor <- function(x, ...) {
 #' @param sampled_only If `TRUE`, return only the n x n submatrix for
 #'   the sampled units (requires `nrep = 1`). Useful when N is large
 #'   but n is manageable. Default `FALSE`.
-#' @param ... Additional arguments passed to methods (e.g., `eps`
-#'   for boundary tolerance).
+#' @param ... Additional arguments passed to the `joint_fn` of methods
+#'   registered via [register_method()].
 #'
 #' @details
 #' The computation depends on the method stored in the design object:
 #'
 #' \describe{
-#'   \item{Exact}{`cps` (elementary symmetric polynomials),
-#'     `systematic` (combinatorial enumeration), `poisson`
+#'   \item{Exact}{`cps` (probability-domain Poisson-binomial
+#'     recurrences), `systematic` (circular interval overlap), `poisson`
 #'     (\eqn{\pi_{ij} = \pi_i \pi_j}), `srs`, and `bernoulli`.}
 #'   \item{Approximate}{`brewer`, `sps`, `pareto`, and `cube` use the
 #'     high-entropy approximation (Brewer & Donadio, 2003, eq. 18):
@@ -250,7 +253,7 @@ expected_hits.wor <- function(x, ...) {
 #' is skipped because the row-sum identity only holds for the full
 #' matrix.
 #'
-#' For `cps`, the Newton calibration used to produce the joint
+#' For `cps`, the fixed-point calibration used to produce the joint
 #' probabilities can emit a "CPS calibration did not reach tolerance"
 #' warning for `pik` values very close to 0 or 1. The realized joint
 #' probabilities differ from their exact values by up to the reported
@@ -277,8 +280,11 @@ joint_inclusion_prob <- function(x, ...) {
 }
 
 #' @rdname joint_inclusion_prob
-#' @param eps Boundary tolerance for CPS and systematic methods
-#'   (default 1e-6).
+#' @param eps High-entropy approximation boundary tolerance (default
+#'   1e-6), used only by the HE-approximate methods (`brewer`, `sps`,
+#'   `pareto`, `cube`); see [he_jip()]. The exact `cps` and
+#'   `systematic` methods ignore it and treat only exact 0/1 as
+#'   excluded/certainty units.
 #' @export
 joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
   pik <- x$pik
@@ -329,13 +335,11 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
       cps = .Call(
         C_cps_jip_sub,
         as.double(pik),
-        as.double(eps),
         as.integer(sample_idx)
       ),
       systematic = .Call(
         C_up_systematic_jip_sub,
         as.double(pik),
-        as.double(eps),
         as.integer(sample_idx)
       ),
       brewer = ,
@@ -366,9 +370,9 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
   } else {
     pikl <- switch(
       x$method,
-      cps = .Call(C_cps_jip, as.double(pik), as.double(eps)),
+      cps = .Call(C_cps_jip, as.double(pik)),
       brewer = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
-      systematic = .Call(C_up_systematic_jip, as.double(pik), as.double(eps)),
+      systematic = .Call(C_up_systematic_jip, as.double(pik)),
       sps = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
       pareto = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
       cube = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),

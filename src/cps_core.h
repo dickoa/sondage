@@ -1,8 +1,15 @@
 /*
  * cps_core.h - Shared routines for Conditional Poisson Sampling
  *
- * Elementary symmetric functions, conditional selection probabilities,
- * forward probability propagation, and Newton calibration.
+ * Poisson-binomial suffix probabilities, conditional selection
+ * probabilities, forward probability propagation, and fixed-point
+ * calibration.
+ *
+ * All quantities are kept in the probability domain. The previous
+ * implementation stored raw elementary symmetric functions, which grow
+ * like binomial coefficients and overflow to Inf near N ~ 1500 for
+ * central sample sizes; the resulting non-finite conditionals were
+ * clamped to zero, severely biasing selection toward later units.
  */
 
 #ifndef CPS_CORE_H
@@ -16,55 +23,61 @@
 #include <math.h>
 #include <float.h>
 
-/* expa[i*n + z] = e_z(w_i, ..., w_{N-1}) */
-static void cps_compute_expa(const double *w, int N, int n, double *expa) {
-    memset(expa, 0, (size_t)N * n * sizeof(double));
+/* Number of doubles needed for the suffix probability table. */
+#define CPS_TABLE_SIZE(N, n) ((size_t)((N) + 1) * (size_t)((n) + 1))
 
-    double cumsum = 0.0;
+/*
+ * f[i*(n+1) + z] = P(exactly z of units i, ..., N-1 are selected)
+ * under independent Bernoulli(p_k) with p_k = w_k / (1 + w_k).
+ * Rows run i = 0..N (row N is the empty-suffix base case); only
+ * z = 0..min(n, N-i) can be nonzero. Every entry lies in [0, 1].
+ *
+ * The elementary symmetric functions relate to this table through
+ * e_z(w_i, ...) = f[i][z] * prod_{k>=i} (1 + w_k), so conditional
+ * probability ratios of ESFs can be computed from f directly without
+ * ever forming the (overflowing) ESFs themselves.
+ */
+static void cps_compute_f(const double *w, int N, int n, double *f) {
+    const int S = n + 1; /* row stride */
+    memset(f, 0, CPS_TABLE_SIZE(N, n) * sizeof(double));
+
+    f[N * S + 0] = 1.0;
     for (int i = N - 1; i >= 0; i--) {
-        cumsum += w[i];
-        expa[i * n + 0] = cumsum;
-    }
+        const double p = w[i] / (1.0 + w[i]);
+        const double *fnext = f + (size_t)(i + 1) * S;
+        double *fi = f + (size_t)i * S;
+        int max_z = N - i;
+        if (max_z > n) max_z = n;
 
-    double logprod = 0.0;
-    for (int i = N - 1; i >= N - n && i >= 0; i--) {
-        logprod += log(w[i]);
-        int z = N - i - 1;
-        if (z < n) {
-            expa[i * n + z] = exp(logprod);
-        }
-    }
-
-    for (int i = N - 3; i >= 0; i--) {
-        int max_z = N - i - 1;
-        if (max_z > n - 1) max_z = n - 1;
+        fi[0] = (1.0 - p) * fnext[0];
         for (int z = 1; z <= max_z; z++) {
-            expa[i * n + z] = w[i] * expa[(i + 1) * n + (z - 1)] +
-                              expa[(i + 1) * n + z];
+            fi[z] = (1.0 - p) * fnext[z] + p * fnext[z - 1];
         }
     }
 }
 
-/* q(i,z) = P(select i | z still needed from i..N-1) */
-static inline double cps_compute_q(const double *w, const double *expa,
+/* q(i,z) = P(select i | z+1 still needed from i..N-1) */
+static inline double cps_compute_q(const double *w, const double *f,
                                     int N, int n, int i, int z) {
-    if (z == 0) {
-        double denom = expa[i * n + 0];
-        return (denom > 0) ? w[i] / denom : 0.0;
+    const int S = n + 1;
+    const int r = z + 1; /* selections still needed */
+
+    if (r >= N - i) {
+        return 1.0; /* every remaining unit must be selected */
     }
 
-    if (z >= N - i - 1) {
-        return 1.0;
-    }
+    double denom = f[(size_t)i * S + r];
+    if (!(denom > 0.0)) return 0.0;
 
-    double denom = expa[i * n + z];
-    if (denom <= 0) return 0.0;
-
-    return w[i] * expa[(i + 1) * n + (z - 1)] / denom;
+    double p = w[i] / (1.0 + w[i]);
+    double q = p * f[(size_t)(i + 1) * S + (r - 1)] / denom;
+    if (q < 0.0) q = 0.0;
+    if (q > 1.0) q = 1.0;
+    return q;
 }
 
-/* pro[i*n+z] = P(z needed at unit i), pik[i] = sum_z pro[i,z]*q(i,z) */
-static void cps_compute_pik(const double *w, const double *expa,
+/* pro[i*n+z] = P(z+1 needed at unit i), pik[i] = sum_z pro[i,z]*q(i,z) */
+static void cps_compute_pik(const double *w, const double *f,
                              int N, int n, double *pik, double *pro) {
     memset(pro, 0, (size_t)N * n * sizeof(double));
 
@@ -72,25 +85,25 @@ static void cps_compute_pik(const double *w, const double *expa,
 
     pik[0] = 0.0;
     for (int z = 0; z < n; z++) {
-        double q_0z = cps_compute_q(w, expa, N, n, 0, z);
+        double q_0z = cps_compute_q(w, f, N, n, 0, z);
         pik[0] += pro[0 * n + z] * q_0z;
     }
 
     for (int i = 1; i < N; i++) {
         for (int z = n - 1; z >= 0; z--) {
-            double q_prev = cps_compute_q(w, expa, N, n, i - 1, z);
+            double q_prev = cps_compute_q(w, f, N, n, i - 1, z);
 
             pro[i * n + z] += pro[(i - 1) * n + z] * (1.0 - q_prev);
 
             if (z + 1 < n) {
-                double q_prev_zp1 = cps_compute_q(w, expa, N, n, i - 1, z + 1);
+                double q_prev_zp1 = cps_compute_q(w, f, N, n, i - 1, z + 1);
                 pro[i * n + z] += pro[(i - 1) * n + (z + 1)] * q_prev_zp1;
             }
         }
 
         pik[i] = 0.0;
         for (int z = 0; z < n; z++) {
-            double q_iz = cps_compute_q(w, expa, N, n, i, z);
+            double q_iz = cps_compute_q(w, f, N, n, i, z);
             pik[i] += pro[i * n + z] * q_iz;
         }
     }
@@ -100,21 +113,22 @@ static void cps_compute_pik(const double *w, const double *expa,
  * Calibrate w so CPS achieves pik_target.
  *
  * Outputs:
- *   w[], expa[]      - calibrated odds and ESF table (set on exit)
+ *   w[], f[]         - calibrated odds and suffix probability table
+ *                      (set on exit; f has CPS_TABLE_SIZE(N, n) entries)
  *   *final_max_diff  - max |pik_target - pik_implied| at stop (0 on fast path)
  *   *worst_idx       - index in pik_target where the max was achieved
  *                      (-1 on fast path)
  *
  * Returns number of iterations used (1 for fast path, up to max_iter).
  *
- * The iteration is a Newton-style fixed-point: piktilde <- piktilde + diff
+ * The iteration is a fixed-point update: piktilde <- piktilde + diff
  * until max|diff| < eps. For inclusion probabilities close to 1 the
  * iteration asymptotes at a non-zero defect on the order of (1 - max_pik);
  * the final_max_diff / worst_idx outputs let callers emit an informative
  * warning when the target tolerance isn't reached.
  */
 static int cps_calibrate(const double *pik_target, int N, int n,
-                          double *w, double *expa,
+                          double *w, double *f,
                           double eps, int max_iter,
                           double *final_max_diff, int *worst_idx) {
     if (final_max_diff) *final_max_diff = 0.0;
@@ -144,7 +158,7 @@ static int cps_calibrate(const double *pik_target, int N, int n,
             for (int i = 0; i < N; i++) {
                 w[i] = w0;
             }
-            cps_compute_expa(w, N, n, expa);
+            cps_compute_f(w, N, n, f);
             return 1;
         }
     }
@@ -167,8 +181,8 @@ static int cps_calibrate(const double *pik_target, int N, int n,
             w[i] = p / (1.0 - p);
         }
 
-        cps_compute_expa(w, N, n, expa);
-        cps_compute_pik(w, expa, N, n, pik_implied, pro);
+        cps_compute_f(w, N, n, f);
+        cps_compute_pik(w, f, N, n, pik_implied, pro);
 
         double max_diff = 0.0;
         int    max_idx = -1;
@@ -195,7 +209,7 @@ static int cps_calibrate(const double *pik_target, int N, int n,
                 if (p > 1.0 - 1e-10) p = 1.0 - 1e-10;
                 w[i] = p / (1.0 - p);
             }
-            cps_compute_expa(w, N, n, expa);
+            cps_compute_f(w, N, n, f);
             if (final_max_diff) *final_max_diff = max_diff;
             if (worst_idx) *worst_idx = max_idx;
             return iter + 1;
@@ -259,7 +273,7 @@ static void cps_warn_nonconverge(const char *ctx,
  * Draw one CPS sample.
  * Returns number of selected indices written to sample_idx.
  */
-static int cps_sample(const double *w, const double *expa,
+static int cps_sample(const double *w, const double *f,
                        int N, int n, int *sample_idx) {
     int remaining = n;
     int count = 0;
@@ -279,7 +293,7 @@ static int cps_sample(const double *w, const double *expa,
             break;
         }
 
-        double q = cps_compute_q(w, expa, N, n, k, remaining - 1);
+        double q = cps_compute_q(w, f, N, n, k, remaining - 1);
 
         /*
          * Clamp/repair tiny numerical deviations. This prevents NaN/Inf from

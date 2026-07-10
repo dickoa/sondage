@@ -57,6 +57,20 @@ NULL
   if (is.numeric(sample) && !is.matrix(sample)) {
     sample <- as.integer(sample)
   }
+  # Fixed-size contract: the realized sample size must equal the declared
+  # size. This also covers methods added through register_method().
+  if (isTRUE(fixed_size) && (is.matrix(sample) || is.numeric(sample))) {
+    size <- if (is.matrix(sample)) nrow(sample) else length(sample)
+    if (size != n) {
+      stop(
+        sprintf(
+          "fixed-size method '%s' returned %d units, expected %d",
+          method, size, as.integer(round(n))
+        ),
+        call. = FALSE
+      )
+    }
+  }
   structure(
     list(
       sample = sample,

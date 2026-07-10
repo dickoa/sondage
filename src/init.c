@@ -3,46 +3,46 @@
 #include <R_ext/Rdynload.h>
 #include <stdlib.h>
 
-extern SEXP C_up_brewer(SEXP pik, SEXP eps);
+extern SEXP C_up_brewer(SEXP pik);
 extern SEXP C_inclusion_prob(SEXP a, SEXP n);
-extern SEXP C_cps_single(SEXP pik, SEXP eps);
-extern SEXP C_cps_design(SEXP pik, SEXP eps);
+extern SEXP C_cps_single(SEXP pik);
+extern SEXP C_cps_design(SEXP pik);
 extern SEXP C_cps_draw_batch(SEXP design, SEXP n_samples);
 extern SEXP C_up_chromy(SEXP x, SEXP n);
 extern SEXP C_chromy_joint_exp(SEXP x, SEXP n, SEXP nsim);
 extern SEXP C_chromy_joint_exp_sub(SEXP x, SEXP n, SEXP nsim, SEXP idx);
-extern SEXP C_cps_jip(SEXP pik, SEXP eps);
-extern SEXP C_cps_jip_sub(SEXP pik, SEXP eps, SEXP idx);
-extern SEXP C_up_systematic_jip(SEXP pik, SEXP eps);
-extern SEXP C_up_systematic_jip_sub(SEXP pik, SEXP eps, SEXP idx);
+extern SEXP C_cps_jip(SEXP pik);
+extern SEXP C_cps_jip_sub(SEXP pik, SEXP idx);
+extern SEXP C_up_systematic_jip(SEXP pik);
+extern SEXP C_up_systematic_jip_sub(SEXP pik, SEXP idx);
 extern SEXP C_high_entropy_jip(SEXP pik, SEXP eps);
-extern SEXP C_up_systematic(SEXP pik, SEXP eps);
+extern SEXP C_up_systematic(SEXP pik);
 extern SEXP C_up_poisson(SEXP pik, SEXP prn);
-extern SEXP C_up_sps(SEXP pik, SEXP prn, SEXP eps);
-extern SEXP C_up_pareto(SEXP pik, SEXP prn, SEXP eps);
+extern SEXP C_up_sps(SEXP pik, SEXP prn);
+extern SEXP C_up_pareto(SEXP pik, SEXP prn);
 extern SEXP C_cube(SEXP prob, SEXP X, SEXP B, SEXP r, SEXP eps);
 extern SEXP C_cube_batch(SEXP prob, SEXP X, SEXP B, SEXP r, SEXP eps, SEXP nrep);
 extern SEXP C_cube_stratified(SEXP prob, SEXP X, SEXP strata, SEXP eps);
 extern SEXP C_cube_stratified_batch(SEXP prob, SEXP X, SEXP strata, SEXP eps, SEXP nrep);
 
 static const R_CallMethodDef CallEntries[] = {
-    {"C_up_brewer",               (DL_FUNC) &C_up_brewer,               2},
+    {"C_up_brewer",               (DL_FUNC) &C_up_brewer,               1},
     {"C_inclusion_prob",          (DL_FUNC) &C_inclusion_prob,          2},
-    {"C_cps_single",              (DL_FUNC) &C_cps_single,              2},
-    {"C_cps_design",              (DL_FUNC) &C_cps_design,              2},
+    {"C_cps_single",              (DL_FUNC) &C_cps_single,              1},
+    {"C_cps_design",              (DL_FUNC) &C_cps_design,              1},
     {"C_cps_draw_batch",          (DL_FUNC) &C_cps_draw_batch,          2},
     {"C_up_chromy",               (DL_FUNC) &C_up_chromy,               2},
     {"C_chromy_joint_exp",        (DL_FUNC) &C_chromy_joint_exp,        3},
     {"C_chromy_joint_exp_sub",    (DL_FUNC) &C_chromy_joint_exp_sub,    4},
-    {"C_cps_jip",                 (DL_FUNC) &C_cps_jip,                 2},
-    {"C_cps_jip_sub",             (DL_FUNC) &C_cps_jip_sub,             3},
-    {"C_up_systematic_jip",     (DL_FUNC) &C_up_systematic_jip,     2},
-    {"C_up_systematic_jip_sub", (DL_FUNC) &C_up_systematic_jip_sub, 3},
+    {"C_cps_jip",                 (DL_FUNC) &C_cps_jip,                 1},
+    {"C_cps_jip_sub",             (DL_FUNC) &C_cps_jip_sub,             2},
+    {"C_up_systematic_jip",     (DL_FUNC) &C_up_systematic_jip,     1},
+    {"C_up_systematic_jip_sub", (DL_FUNC) &C_up_systematic_jip_sub, 2},
     {"C_high_entropy_jip",      (DL_FUNC) &C_high_entropy_jip,      2},
-    {"C_up_systematic",         (DL_FUNC) &C_up_systematic,         2},
+    {"C_up_systematic",         (DL_FUNC) &C_up_systematic,         1},
     {"C_up_poisson",            (DL_FUNC) &C_up_poisson,            2},
-    {"C_up_sps",                (DL_FUNC) &C_up_sps,                3},
-    {"C_up_pareto",             (DL_FUNC) &C_up_pareto,             3},
+    {"C_up_sps",                (DL_FUNC) &C_up_sps,                2},
+    {"C_up_pareto",             (DL_FUNC) &C_up_pareto,             2},
     {"C_cube",                  (DL_FUNC) &C_cube,                  5},
     {"C_cube_batch",            (DL_FUNC) &C_cube_batch,            6},
     {"C_cube_stratified",       (DL_FUNC) &C_cube_stratified,       4},

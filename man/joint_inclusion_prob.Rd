@@ -18,15 +18,18 @@ joint_inclusion_prob(x, ...)
 \arguments{
 \item{x}{A without-replacement design object (class \code{"wor"}).}
 
-\item{...}{Additional arguments passed to methods (e.g., \code{eps}
-for boundary tolerance).}
+\item{...}{Additional arguments passed to the \code{joint_fn} of methods
+registered via \code{\link[=register_method]{register_method()}}.}
 
 \item{sampled_only}{If \code{TRUE}, return only the n x n submatrix for
 the sampled units (requires \code{nrep = 1}). Useful when N is large
 but n is manageable. Default \code{FALSE}.}
 
-\item{eps}{Boundary tolerance for CPS and systematic methods
-(default 1e-6).}
+\item{eps}{High-entropy approximation boundary tolerance (default
+1e-6), used only by the HE-approximate methods (\code{brewer}, \code{sps},
+\code{pareto}, \code{cube}); see \code{\link[=he_jip]{he_jip()}}. The exact \code{cps} and
+\code{systematic} methods ignore it and treat only exact 0/1 as
+excluded/certainty units.}
 }
 \value{
 A symmetric N x N matrix (or n x n if \code{sampled_only = TRUE})
@@ -42,8 +45,8 @@ without-replacement sampling design.
 The computation depends on the method stored in the design object:
 
 \describe{
-\item{Exact}{\code{cps} (elementary symmetric polynomials),
-\code{systematic} (combinatorial enumeration), \code{poisson}
+\item{Exact}{\code{cps} (probability-domain Poisson-binomial
+recurrences), \code{systematic} (circular interval overlap), \code{poisson}
 (\eqn{\pi_{ij} = \pi_i \pi_j}), \code{srs}, and \code{bernoulli}.}
 \item{Approximate}{\code{brewer}, \code{sps}, \code{pareto}, and \code{cube} use the
 high-entropy approximation (Brewer & Donadio, 2003, eq. 18):
@@ -70,7 +73,7 @@ allocating the full N x N matrix, so large N is feasible
 is skipped because the row-sum identity only holds for the full
 matrix.
 
-For \code{cps}, the Newton calibration used to produce the joint
+For \code{cps}, the fixed-point calibration used to produce the joint
 probabilities can emit a "CPS calibration did not reach tolerance"
 warning for \code{pik} values very close to 0 or 1. The realized joint
 probabilities differ from their exact values by up to the reported

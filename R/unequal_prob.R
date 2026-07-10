@@ -3,13 +3,20 @@
 #' Draws a sample with unequal inclusion probabilities, without replacement.
 #'
 #' @param pik A numeric vector of inclusion probabilities.
-#'   For fixed-size methods, `sum(pik)` must be close to an integer.
+#'   For fixed-size methods, `sum(pik)` must be an integer to
+#'   floating-point accuracy: an exact fixed-size design cannot have a
+#'   non-integer sum, so looser sums are rejected rather than silently
+#'   rounded. Units with `pik` of exactly 0 are never selected and
+#'   units with exactly 1 are always selected; values in between --
+#'   however close to the boundary -- are sampled as given.
 #' @param method The sampling method:
 #'   \describe{
 #'     \item{`"cps"`}{Conditional Poisson Sampling (maximum entropy;
 #'       Chen et al., 1994). Fixed size, exact joint probabilities
-#'       with all \eqn{\pi_{ij} > 0}. O(N^2) to build the ESF table,
-#'       O(Nn) per draw thereafter.}
+#'       with all \eqn{\pi_{ij} > 0}. Calibration and the conditional
+#'       probability table are O(Nn) (probability-domain
+#'       Poisson-binomial recurrence); each draw is O(N) thereafter.
+#'       Equal `pik` are drawn directly as SRS.}
 #'     \item{`"brewer"`}{Brewer's (1975) draw-by-draw method. Fixed
 #'       size, approximate joint probabilities (high-entropy
 #'       approximation; see [joint_inclusion_prob()]). O(Nn).}
@@ -27,11 +34,12 @@
 #'       Supports PRN. Approximate joint probabilities. The true
 #'       first-order inclusion probabilities are approximately equal
 #'       to the supplied `pik`; see [inclusion_prob()].
-#'       O(N log N).}
+#'       Expected O(N). Tied keys (possible with duplicated `prn`
+#'       values) are broken toward the smallest population index.}
 #'     \item{`"pareto"`}{Pareto sampling (Rosen, 1997). Order
 #'       sampling with odds-ratio key
 #'       \eqn{\xi_k = [u_k/(1-u_k)] / [\pi_k/(1-\pi_k)]}. Same
-#'       properties as `"sps"`. O(N log N).}
+#'       properties as `"sps"`. Expected O(N).}
 #'   }
 #' @param nrep Number of replicate samples (default 1). When `nrep > 1`,
 #'   `$sample` holds a matrix (fixed-size) or list (random-size) of all
@@ -43,8 +51,10 @@
 #'   Cannot be used with `nrep > 1` (identical PRN would produce
 #'   identical replicates). Use a loop with different PRN vectors
 #'   for coordinated repeated sampling.
-#' @param ... Additional arguments passed to methods (e.g., `eps` for
-#'   boundary tolerance; see Details).
+#' @param ... Additional arguments passed to methods registered via
+#'   [register_method()]. Built-in methods take no additional
+#'   arguments; the former `eps` boundary-trimming argument was
+#'   removed because it silently changed the design.
 #'
 #' @return An object of class `c("unequal_prob", "wor", "sondage_sample")`.
 #'   When `nrep = 1`, `$sample` is an integer vector of selected unit indices.
@@ -71,8 +81,9 @@
 #' \enc{Tillé}{Tille}, Y. (2006). \emph{Sampling Algorithms}. Springer.
 #'
 #' @details
-#' **Near-certainty inclusion probabilities (CPS).** The CPS Newton
-#' calibration converges geometrically for well-spread `pik`, but
+#' **Near-certainty inclusion probabilities (CPS).** The CPS
+#' fixed-point calibration converges geometrically for well-spread
+#' `pik`, but
 #' asymptotes at a non-zero defect when some `pik` are within a few
 #' decimal digits of 0 or 1 (e.g. 0.9999). When this happens the
 #' function emits a "CPS calibration did not reach tolerance" warning
@@ -248,11 +259,44 @@ unequal_prob_wr <- function(
   }
 }
 
+#' CPS with equal interior probabilities is exactly SRS on those units:
+#' the maximum-entropy fixed-size design with equal marginals. Draw it
+#' directly instead of building the O(N * n) conditional table.
+#'
+#' Returns an index vector (nrep = 1), an n x nrep matrix (nrep > 1), or
+#' NULL when the fast path does not apply.
+#'
 #' @noRd
-.cps_sample <- function(pik, eps = 1e-06, ...) {
+.cps_equal_fast_path <- function(pik, nrep = 1L) {
+  valid <- which(pik > 0 & pik < 1)
+  if (length(valid) < 2L) {
+    return(NULL)
+  }
+  pv <- pik[valid]
+  if (max(pv) - min(pv) > 16 * .Machine$double.eps * max(1, pv[[1L]])) {
+    return(NULL)
+  }
+  certain <- which(pik >= 1)
+  n_total <- as.integer(round(sum(pik)))
+  n_draw <- n_total - length(certain)
+  draw_one <- function(i) {
+    sort(c(certain, valid[sample.int(length(valid), n_draw)]))
+  }
+  if (nrep == 1L) {
+    draw_one(1L)
+  } else {
+    matrix(vapply(seq_len(nrep), draw_one, integer(n_total)), nrow = n_total)
+  }
+}
+
+#' @noRd
+.cps_sample <- function(pik, eps = NULL, ...) {
+  if (!is.null(eps)) .stop_eps_removed()
   check_pik(pik, fixed_size = TRUE)
-  eps <- check_eps(eps)
-  idx <- .Call(C_cps_single, as.double(pik), as.double(eps))
+  idx <- .cps_equal_fast_path(pik)
+  if (is.null(idx)) {
+    idx <- .Call(C_cps_single, as.double(pik))
+  }
   .new_wor_sample(
     sample = idx,
     pik = pik,
@@ -265,10 +309,10 @@ unequal_prob_wr <- function(
 }
 
 #' @noRd
-.brewer_sample <- function(pik, eps = 1e-06, ...) {
+.brewer_sample <- function(pik, eps = NULL, ...) {
+  if (!is.null(eps)) .stop_eps_removed()
   check_pik(pik, fixed_size = TRUE)
-  eps <- check_eps(eps)
-  idx <- .Call(C_up_brewer, as.double(pik), as.double(eps))
+  idx <- .Call(C_up_brewer, as.double(pik))
   .new_wor_sample(
     sample = idx,
     pik = pik,
@@ -281,10 +325,10 @@ unequal_prob_wr <- function(
 }
 
 #' @noRd
-.systematic_pps_sample <- function(pik, eps = 1e-06, ...) {
+.systematic_pps_sample <- function(pik, eps = NULL, ...) {
+  if (!is.null(eps)) .stop_eps_removed()
   check_pik(pik, fixed_size = TRUE)
-  eps <- check_eps(eps)
-  idx <- .Call(C_up_systematic, as.double(pik), as.double(eps))
+  idx <- .Call(C_up_systematic, as.double(pik))
   .new_wor_sample(
     sample = idx,
     pik = pik,
@@ -314,13 +358,12 @@ unequal_prob_wr <- function(
 }
 
 #' @noRd
-.sps_sample <- function(pik, prn = NULL, eps = 1e-06, ...) {
+.sps_sample <- function(pik, prn = NULL, eps = NULL, ...) {
+  if (!is.null(eps)) .stop_eps_removed()
   check_pik(pik, fixed_size = TRUE)
-  eps <- check_eps(eps)
   N <- length(pik)
   if (!is.null(prn)) check_prn(prn, N)
-  idx <- .Call(C_up_sps, as.double(pik), if (is.null(prn)) NULL else as.double(prn),
-               as.double(eps))
+  idx <- .Call(C_up_sps, as.double(pik), if (is.null(prn)) NULL else as.double(prn))
   .new_wor_sample(
     sample = idx,
     pik = pik,
@@ -333,13 +376,12 @@ unequal_prob_wr <- function(
 }
 
 #' @noRd
-.pareto_sample <- function(pik, prn = NULL, eps = 1e-06, ...) {
+.pareto_sample <- function(pik, prn = NULL, eps = NULL, ...) {
+  if (!is.null(eps)) .stop_eps_removed()
   check_pik(pik, fixed_size = TRUE)
-  eps <- check_eps(eps)
   N <- length(pik)
   if (!is.null(prn)) check_prn(prn, N)
-  idx <- .Call(C_up_pareto, as.double(pik), if (is.null(prn)) NULL else as.double(prn),
-               as.double(eps))
+  idx <- .Call(C_up_pareto, as.double(pik), if (is.null(prn)) NULL else as.double(prn))
   .new_wor_sample(
     sample = idx,
     pik = pik,
@@ -403,6 +445,7 @@ unequal_prob_wr <- function(
 .batch_wor <- function(pik, method, nrep, ...) {
   # prn is rejected upstream in unequal_prob_wor when nrep > 1, so batch
   # callers never carry a PRN vector, so no prn forwarding here.
+  if (!is.null(list(...)[["eps"]])) .stop_eps_removed()
   fixed_size <- .method_is_fixed_size(method, "wor")
   check_pik(pik, fixed_size = fixed_size)
 
@@ -411,30 +454,31 @@ unequal_prob_wr <- function(
   n_out <- if (fixed_size) as.integer(round(n)) else n
 
   if (method %in% .batch_optimised_methods) {
-    eps <- list(...)[["eps"]]
-    if (is.null(eps)) {
-      eps <- 1e-06
+    sample_data <- .cps_equal_fast_path(pik, nrep)
+    if (is.null(sample_data)) {
+      design <- .Call(C_cps_design, as.double(pik))
+      sample_data <- .Call(C_cps_draw_batch, design, as.integer(nrep))
     }
-    eps <- check_eps(eps)
-    design <- .Call(C_cps_design, as.double(pik), as.double(eps))
-    sample_data <- .Call(C_cps_draw_batch, design, as.integer(nrep))
   } else if (!fixed_size) {
     sample_data <- lapply(seq_len(nrep), function(i) {
       .poisson_pps_sample(pik, ...)$sample
     })
   } else {
+    # Validation already ran above; call the C sampler directly per
+    # replicate instead of building a full design object each time.
     n_int <- as.integer(round(n))
     mat <- matrix(0L, n_int, nrep)
+    pik_d <- as.double(pik)
     draw_fn <- switch(
       method,
-      brewer = .brewer_sample,
-      systematic = .systematic_pps_sample,
-      sps = .sps_sample,
-      pareto = .pareto_sample,
+      brewer = function() .Call(C_up_brewer, pik_d),
+      systematic = function() .Call(C_up_systematic, pik_d),
+      sps = function() .Call(C_up_sps, pik_d, NULL),
+      pareto = function() .Call(C_up_pareto, pik_d, NULL),
       .stop_unknown_method(method) # nocov
     )
     for (i in seq_len(nrep)) {
-      mat[, i] <- draw_fn(pik, ...)$sample
+      mat[, i] <- draw_fn()
     }
     sample_data <- mat
   }

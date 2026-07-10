@@ -44,7 +44,7 @@ test_that("cps achieves correct inclusion probabilities", {
 })
 
 test_that("cps handles certainty selections", {
-  pik <- c(0.999999, 0.5, 0.5)
+  pik <- c(1.0, 0.5, 0.5)
   set.seed(123)
   for (i in 1:50) {
     idx <- unequal_prob_wor(pik, method = "cps")$sample
