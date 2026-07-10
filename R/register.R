@@ -1,19 +1,20 @@
 # Custom method registry
 #
-# An environment-based registry that lets users plug in custom unequal probability sampling
+# An environment-based registry that lets users plug in custom sampling
 # methods (pure R) that flow through the existing dispatchers and generics.
 .method_registry <- new.env(parent = emptyenv())
 
-#' Register a Custom Unequal Probability Sampling Method
+#' Register a Custom Sampling Method
 #'
 #' Register a user-defined sampling method so it can be used through
-#' [unequal_prob_wor()] or [unequal_prob_wr()] and their associated
-#' generics.
+#' [unequal_prob_wor()], [unequal_prob_wr()], or [balanced_wor()] and
+#' their associated generics.
 #'
 #' @param name A unique method name (character string). Must not
 #'   collide with a built-in method name.
-#' @param type `"wor"` (without replacement) or `"wr"` (with
-#'   replacement).
+#' @param type `"wor"` (without replacement), `"wr"` (with
+#'   replacement), or `"balanced"` (balanced without replacement,
+#'   dispatched through [balanced_wor()]).
 #' @param sample_fn A function that draws a sample. See **Contracts**
 #'   below.
 #' @param joint_fn An optional function that computes joint inclusion
@@ -22,11 +23,27 @@
 #'   this method.
 #' @param fixed_size Does this method always produce exactly `n` units?
 #' @param supports_prn Does this method support permanent random
-#'   numbers for sample coordination?
+#'   numbers for sample coordination? Only `"wor"` and `"wr"` methods;
+#'   [balanced_wor()] has no `prn` argument.
+#' @param supports_aux Does this method use auxiliary balancing
+#'   variables? Only meaningful for `type = "balanced"`. Set it to
+#'   `FALSE` for spread-only (spatially balanced) methods such as the
+#'   local pivotal method, so that passing `aux` to [balanced_wor()]
+#'   is an error instead of being silently ignored.
+#' @param supports_strata Does this method support stratified balanced
+#'   sampling? Only meaningful for `type = "balanced"`. When `FALSE`
+#'   (the default), passing `strata` to [balanced_wor()] with this
+#'   method is an error, and `sample_fn` does not need a `strata`
+#'   argument.
+#' @param supports_spread Does this method support spatial spreading
+#'   (well-spread / spatially balanced sampling)? Only meaningful for
+#'   `type = "balanced"`. When `FALSE` (the default), passing `spread`
+#'   to [balanced_wor()] with this method is an error, and `sample_fn`
+#'   does not need a `spread` argument.
 #'
 #' @section Contracts:
 #'
-#' **`sample_fn(pik, n = NULL, prn = NULL, ...)`**
+#' **`sample_fn(pik, n = NULL, prn = NULL, ...)`** (types `"wor"` and `"wr"`)
 #' \describe{
 #'   \item{`pik`}{Inclusion probabilities (WOR) or expected hits (WR),
 #'     numeric vector of length N.}
@@ -38,6 +55,30 @@
 #'     For WOR: distinct indices of length `n` (fixed-size) or varying
 #'     length (random-size). For WR: indices with possible repeats,
 #'     of length `n`.}
+#' }
+#'
+#' **`sample_fn(pik, n = NULL, aux = NULL, ...)`** (type `"balanced"`)
+#' \describe{
+#'   \item{`pik`}{Inclusion probabilities, numeric vector of length N.}
+#'   \item{`n`}{Target sample size (integer when `fixed_size`,
+#'     otherwise `sum(pik)`).}
+#'   \item{`aux`}{Auxiliary balancing matrix (N x p, double), or
+#'     `NULL`. Passed through as supplied to [balanced_wor()] after
+#'     validation; the sample-size constraint is \strong{not}
+#'     prepended, so add it yourself if your algorithm needs it
+#'     (e.g. `cbind(pik, aux)`). Methods registered with
+#'     `supports_aux = FALSE` always receive `aux = NULL`.}
+#'   \item{`strata`}{Only when registered with
+#'     `supports_strata = TRUE` and the caller supplies `strata`:
+#'     an integer vector (length N) of dense stratum labels `1:H`.
+#'     Declare it as `strata = NULL` in your function signature.}
+#'   \item{`spread`}{Only when registered with
+#'     `supports_spread = TRUE` and the caller supplies `spread`:
+#'     a numeric matrix (N x d, double) of spatial coordinates (or
+#'     other spreading variables). Declare it as `spread = NULL` in
+#'     your function signature.}
+#'   \item{Returns}{Integer vector of distinct selected unit indices
+#'     (1-based).}
 #' }
 #'
 #' **`joint_fn(pik, sample_idx = NULL, ...)`** (optional)
@@ -53,7 +94,7 @@
 #' @return Invisible `NULL`, called for its side effect.
 #'
 #' @seealso [registered_methods()], [unequal_prob_wor()],
-#'   [unequal_prob_wr()]
+#'   [unequal_prob_wr()], [balanced_wor()]
 #'
 #' @examples
 #' # Register a toy random sampler
@@ -64,17 +105,29 @@
 #' s <- unequal_prob_wor(c(0.3, 0.3, 0.4), method = "toy")
 #' s$method
 #'
+#' # Register a toy balanced sampler (ignores aux, keeps size fixed)
+#' my_balanced <- function(pik, n = NULL, aux = NULL, ...) {
+#'   sample.int(length(pik), size = n, prob = pik)
+#' }
+#' register_method("toy_bal", type = "balanced", sample_fn = my_balanced)
+#' s <- balanced_wor(c(0.3, 0.3, 0.4), method = "toy_bal")
+#' s$method
+#'
 #' # Clean up
 #' unregister_method("toy")
+#' unregister_method("toy_bal")
 #'
 #' @export
 register_method <- function(
   name,
-  type = c("wor", "wr"),
+  type = c("wor", "wr", "balanced"),
   sample_fn,
   joint_fn = NULL,
   fixed_size = TRUE,
-  supports_prn = FALSE
+  supports_prn = FALSE,
+  supports_aux = TRUE,
+  supports_strata = FALSE,
+  supports_spread = FALSE
 ) {
   if (!is.character(name) || length(name) != 1L || nchar(name) == 0L) {
     stop("'name' must be a non-empty character string", call. = FALSE)
@@ -91,6 +144,39 @@ register_method <- function(
   }
   if (!isTRUE(supports_prn) && !isFALSE(supports_prn)) {
     stop("'supports_prn' must be TRUE or FALSE", call. = FALSE)
+  }
+  if (!isTRUE(supports_aux) && !isFALSE(supports_aux)) {
+    stop("'supports_aux' must be TRUE or FALSE", call. = FALSE)
+  }
+  if (!supports_aux && type != "balanced") {
+    stop(
+      "'supports_aux' only applies to type = \"balanced\"",
+      call. = FALSE
+    )
+  }
+  if (!isTRUE(supports_strata) && !isFALSE(supports_strata)) {
+    stop("'supports_strata' must be TRUE or FALSE", call. = FALSE)
+  }
+  if (supports_strata && type != "balanced") {
+    stop(
+      "'supports_strata' only applies to type = \"balanced\"",
+      call. = FALSE
+    )
+  }
+  if (!isTRUE(supports_spread) && !isFALSE(supports_spread)) {
+    stop("'supports_spread' must be TRUE or FALSE", call. = FALSE)
+  }
+  if (supports_spread && type != "balanced") {
+    stop(
+      "'supports_spread' only applies to type = \"balanced\"",
+      call. = FALSE
+    )
+  }
+  if (supports_prn && type == "balanced") {
+    stop(
+      "balanced methods cannot use prn: balanced_wor() has no 'prn' argument",
+      call. = FALSE
+    )
   }
 
   # Reject collisions with built-in methods
@@ -114,7 +200,12 @@ register_method <- function(
     sample_fn = sample_fn,
     joint_fn = joint_fn,
     fixed_size = fixed_size,
-    supports_prn = supports_prn
+    supports_prn = supports_prn,
+    # aux is only meaningful for balanced methods; normalise so
+    # method_spec() reports FALSE for wor/wr registrations
+    supports_aux = supports_aux && type == "balanced",
+    supports_strata = supports_strata,
+    supports_spread = supports_spread
   )
 
   invisible(NULL)
@@ -171,9 +262,32 @@ unregister_method <- function(name) {
   }
 }
 
+#' Stop when a registered method is used through the wrong dispatcher.
+#' @noRd
+.check_registered_type <- function(reg, expected) {
+  if (reg$type != expected) {
+    entry_point <- switch(
+      reg$type,
+      wor = "unequal_prob_wor()",
+      wr = "unequal_prob_wr()",
+      balanced = "balanced_wor()"
+    )
+    stop(
+      sprintf(
+        "method '%s' is registered as type '%s'; use %s",
+        reg$name,
+        reg$type,
+        entry_point
+      ),
+      call. = FALSE
+    )
+  }
+}
+
 #' @noRd
 .dispatch_registered_wor <- function(pik, method, nrep, prn, ...) {
   reg <- .method_registry[[method]]
+  .check_registered_type(reg, "wor")
   nrep <- check_integer(nrep, "nrep")
   if (nrep < 1L) {
     stop("'nrep' must be at least 1", call. = FALSE)
@@ -219,6 +333,7 @@ unregister_method <- function(name) {
 #' @noRd
 .dispatch_registered_wr <- function(hits, method, nrep, prn, ...) {
   reg <- .method_registry[[method]]
+  .check_registered_type(reg, "wr")
   nrep <- check_integer(nrep, "nrep")
   if (nrep < 1L) {
     stop("'nrep' must be at least 1", call. = FALSE)
@@ -268,6 +383,120 @@ unregister_method <- function(name) {
       "unequal_prob"
     )
   }
+}
+
+#' @noRd
+.dispatch_registered_balanced <- function(
+  pik,
+  aux,
+  strata,
+  spread,
+  method,
+  nrep,
+  ...
+) {
+  reg <- .method_registry[[method]]
+  .check_registered_type(reg, "balanced")
+  nrep <- check_integer(nrep, "nrep")
+  if (nrep < 1L) {
+    stop("'nrep' must be at least 1", call. = FALSE)
+  }
+
+  check_pik(pik, fixed_size = reg$fixed_size)
+  N <- length(pik)
+
+  if (!is.null(aux)) {
+    if (!reg$supports_aux) {
+      stop(
+        sprintf(
+          paste0(
+            "method '%s' does not use auxiliary balancing variables ",
+            "(registered with supports_aux = FALSE)"
+          ),
+          method
+        ),
+        call. = FALSE
+      )
+    }
+    aux <- .check_cube_aux(aux, N)
+  }
+
+  strata_int <- NULL
+  fixed_size <- reg$fixed_size
+  if (!is.null(strata)) {
+    if (!reg$supports_strata) {
+      stop(
+        sprintf(
+          paste0(
+            "method '%s' does not support stratified balanced sampling ",
+            "(registered with supports_strata = FALSE)"
+          ),
+          method
+        ),
+        call. = FALSE
+      )
+    }
+    strata_int <- .check_strata(strata, N)
+    fixed_size <- fixed_size && .check_stratum_sizes(pik, strata_int)
+  }
+
+  if (!is.null(spread)) {
+    if (!reg$supports_spread) {
+      stop(
+        sprintf(
+          paste0(
+            "method '%s' does not support spatial spreading ",
+            "(registered with supports_spread = FALSE)"
+          ),
+          method
+        ),
+        call. = FALSE
+      )
+    }
+    spread <- .check_cube_aux(spread, N, what = "spread")
+    if (ncol(spread) == 0L) {
+      stop("'spread' must have at least one column", call. = FALSE)
+    }
+  }
+
+  n <- if (fixed_size) as.integer(round(sum(pik))) else sum(pik)
+
+  # Optional design inputs are passed only when supplied, so minimal
+  # sample_fn signatures (pik, n, aux, ...) keep working.
+  sample_args <- list(pik, n = n, aux = aux)
+  if (!is.null(strata_int)) {
+    sample_args$strata <- strata_int
+  }
+  if (!is.null(spread)) {
+    sample_args$spread <- spread
+  }
+  sample_args <- c(sample_args, list(...))
+
+  draw <- function() {
+    as.integer(do.call(reg$sample_fn, sample_args))
+  }
+
+  if (nrep == 1L) {
+    sample_data <- draw()
+  } else if (fixed_size) {
+    sample_data <- matrix(0L, n, nrep)
+    for (i in seq_len(nrep)) {
+      sample_data[, i] <- draw()
+    }
+  } else {
+    sample_data <- lapply(seq_len(nrep), function(i) draw())
+  }
+
+  .new_wor_sample(
+    sample = sample_data,
+    pik = pik,
+    n = n,
+    N = N,
+    method = method,
+    fixed_size = fixed_size,
+    prob_class = "unequal_prob",
+    extra_class = "balanced"
+  )
 }
 
 #' @noRd

@@ -11,9 +11,12 @@ method_spec(name)
 dispatchers (e.g. \code{"brewer"}, \code{"cube"}, \code{"srs"}).}
 }
 \value{
-A list with elements \code{type} (\code{"wor"} or \code{"wr"}),
-\code{fixed_size} (logical), and \code{supports_prn} (logical), or \code{NULL}
-if the method is unknown.
+A list with elements \code{type} (\code{"wor"}, \code{"wr"}, or
+\code{"balanced"}), \code{fixed_size} (logical), \code{supports_prn} (logical),
+\code{supports_aux} (logical), \code{supports_strata} (logical), and
+\code{supports_spread} (logical), or \code{NULL} if the method is unknown.
+The aux/strata/spread capabilities are only \code{TRUE} for balanced
+methods.
 }
 \description{
 Return the capabilities of a sampling method. Works for built-in

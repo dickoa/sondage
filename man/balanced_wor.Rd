@@ -4,7 +4,16 @@
 \alias{balanced_wor}
 \title{Balanced Sampling Without Replacement}
 \usage{
-balanced_wor(pik, aux = NULL, strata = NULL, method = "cube", nrep = 1L, ...)
+balanced_wor(
+  pik,
+  aux = NULL,
+  strata = NULL,
+  spread = NULL,
+  bounds = NULL,
+  method = "cube",
+  nrep = 1L,
+  ...
+)
 }
 \arguments{
 \item{pik}{A numeric vector of inclusion probabilities (length N).
@@ -24,7 +33,26 @@ sample sizes while balancing on \code{aux}. Requires \code{sum(pik)} within
 each stratum to be close to an integer for exact sizes. If not, a
 warning is issued and \code{fixed_size} is set to \code{FALSE}.}
 
-\item{method}{The sampling method. Currently only \code{"cube"}.}
+\item{spread}{An optional numeric matrix (N x d) of spatial
+coordinates (or other spreading variables) for well-spread,
+spatially balanced sampling. Only supported by methods registered
+via \code{\link[=register_method]{register_method()}} with \code{supports_spread = TRUE}; the
+built-in \code{"cube"} method does not use it and will error.}
+
+\item{bounds}{An optional list with elements \code{B}, \code{lower}, and
+\code{upper} describing linear inequality constraints on the realized
+sample (Tripet & \enc{Tillé}{Tille}, 2026): \code{B} is a numeric
+matrix (N x q) whose columns are constraint variables, and the
+sample \code{s} is drawn so that
+\eqn{lower_j \le \sum_{k \in s} B_{kj} \le upper_j} for every
+constraint \code{j}. \code{-Inf} / \code{Inf} entries make a constraint
+one-sided; \code{lower[j] == upper[j]} enforces an exact equality.
+The starting probabilities must be feasible:
+\verb{lower <= colSums(B * pik) <= upper}. Only supported by the
+built-in \code{"cube"} method. See \strong{Inequality constraints} below.}
+
+\item{method}{The sampling method. \code{"cube"} (built-in), or the name
+of a balanced method added via \code{\link[=register_method]{register_method()}}.}
 
 \item{nrep}{Number of replicate samples (default 1). When \code{nrep > 1},
 \verb{$sample} holds a matrix (n x nrep) for fixed-size designs, or a
@@ -81,6 +109,43 @@ Joint inclusion probabilities are approximated via the high-entropy
 approximation (Brewer & Donadio, 2003), which is appropriate since
 the cube produces a near-maximum-entropy design.
 }
+\section{Inequality constraints}{
+
+
+\code{bounds} implements the cube method with inequality constraints of
+Tripet & \enc{Tillé}{Tille} (2026). During the flight phase, steps
+are capped so every constraint stays feasible, and a constraint
+whose slack reaches zero becomes an equality from then on. The
+inclusion probabilities are respected exactly (\code{E(s) = pik}),
+unlike rejective procedures.
+
+\code{B} applies to the realized sample directly (counts / raw sums);
+it is \strong{not} divided by \code{pik}. To bound a Horvitz-Thompson
+estimator, pass \code{x / pik} as the constraint column.
+
+The main application is controlled selection (Goodman & Kish,
+1950): bounding category counts to the integers adjacent to their
+expectation. With indicator columns \code{B} and
+\code{S <- colSums(B * pik)}, use \code{lower = floor(S)},
+\code{upper = ceiling(S)}. Categories may overlap (e.g. row and column
+margins of a two-way control table, as in NAEP-style designs).
+
+Integer-valued bound systems on partitions or two-way margins are
+satisfied exactly. For structures with no exact integer solution —
+some three-way controlled rounding problems, or continuous-valued
+constraints that end the flight phase tight against a boundary —
+bounds that provably block the landing phase are relaxed one at a
+time, with a warning; \code{E(s) = pik} still holds. In other words,
+the bounds are guaranteed whenever no relaxation warning is
+raised.
+
+The high-entropy approximation used by \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} is
+less accurate under tight bounds, which distort the design away
+from maximum entropy; Tripet & \enc{Tillé}{Tille} (2026) recommend
+Monte Carlo estimation of joint inclusion probabilities in that
+case.
+}
+
 \examples{
 # Unequal probability balanced sample
 pik <- c(0.3, 0.6, 0.2, 0.4, 0.5)
@@ -101,6 +166,19 @@ set.seed(1)
 s <- balanced_wor(pik, aux = x, strata = strata)
 s$sample
 
+# Controlled selection: bound category counts to the integers
+# adjacent to their expectation (floor/ceil)
+pik <- rep(0.5, 12)  # n = 6
+groups <- rep(c("a", "b", "c"), each = 4)
+B <- sapply(unique(groups), function(g) as.double(groups == g))
+S <- colSums(B * pik)  # 2, 2, 2 per category
+set.seed(1)
+s <- balanced_wor(
+  pik,
+  bounds = list(B = B, lower = floor(S), upper = ceiling(S))
+)
+table(groups[s$sample])  # exactly 2 per category
+
 }
 \references{
 Deville, J.C. and \enc{Tillé}{Tille}, Y. (2004). Efficient balanced sampling: the
@@ -111,6 +189,12 @@ Chauvet, G. and \enc{Tillé}{Tille}, Y. (2006). A fast algorithm for balanced sa
 
 Chauvet, G. (2009). Stratified balanced sampling. \emph{Survey
 Methodology}, 35, 115-119.
+
+Tripet, A. and \enc{Tillé}{Tille}, Y. (2026). Balanced sampling with
+inequalities: application to category bounding, matrix rounding,
+and spread sampling. \emph{Journal of the American Statistical
+Association}, 121(553), 796-806.
+\doi{10.1080/01621459.2025.2550667}
 }
 \seealso{
 \code{\link[=unequal_prob_wor]{unequal_prob_wor()}} for unbalanced designs,

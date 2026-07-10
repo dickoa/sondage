@@ -2,8 +2,7 @@
 # These lock in the internal contracts introduced by the registration-readiness
 # refactor and will catch drift if the spec tables are modified incorrectly.
 
-# --- Spec table correctness ---
-
+# Spec table correctness
 test_that("WOR spec table has correct PRN capabilities", {
   expect_true(.method_supports_prn("sps", "wor"))
   expect_true(.method_supports_prn("pareto", "wor"))
@@ -51,8 +50,6 @@ test_that("HE JIP methods list is complete", {
   expect_false("poisson" %in% .he_jip_methods)
 })
 
-# --- Resolver ---
-
 test_that(".get_builtin_spec returns spec for known methods", {
   spec <- .get_builtin_spec("cps", "wor")
   expect_true(spec$fixed_size)
@@ -77,8 +74,7 @@ test_that(".get_builtin_spec rejects invalid context", {
   expect_error(.get_builtin_spec("cps", "nonsense"), "unknown context")
 })
 
-# --- Hook helper error messages (byte-compatible with originals) ---
-
+# Hook helper error messages (byte-compatible with originals)
 test_that(".stop_no_joint preserves exact generics.R error format", {
   expect_error(
     .stop_no_joint("lpm", "joint_inclusion_prob"),
@@ -96,8 +92,6 @@ test_that(".stop_unknown_method produces informative error", {
     "^unknown sampling method 'lpm'$"
   )
 })
-
-# --- method_spec() ---
 
 test_that("method_spec returns correct metadata for WOR methods", {
   spec <- method_spec("brewer")
@@ -142,9 +136,12 @@ test_that("method_spec returns correct metadata for EP methods", {
 
 test_that("method_spec returns correct metadata for balanced methods", {
   spec <- method_spec("cube")
-  expect_equal(spec$type, "wor")
+  expect_equal(spec$type, "balanced")
   expect_true(spec$fixed_size)
   expect_false(spec$supports_prn)
+  expect_true(spec$supports_aux)
+  expect_true(spec$supports_strata)
+  expect_false(spec$supports_spread)
 })
 
 test_that("method_spec returns NULL for unknown methods", {
@@ -159,8 +156,13 @@ test_that("method_spec validates input", {
 
 test_that("method_spec returns correct metadata for registered methods", {
   on.exit(unregister_method("test_ms"), add = TRUE)
-  register_method("test_ms", "wor", sample_fn = identity,
-                   fixed_size = FALSE, supports_prn = TRUE)
+  register_method(
+    "test_ms",
+    "wor",
+    sample_fn = identity,
+    fixed_size = FALSE,
+    supports_prn = TRUE
+  )
 
   spec <- method_spec("test_ms")
   expect_equal(spec$type, "wor")
@@ -178,21 +180,21 @@ test_that("method_spec picks up registered WR methods", {
   expect_false(spec$supports_prn)
 })
 
-# --- End-to-end: dispatchers reject unknown methods ---
-
 test_that("dispatchers reject unknown methods", {
   expect_error(unequal_prob_wor(c(0.5, 0.5), method = "lpm"))
   expect_error(unequal_prob_wr(c(1, 1), method = "lpm"))
   expect_error(equal_prob_wor(N = 10, n = 2, method = "lpm"))
 })
 
-# --- End-to-end: .stop_no_joint fires via fake design objects ---
-
 test_that("joint_inclusion_prob errors for unknown WOR method", {
   fake <- structure(
     list(
-      sample = 1L, pik = c(0.5, 0.5), n = 1L, N = 2L,
-      method = "fake", fixed_size = TRUE
+      sample = 1L,
+      pik = c(0.5, 0.5),
+      n = 1L,
+      N = 2L,
+      method = "fake",
+      fixed_size = TRUE
     ),
     class = c("unequal_prob", "wor", "sondage_sample")
   )
@@ -209,8 +211,13 @@ test_that("joint_inclusion_prob errors for unknown WOR method", {
 test_that("joint_expected_hits errors for unknown WR method", {
   fake <- structure(
     list(
-      sample = 1L, prob = c(0.5, 0.5), hits = c(1L, 0L),
-      n = 1L, N = 2L, method = "fake", fixed_size = TRUE
+      sample = 1L,
+      prob = c(0.5, 0.5),
+      hits = c(1L, 0L),
+      n = 1L,
+      N = 2L,
+      method = "fake",
+      fixed_size = TRUE
     ),
     class = c("unequal_prob", "wr", "sondage_sample")
   )

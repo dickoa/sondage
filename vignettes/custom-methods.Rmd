@@ -18,9 +18,9 @@ knitr::opts_chunk$set(
 
 ## Overview
 
-`sondage` ships with 13 built-in sampling methods, but researchers and agencies often need algorithms that are not included. The registration API lets you plug a custom unequal probability sampling method into the existing dispatchers and generics without modifying the package source.
+`sondage` ships with 13 built-in sampling methods, but researchers and agencies often need algorithms that are not included. The registration API lets you plug a custom unequal probability or balanced sampling method into the existing dispatchers and generics without modifying the package source.
 
-After registering a method, it works everywhere a built-in method works: `unequal_prob_wor()`, `joint_inclusion_prob()`, `sampling_cov()`, batch mode (`nrep`), etc.
+After registering a method, it works everywhere a built-in method works: `unequal_prob_wor()`, `unequal_prob_wr()`, `balanced_wor()`, `joint_inclusion_prob()`, `sampling_cov()`, batch mode (`nrep`), etc.
 
 ## The registration API
 
@@ -29,19 +29,24 @@ A single call to `register_method()` adds a new method:
 ```r
 library(sondage)
 register_method(
-  name,                   # unique method name (character)
-  type = "wor",           # "wor" or "wr"
-  sample_fn,              # function(pik, n, prn, ...) -> integer indices
-  joint_fn = NULL,        # function(pik, sample_idx, ...) -> matrix (optional)
-  fixed_size = TRUE,      # does the method always return exactly n units?
-  supports_prn = FALSE    # does the method support permanent random numbers?
+  name,                     # unique method name (character)
+  type = "wor",             # "wor", "wr", or "balanced"
+  sample_fn,                # function(pik, n, prn, ...) -> integer indices
+  joint_fn = NULL,          # function(pik, sample_idx, ...) -> matrix (optional)
+  fixed_size = TRUE,        # does the method always return exactly n units?
+  supports_prn = FALSE,     # does the method support permanent random numbers?
+  supports_aux = TRUE,      # balanced only: does it use balancing variables?
+  supports_strata = FALSE,  # balanced only: does it handle stratification?
+  supports_spread = FALSE   # balanced only: does it handle spatial spreading?
 )
 ```
 
 Two contracts must be respected:
 
-- **`sample_fn(pik, n = NULL, prn = NULL, ...)`** receives the inclusion probability vector and returns an integer vector of selected unit indices (1-based).
+- **`sample_fn(pik, n = NULL, prn = NULL, ...)`** receives the inclusion probability vector and returns an integer vector of selected unit indices (1-based). Balanced methods use the signature `sample_fn(pik, n = NULL, aux = NULL, ...)` instead, where `aux` is the auxiliary balancing matrix passed to `balanced_wor()` (or `NULL`).
 - **`joint_fn(pik, sample_idx = NULL, ...)`** (optional) returns an $N \times N$ joint inclusion probability matrix when `sample_idx` is `NULL`, or a submatrix for the given indices when it is not.
+
+Capability flags describe what the method can do, and the dispatchers enforce them. A `"wor"` method that sets `supports_prn = TRUE` receives the `prn` vector for sample coordination, while others get a warning that `prn` is ignored. A `"balanced"` method only receives a `strata` argument when registered with `supports_strata = TRUE`, and a `spread` argument (spatial coordinates) when registered with `supports_spread = TRUE`. Spread-only methods that never look at balancing variables should declare `supports_aux = FALSE`. In every case, passing a design input to a method without the matching capability is an error rather than a warning, because silently dropping `aux`, `strata`, or `spread` would change the design. The simplest balanced registration therefore needs nothing beyond `aux`.
 
 Helper functions `registered_methods()`, `is_registered_method()`, and `unregister_method()` manage the registry.
 
@@ -201,6 +206,185 @@ round(sampling_cov(s), 4)
 unregister_method("tille")
 ```
 
+## Example 3: A custom balanced method
+
+Balanced methods register with `type = "balanced"` and dispatch
+through `balanced_wor()`. The minimal contract only involves `aux`,
+so wrapping an aux-only algorithm is a one-liner. Here we wrap the
+cube implementation from the **sampling** package, whose landing
+phase uses linear programming and can therefore give different
+samples than the built-in `"cube"` method.
+
+Note two conventions. The wrapper receives `aux` exactly as the
+caller supplied it (validated, but without the sample-size
+constraint prepended), so we `cbind(pik, aux)` ourselves because
+`samplecube()` expects the size constraint as a balancing column.
+And since the cube method produces a high-entropy design, we can
+pass `he_jip` as the `joint_fn`, which is exactly what the built-in
+method uses.
+
+```{r cube-lp, eval = requireNamespace("sampling", quietly = TRUE)}
+cube_lp_sample <- function(pik, n = NULL, aux = NULL, ...) {
+  X <- cbind(pik, aux)
+  which(sampling::samplecube(X, pik, comment = FALSE) == 1)
+}
+
+register_method(
+  "cube_lp",
+  type      = "balanced",
+  sample_fn = cube_lp_sample,
+  joint_fn  = he_jip
+)
+
+pik <- inclusion_prob(c(2, 3, 4, 5, 6, 7, 8, 9), n = 4)
+x <- matrix(c(10, 20, 15, 25, 30, 35, 40, 45))
+s <- balanced_wor(pik, aux = x, method = "cube_lp")
+s
+
+# Balancing check: HT estimate of the aux total vs the true total
+colSums(x[s$sample, , drop = FALSE] / pik[s$sample]) - colSums(x)
+```
+
+To support stratification as well, register with
+`supports_strata = TRUE` and add a `strata` argument to the
+sampler. The dispatcher passes `strata` as dense integer labels
+`1:H` (only when the caller supplies them), and demotes
+`fixed_size` with a warning when per-stratum `sum(pik)` is not
+close to an integer, mirroring the built-in method.
+
+```{r cube-lp-strata, eval = requireNamespace("sampling", quietly = TRUE)}
+cube_lp_stratified <- function(pik, n = NULL, aux = NULL, strata = NULL, ...) {
+  if (is.null(strata)) {
+    return(cube_lp_sample(pik, n = n, aux = aux))
+  }
+  X <- if (is.null(aux)) matrix(pik, ncol = 1) else cbind(pik, aux)
+  which(sampling::balancedstratification(X, strata, pik, comment = FALSE) == 1)
+}
+
+register_method(
+  "cube_lp_str",
+  type            = "balanced",
+  sample_fn       = cube_lp_stratified,
+  joint_fn        = he_jip,
+  supports_strata = TRUE
+)
+
+pik <- rep(0.5, 8)
+strata <- rep(1:2, each = 4)
+s <- balanced_wor(pik, aux = matrix(as.double(1:8)), strata = strata,
+                  method = "cube_lp_str")
+
+# Within-stratum sample sizes are preserved
+tabulate(strata[s$sample], nbins = 2)
+```
+
+```{r cube-lp-cleanup, include = FALSE, eval = requireNamespace("sampling", quietly = TRUE)}
+unregister_method("cube_lp")
+unregister_method("cube_lp_str")
+```
+
+## Example 4: A spatial method with `spread`
+
+Spatially balanced (well-spread) designs select units that are far
+apart in space, which improves precision whenever the study variable
+is spatially structured. Registered balanced methods opt into
+spatial spreading with `supports_spread = TRUE`, and then receive
+the coordinate matrix that the caller passes to
+`balanced_wor(spread = )`.
+
+Here is a compact pure-R implementation of the local pivotal method
+[@grafstrom2012], which repeatedly lets a random undecided unit and
+its nearest undecided neighbour compete in a pivotal step. Packages
+such as **BalancedSampling** or **rsamplr** provide fast compiled
+implementations of this and related algorithms (SCPS, local cube),
+and wrapping one of those instead only changes the function body.
+
+```{r lpm2-fn}
+lpm2_sample <- function(pik, n = NULL, aux = NULL, spread = NULL, ...) {
+  d <- as.matrix(dist(spread))
+  diag(d) <- Inf
+  p <- pik
+  eps <- 1e-9
+  repeat {
+    u <- which(p > eps & p < 1 - eps)
+    if (length(u) == 0L) {
+      break
+    }
+    if (length(u) == 1L) {
+      p[u] <- as.numeric(runif(1) < p[u])
+      break
+    }
+    i <- u[sample.int(length(u), 1L)]
+    v <- u[u != i]
+    j <- v[which.min(d[i, v])]
+    s <- p[i] + p[j]
+    if (s > 1) {
+      if (runif(1) < (1 - p[j]) / (2 - s)) {
+        p[i] <- 1
+        p[j] <- s - 1
+      } else {
+        p[j] <- 1
+        p[i] <- s - 1
+      }
+    } else {
+      if (runif(1) < p[j] / s) {
+        p[j] <- s
+        p[i] <- 0
+      } else {
+        p[i] <- s
+        p[j] <- 0
+      }
+    }
+  }
+  which(p > 1 - eps)
+}
+
+register_method(
+  "lpm2",
+  type            = "balanced",
+  sample_fn       = lpm2_sample,
+  supports_aux    = FALSE,
+  supports_spread = TRUE
+)
+```
+
+Since the local pivotal method spreads but never balances on
+auxiliary variables, it is registered with `supports_aux = FALSE`.
+A caller who passes `aux` then gets an immediate error instead of a
+sample that silently ignored the requested balancing constraints.
+
+```{r lpm2-run}
+set.seed(42)
+N <- 200
+coords <- cbind(runif(N), runif(N))
+pik <- rep(0.15, N)
+
+s <- balanced_wor(pik, spread = coords, method = "lpm2")
+s
+
+# Spread diagnostic: mean distance to the nearest sampled neighbour
+# (larger is better spread)
+nn_dist <- function(idx) {
+  d <- as.matrix(dist(coords[idx, ]))
+  diag(d) <- Inf
+  mean(apply(d, 1, min))
+}
+c(lpm2 = nn_dist(s$sample), srs = nn_dist(sample.int(N, s$n)))
+```
+
+A note on variance estimation. Well-spread designs have no
+tractable joint inclusion probabilities (the high-entropy
+approximation does not apply, since spreading deliberately drives
+nearby joint probabilities toward zero), so `joint_fn` is usually
+left as `NULL` and `joint_inclusion_prob()` / `sampling_cov()`
+will error for these methods. In practice, variance for spatially
+balanced samples is estimated with local-neighbourhood estimators
+such as the local mean estimator of @grafstrom2014, which sondage
+does not implement yet.
+
+```{r lpm2-cleanup, include = FALSE}
+unregister_method("lpm2")
+```
 
 ## Writing a `joint_fn`
 

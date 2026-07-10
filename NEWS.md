@@ -1,4 +1,4 @@
-# sondage 0.8
+# sondage 0.8.5
 
 Initial CRAN release.
 
@@ -13,8 +13,14 @@ Five dispatchers, 13 built-in methods:
   (sequential Poisson), `"pareto"`.
 * `unequal_prob_wr(hits, method=)`:  `"chromy"` (minimum replacement),
   `"multinomial"`.
-* `balanced_wor(pik, aux, strata, method=)`: `"cube"` with optional
-  stratification.
+* `balanced_wor(pik, aux, strata, bounds, method=)`: `"cube"` with
+  optional stratification, and optional linear inequality constraints
+  on the realized sample (`bounds = list(B, lower, upper)`; Tripet &
+  Tillé 2026). Inequality bounds enable controlled selection à la
+  Goodman & Kish — category counts, possibly overlapping (e.g. the
+  margins of a two-way control table), are kept within the integers
+  adjacent to their expectations while `E(s) = pik` holds exactly —
+  as well as controlled matrix rounding and minimum group sizes.
 
 All sampling functions return S3 design objects with class
 `c(prob_class, wor_or_wr, "sondage_sample")` (cube designs additionally
@@ -40,8 +46,17 @@ sampled-units submatrix (useful for large populations).
 
 * `register_method()` / `unregister_method()` / `registered_methods()` /
   `is_registered_method()` / `method_spec()` register custom
-  unequal-probability methods that flow through the existing
-  dispatchers and generics.
+  unequal-probability and balanced methods that flow through the
+  existing dispatchers and generics. Balanced methods (`type =
+  "balanced"`) dispatch through `balanced_wor()` and opt into
+  stratification with `supports_strata = TRUE` or spatial spreading
+  with `supports_spread = TRUE` (well-spread designs such as the
+  local pivotal method, SCPS, or the local cube receive the
+  coordinate matrix passed to `balanced_wor(spread = )`), the same
+  way WOR/WR methods opt into permanent random numbers with
+  `supports_prn`. Spread-only methods can declare
+  `supports_aux = FALSE` so that passing `aux` errors instead of
+  being silently ignored.
 * `he_jip()` (Brewer & Donadio 2003 high-entropy approximation) and
   `hajek_jip()` (Hajek 1964) are exported and can be passed directly
   as `joint_fn` to `register_method()`.

@@ -108,6 +108,21 @@ s_bal
 ```
 
 ``` r
+# Controlled selection: keep the number of sampled states per region
+# within the integers adjacent to its expectation (Goodman & Kish, 1950)
+B <- sapply(levels(state.region), function(g) as.double(state.region == g))
+S <- colSums(B * pik)
+s_ctrl <- balanced_wor(
+  pik,
+  bounds = list(B = B, lower = floor(S), upper = ceiling(S))
+)
+table(state.region[s_ctrl$sample])
+#> 
+#>     Northeast         South North Central          West 
+#>             2             3             3             2
+```
+
+``` r
 # Batch sampling for simulations (design object with matrix $sample)
 sim <- unequal_prob_wor(pik, method = "cps", nrep = 1000)
 dim(sim$sample)   # 10 x 1000
@@ -163,6 +178,9 @@ inclusion_prob(sim) # generics still work
   Tillé, 2004)
 - `balanced_wor(pik, aux, strata, method = "cube")` - Stratified cube
   (Chauvet, 2009)
+- `balanced_wor(pik, bounds = list(B, lower, upper))` - Cube with
+  inequality constraints (Tripet & Tillé, 2026): controlled selection à
+  la Goodman & Kish, controlled matrix rounding, minimum group sizes
 
 ## Design queries
 
@@ -234,8 +252,13 @@ the stored target `pik` vector. HE = high-entropy approximation.
 
 ## Custom methods
 
-`register_method()` lets you plug any unequal-probability sampling
-algorithm into sondage’s dispatchers and generics:
+`register_method()` lets you plug any unequal-probability, balanced, or
+spatially balanced sampling algorithm into sondage’s dispatchers and
+generics. Methods registered with `type = "wor"` or `type = "wr"`
+dispatch through `unequal_prob_wor()` / `unequal_prob_wr()`, and
+balanced methods (`type = "balanced"`) through `balanced_wor()`, where
+they declare which design inputs they use (`supports_aux`,
+`supports_strata`, `supports_spread`):
 
 ``` r
 # A simple Sampford wrapper
@@ -254,13 +277,14 @@ register_method("sampford", type = "wor", sample_fn = sampford_sample)
 pik <- inclusion_prob(1:8, n = 3)
 s <- unequal_prob_wor(pik, method = "sampford")
 s
-#> Unequal prob WOR [sampford] (n=3, N=8): 4 6 8
+#> Unequal prob WOR [sampford] (n=3, N=8): 3 4 8
 
 unregister_method("sampford")
 ```
 
-See `vignette("custom-methods")` for more examples, including how to
-provide a `joint_fn` for variance estimation.
+See `vignette("custom-methods")` for more examples, including a custom
+balanced method with stratification support, a spatially balanced method
+using `spread`, and how to provide a `joint_fn` for variance estimation.
 
 ## Why not sampling?
 
@@ -298,5 +322,9 @@ Statistical Association*.
 
 Deville, J.C. and Tillé, Y. (2004). Efficient balanced sampling: the
 cube method. *Biometrika*, 91(4), 893-912.
+
+Tripet, A. and Tillé, Y. (2026). Balanced sampling with inequalities:
+application to category bounding, matrix rounding, and spread sampling.
+*Journal of the American Statistical Association*, 121(553), 796-806.
 
 Tillé, Y. (2006). *Sampling Algorithms*. Springer.

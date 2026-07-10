@@ -29,7 +29,13 @@
 )
 
 .balanced_specs <- list(
-  cube = list(fixed_size = TRUE, prn = FALSE)
+  cube = list(
+    fixed_size = TRUE,
+    prn = FALSE,
+    aux = TRUE,
+    strata = TRUE,
+    spread = FALSE
+  )
 )
 
 # Methods using the high-entropy JIP approximation (Brewer & Donadio, 2003).
@@ -67,9 +73,12 @@
 #' @param name Method name (character string), as used by the sondage
 #'   dispatchers (e.g. `"brewer"`, `"cube"`, `"srs"`).
 #'
-#' @return A list with elements `type` (`"wor"` or `"wr"`),
-#'   `fixed_size` (logical), and `supports_prn` (logical), or `NULL`
-#'   if the method is unknown.
+#' @return A list with elements `type` (`"wor"`, `"wr"`, or
+#'   `"balanced"`), `fixed_size` (logical), `supports_prn` (logical),
+#'   `supports_aux` (logical), `supports_strata` (logical), and
+#'   `supports_spread` (logical), or `NULL` if the method is unknown.
+#'   The aux/strata/spread capabilities are only `TRUE` for balanced
+#'   methods.
 #'
 #' @seealso [register_method()], [registered_methods()]
 #'
@@ -89,7 +98,10 @@ method_spec <- function(name) {
     return(list(
       type = reg$type,
       fixed_size = reg$fixed_size,
-      supports_prn = reg$supports_prn
+      supports_prn = reg$supports_prn,
+      supports_aux = isTRUE(reg$supports_aux),
+      supports_strata = isTRUE(reg$supports_strata),
+      supports_spread = isTRUE(reg$supports_spread)
     ))
   }
 
@@ -104,11 +116,20 @@ method_spec <- function(name) {
   for (ctx in names(all_specs)) {
     spec <- all_specs[[ctx]][[name]]
     if (!is.null(spec)) {
-      type <- if (ctx %in% c("wr", "ep_wr")) "wr" else "wor"
+      type <- switch(
+        ctx,
+        wr = ,
+        ep_wr = "wr",
+        balanced = "balanced",
+        "wor"
+      )
       return(list(
         type = type,
         fixed_size = isTRUE(spec$fixed_size),
-        supports_prn = isTRUE(spec$prn)
+        supports_prn = isTRUE(spec$prn),
+        supports_aux = isTRUE(spec$aux),
+        supports_strata = isTRUE(spec$strata),
+        supports_spread = isTRUE(spec$spread)
       ))
     }
   }

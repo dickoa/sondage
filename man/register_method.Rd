@@ -2,23 +2,27 @@
 % Please edit documentation in R/register.R
 \name{register_method}
 \alias{register_method}
-\title{Register a Custom Unequal Probability Sampling Method}
+\title{Register a Custom Sampling Method}
 \usage{
 register_method(
   name,
-  type = c("wor", "wr"),
+  type = c("wor", "wr", "balanced"),
   sample_fn,
   joint_fn = NULL,
   fixed_size = TRUE,
-  supports_prn = FALSE
+  supports_prn = FALSE,
+  supports_aux = TRUE,
+  supports_strata = FALSE,
+  supports_spread = FALSE
 )
 }
 \arguments{
 \item{name}{A unique method name (character string). Must not
 collide with a built-in method name.}
 
-\item{type}{\code{"wor"} (without replacement) or \code{"wr"} (with
-replacement).}
+\item{type}{\code{"wor"} (without replacement), \code{"wr"} (with
+replacement), or \code{"balanced"} (balanced without replacement,
+dispatched through \code{\link[=balanced_wor]{balanced_wor()}}).}
 
 \item{sample_fn}{A function that draws a sample. See \strong{Contracts}
 below.}
@@ -31,20 +35,39 @@ this method.}
 \item{fixed_size}{Does this method always produce exactly \code{n} units?}
 
 \item{supports_prn}{Does this method support permanent random
-numbers for sample coordination?}
+numbers for sample coordination? Only \code{"wor"} and \code{"wr"} methods;
+\code{\link[=balanced_wor]{balanced_wor()}} has no \code{prn} argument.}
+
+\item{supports_aux}{Does this method use auxiliary balancing
+variables? Only meaningful for \code{type = "balanced"}. Set it to
+\code{FALSE} for spread-only (spatially balanced) methods such as the
+local pivotal method, so that passing \code{aux} to \code{\link[=balanced_wor]{balanced_wor()}}
+is an error instead of being silently ignored.}
+
+\item{supports_strata}{Does this method support stratified balanced
+sampling? Only meaningful for \code{type = "balanced"}. When \code{FALSE}
+(the default), passing \code{strata} to \code{\link[=balanced_wor]{balanced_wor()}} with this
+method is an error, and \code{sample_fn} does not need a \code{strata}
+argument.}
+
+\item{supports_spread}{Does this method support spatial spreading
+(well-spread / spatially balanced sampling)? Only meaningful for
+\code{type = "balanced"}. When \code{FALSE} (the default), passing \code{spread}
+to \code{\link[=balanced_wor]{balanced_wor()}} with this method is an error, and \code{sample_fn}
+does not need a \code{spread} argument.}
 }
 \value{
 Invisible \code{NULL}, called for its side effect.
 }
 \description{
 Register a user-defined sampling method so it can be used through
-\code{\link[=unequal_prob_wor]{unequal_prob_wor()}} or \code{\link[=unequal_prob_wr]{unequal_prob_wr()}} and their associated
-generics.
+\code{\link[=unequal_prob_wor]{unequal_prob_wor()}}, \code{\link[=unequal_prob_wr]{unequal_prob_wr()}}, or \code{\link[=balanced_wor]{balanced_wor()}} and
+their associated generics.
 }
 \section{Contracts}{
 
 
-\strong{\code{sample_fn(pik, n = NULL, prn = NULL, ...)}}
+\strong{\code{sample_fn(pik, n = NULL, prn = NULL, ...)}} (types \code{"wor"} and \code{"wr"})
 \describe{
 \item{\code{pik}}{Inclusion probabilities (WOR) or expected hits (WR),
 numeric vector of length N.}
@@ -56,6 +79,30 @@ values in (0,1)), or \code{NULL}.}
 For WOR: distinct indices of length \code{n} (fixed-size) or varying
 length (random-size). For WR: indices with possible repeats,
 of length \code{n}.}
+}
+
+\strong{\code{sample_fn(pik, n = NULL, aux = NULL, ...)}} (type \code{"balanced"})
+\describe{
+\item{\code{pik}}{Inclusion probabilities, numeric vector of length N.}
+\item{\code{n}}{Target sample size (integer when \code{fixed_size},
+otherwise \code{sum(pik)}).}
+\item{\code{aux}}{Auxiliary balancing matrix (N x p, double), or
+\code{NULL}. Passed through as supplied to \code{\link[=balanced_wor]{balanced_wor()}} after
+validation; the sample-size constraint is \strong{not}
+prepended, so add it yourself if your algorithm needs it
+(e.g. \code{cbind(pik, aux)}). Methods registered with
+\code{supports_aux = FALSE} always receive \code{aux = NULL}.}
+\item{\code{strata}}{Only when registered with
+\code{supports_strata = TRUE} and the caller supplies \code{strata}:
+an integer vector (length N) of dense stratum labels \code{1:H}.
+Declare it as \code{strata = NULL} in your function signature.}
+\item{\code{spread}}{Only when registered with
+\code{supports_spread = TRUE} and the caller supplies \code{spread}:
+a numeric matrix (N x d, double) of spatial coordinates (or
+other spreading variables). Declare it as \code{spread = NULL} in
+your function signature.}
+\item{Returns}{Integer vector of distinct selected unit indices
+(1-based).}
 }
 
 \strong{\code{joint_fn(pik, sample_idx = NULL, ...)}} (optional)
@@ -78,11 +125,20 @@ register_method("toy", type = "wor", sample_fn = my_sampler)
 s <- unequal_prob_wor(c(0.3, 0.3, 0.4), method = "toy")
 s$method
 
+# Register a toy balanced sampler (ignores aux, keeps size fixed)
+my_balanced <- function(pik, n = NULL, aux = NULL, ...) {
+  sample.int(length(pik), size = n, prob = pik)
+}
+register_method("toy_bal", type = "balanced", sample_fn = my_balanced)
+s <- balanced_wor(c(0.3, 0.3, 0.4), method = "toy_bal")
+s$method
+
 # Clean up
 unregister_method("toy")
+unregister_method("toy_bal")
 
 }
 \seealso{
 \code{\link[=registered_methods]{registered_methods()}}, \code{\link[=unequal_prob_wor]{unequal_prob_wor()}},
-\code{\link[=unequal_prob_wr]{unequal_prob_wr()}}
+\code{\link[=unequal_prob_wr]{unequal_prob_wr()}}, \code{\link[=balanced_wor]{balanced_wor()}}
 }

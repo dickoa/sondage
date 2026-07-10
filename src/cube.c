@@ -12,12 +12,20 @@
  *   sampling. Computational Statistics, 21(1), 53-62.
  * - Chauvet, G. (2009). Stratified balanced sampling. Survey
  *   Methodology, 35, 115-119.
+ * - Tripet, A. and Tillé, Y. (2026). Balanced sampling with
+ *   inequalities. JASA, 121(553), 796-806. (Flight phase with
+ *   inequality constraints B's <= r: step sizes are capped so the
+ *   walk stays inside the polytope, and a constraint whose slack
+ *   reaches 0 becomes an equality from then on.)
  *
  * NOTE on auxiliary variable ordering:
  *   The landing phase relaxes constraints starting from the LAST variable.
  *   Users must order auxiliary variables by importance (most important first).
  *   For the stratified cube, the within-stratum sample size constraint is
  *   automatically placed in position 0 (always preserved).
+ *   With inequality bounds, the landing priority is: size constraint,
+ *   then bounds that became equalities during flight, then auxiliary
+ *   variables (still relaxed from the last).
  */
 
 #include <R.h>
@@ -43,6 +51,16 @@
 /* Tolerance for RREF pivoting (relative to eps) */
 #define RREF_TOL(eps) ((eps) * 0.01)
 
+/* Inequality row states (cube with bounds) */
+#define ROW_INACTIVE 0  /* strict inequality: slack > 0, caps the step */
+#define ROW_ACTIVE   1  /* slack hit 0: enforced as an equality */
+#define ROW_DROPPED  2  /* relaxed during landing (infeasible to keep) */
+
+/* A row is "on its face" (activatable) when its slack is this small.
+ * Scaled by the bound magnitude so large-count bounds behave like
+ * small ones. */
+#define ROW_ACT_TOL(r) (1e-9 * (1.0 + fabs(r)))
+
 typedef struct {
     int *list;      /* Active indices: list[0..len-1] are valid */
     int *reverse;   /* reverse[id] = position in list, or capacity if removed */
@@ -53,13 +71,30 @@ typedef struct {
 typedef struct {
     int N;              /* Population size */
     int p;              /* Number of balancing variables */
+    int q;              /* Number of inequality rows (0 = classic cube) */
     double eps;         /* Numerical tolerance */
     double *prob;       /* Working probabilities [N] */
     double *amat;       /* A = X / pi, column-major [N x p] */
-    double *bmat;       /* Working matrix, row-major [(p+1) x (p+1)] for RREF */
-    double *uvec;       /* Null space vector [p+1] */
-    int *candidates;    /* Current candidate indices [p+1] */
+    double *bmat;       /* Working matrix, row-major, for RREF */
+    double *uvec;       /* Null space vector [p+q+1] */
+    int *candidates;    /* Current candidate indices [p+q+1] */
     IndexList *idx;     /* Active index list */
+
+    /* Inequality constraints B's <= r (unused when q == 0).
+     * Constraint ids in `cons`: id < p refers to amat column id,
+     * id >= p refers to bcols column id - p. */
+    const double *bcols;    /* B, column-major [N x q] (borrowed) */
+    double *rvec;           /* Bounds r [q] */
+    double *slack;          /* r_j - B_j' prob [q] */
+    double *dvec;           /* Work: B_j' u over the candidate window [q] */
+    int *row_state;         /* ROW_INACTIVE / ROW_ACTIVE / ROW_DROPPED [q] */
+    int *in_kernel;         /* Work: row currently enforced via kernel [q] */
+    int *cons;              /* Equality constraint ids [p + q] */
+    int *landing_cons;      /* Landing priority order [p + q] */
+    int n_eq;               /* Current number of equality constraints */
+    int n_dropped;          /* Rows dropped during landing */
+    int bind1;              /* Row capping lambda1 in last update, or -1 */
+    int bind2;              /* Row capping lambda2 in last update, or -1 */
 } CubeWorkspace;
 
 static IndexList *indexlist_alloc(int capacity) {
@@ -112,12 +147,14 @@ static void indexlist_shuffle(IndexList *il) {
     }
 }
 
-static void cube_rref(double *mat, int nrows, int ncols, double tol) {
+/* Returns the rank (number of pivots placed). */
+static int cube_rref(double *mat, int nrows, int ncols, double tol) {
     int lead = 0;
+    int rank = 0;
 
     for (int r = 0; r < nrows; r++) {
         if (lead >= ncols)
-            return;
+            return rank;
 
         int best = r;
         double best_val = fabs(mat[IDX_RM(r, lead, ncols)]);
@@ -165,19 +202,24 @@ static void cube_rref(double *mat, int nrows, int ncols, double tol) {
         }
 
         lead++;
+        rank++;
     }
+
+    return rank;
 }
 
-static void cube_null_vector(double *uvec, const double *mat, int ncols,
-                             double tol) {
-    int nrows = ncols - 1;
-
+static void cube_null_vector(double *uvec, const double *mat, int nrows,
+                             int ncols, double tol) {
     if (nrows <= 0) {
+        for (int k = 0; k < ncols; k++) {
+            uvec[k] = 0.0;
+        }
         uvec[0] = 1.0;
         return;
     }
 
-    if (fabs(mat[IDX_RM(nrows - 1, nrows - 1, ncols)] - 1.0) < tol) {
+    if (nrows == ncols - 1 &&
+        fabs(mat[IDX_RM(nrows - 1, nrows - 1, ncols)] - 1.0) < tol) {
         uvec[ncols - 1] = 1.0;
         for (int i = 0; i < nrows; i++) {
             uvec[i] = -mat[IDX_RM(i, ncols - 1, ncols)];
@@ -205,20 +247,40 @@ static void cube_null_vector(double *uvec, const double *mat, int ncols,
     }
 }
 
-static CubeWorkspace *cube_workspace_alloc(int N, int p, double eps) {
+static CubeWorkspace *cube_workspace_alloc(int N, int p, int q, double eps) {
     CubeWorkspace *ws = (CubeWorkspace *)R_alloc(1, sizeof(CubeWorkspace));
+    int pq = p + q;
 
     ws->N = N;
     ws->p = p;
+    ws->q = q;
     ws->eps = eps;
 
     ws->prob = (double *)R_alloc(N, sizeof(double));
     ws->amat = (double *)R_alloc((size_t)N * p, sizeof(double));
-    ws->bmat = (double *)R_alloc((size_t)(p + 1) * (p + 1), sizeof(double));
-    ws->uvec = (double *)R_alloc(p + 1, sizeof(double));
-    ws->candidates = (int *)R_alloc(p + 1, sizeof(int));
+    ws->bmat = (double *)R_alloc((size_t)(pq + 1) * (pq + 1), sizeof(double));
+    ws->uvec = (double *)R_alloc(pq + 1, sizeof(double));
+    ws->candidates = (int *)R_alloc(pq + 1, sizeof(int));
 
     ws->idx = indexlist_alloc(N);
+
+    ws->bcols = NULL;
+    ws->rvec = (double *)R_alloc(q > 0 ? q : 1, sizeof(double));
+    ws->slack = (double *)R_alloc(q > 0 ? q : 1, sizeof(double));
+    ws->dvec = (double *)R_alloc(q > 0 ? q : 1, sizeof(double));
+    ws->row_state = (int *)R_alloc(q > 0 ? q : 1, sizeof(int));
+    ws->in_kernel = (int *)R_alloc(q > 0 ? q : 1, sizeof(int));
+    ws->cons = (int *)R_alloc(pq > 0 ? pq : 1, sizeof(int));
+    ws->landing_cons = (int *)R_alloc(pq > 0 ? pq : 1, sizeof(int));
+    /* The first p entries are the original equality constraints and are
+     * never reordered; activations append after them. */
+    for (int j = 0; j < pq; j++) {
+        ws->cons[j] = j;
+    }
+    ws->n_eq = p;
+    ws->n_dropped = 0;
+    ws->bind1 = -1;
+    ws->bind2 = -1;
 
     return ws;
 }
@@ -263,22 +325,106 @@ static void cube_workspace_init(CubeWorkspace *ws, const double *prob,
     cube_workspace_reset(ws, prob);
 }
 
-static void cube_update(CubeWorkspace *ws, int n_cand) {
+/* --- Inequality constraints (Tripet & Tillé 2026) --------------------- */
+
+/* Turn inequality row j into an equality constraint: the walk has
+ * reached the face B_j'prob = r_j and must stay on it. */
+static void cube_row_activate(CubeWorkspace *ws, int j) {
+    ws->row_state[j] = ROW_ACTIVE;
+    ws->slack[j] = 0.0;
+    ws->cons[ws->n_eq++] = ws->p + j;
+}
+
+/* Recompute slacks from the current working probabilities and reset
+ * the constraint bookkeeping for a fresh draw. Rows starting on their
+ * face (slack ~ 0, e.g. equality bounds lower == upper) are activated
+ * immediately. Errors if the starting probabilities are infeasible. */
+static void cube_ineq_reset(CubeWorkspace *ws) {
+    ws->n_eq = ws->p;
+    ws->n_dropped = 0;
+    ws->bind1 = -1;
+    ws->bind2 = -1;
+
+    for (int j = 0; j < ws->q; j++) {
+        double dot = 0.0;
+        for (int i = 0; i < ws->N; i++) {
+            dot += ws->bcols[IDX_CM(i, j, ws->N)] * ws->prob[i];
+        }
+        double g = ws->rvec[j] - dot;
+        if (g < -1e-7 * (1.0 + fabs(ws->rvec[j]))) {
+            error(
+                "bounds are infeasible at the initial inclusion "
+                "probabilities (constraint %d: value %g exceeds bound %g)",
+                j + 1, dot, ws->rvec[j]
+            );
+        }
+        ws->slack[j] = g;
+        ws->row_state[j] = ROW_INACTIVE;
+        if (g <= ROW_ACT_TOL(ws->rvec[j])) {
+            cube_row_activate(ws, j);
+        }
+    }
+}
+
+/* One basic step of the flight/landing random walk over the candidate
+ * window. The kernel direction is computed from the ncons constraint
+ * ids in cons_ids (id < p: amat column; id >= p: inequality row
+ * id - p). ncons may exceed n_cand - 1 during landing: dependent
+ * constraints (e.g. redundant margin systems) then cost nothing, and
+ * only a genuinely full-rank system reports "no kernel".
+ *
+ * With inequality rows (q > 0), the step sizes are additionally capped
+ * so B'prob <= r stays feasible, and any row whose slack reaches 0 is
+ * converted to an equality (Tripet & Tillé 2026, Algorithm 2).
+ *
+ * Returns 1 when progress was made (a move and/or an activation),
+ * 0 on a stall (degenerate direction, or a binding row that cannot be
+ * activated — the landing phase then relaxes it), and -1 when the
+ * constraint system has full column rank (no direction exists; the
+ * caller must relax a constraint). No RNG is consumed unless a move
+ * is made. */
+static int cube_update(CubeWorkspace *ws, int n_cand,
+                       const int *cons_ids, int ncons) {
     double eps = ws->eps;
     double tol = RREF_TOL(eps);
 
-    int nrows = n_cand - 1;
+    int nrows = ncons;
     int ncols = n_cand;
+
+    ws->bind1 = -1;
+    ws->bind2 = -1;
 
     for (int i = 0; i < nrows; i++) {
         for (int j = 0; j < ncols; j++) {
             int id = ws->candidates[j];
-            ws->bmat[IDX_RM(i, j, ncols)] = ws->amat[IDX_CM(id, i, ws->N)];
+            int c = cons_ids[i];
+            ws->bmat[IDX_RM(i, j, ncols)] = (c < ws->p)
+                ? ws->amat[IDX_CM(id, c, ws->N)]
+                : ws->bcols[IDX_CM(id, c - ws->p, ws->N)];
         }
     }
 
-    cube_rref(ws->bmat, nrows, ncols, tol);
-    cube_null_vector(ws->uvec, ws->bmat, ncols, tol);
+    int rank = cube_rref(ws->bmat, nrows, ncols, tol);
+    if (rank >= ncols) {
+        return -1;
+    }
+    cube_null_vector(ws->uvec, ws->bmat, nrows, ncols, tol);
+
+    if (ws->q > 0) {
+        /* Max-norm normalization so the inequality caps and the stall
+         * test below are scale-free. Skipped for q == 0 to keep the
+         * classic path bit-identical. */
+        double umax = 0.0;
+        for (int i = 0; i < n_cand; i++) {
+            double a = fabs(ws->uvec[i]);
+            if (a > umax) umax = a;
+        }
+        if (umax > 0.0) {
+            for (int i = 0; i < n_cand; i++) {
+                ws->uvec[i] /= umax;
+            }
+        }
+    }
 
     double lambda1 = DBL_MAX;
     double lambda2 = DBL_MAX;
@@ -310,8 +456,73 @@ static void cube_update(CubeWorkspace *ws, int n_cand) {
      *     check the sentinel explicitly.
      * (2) Otherwise, ensure the feasible movement range is non-degenerate.
      */
-    if (lambda1 == DBL_MAX || lambda2 == DBL_MAX) return;
-    if (lambda1 + lambda2 < tol) return;
+    if (lambda1 == DBL_MAX || lambda2 == DBL_MAX) return 0;
+
+    if (ws->q > 0) {
+        /* Which inequality rows are enforced through the kernel in this
+         * step? Those move orthogonally (B_j'u = 0) and must not cap. */
+        for (int j = 0; j < ws->q; j++) {
+            ws->in_kernel[j] = 0;
+        }
+        for (int i = 0; i < ncons; i++) {
+            if (cons_ids[i] >= ws->p) {
+                ws->in_kernel[cons_ids[i] - ws->p] = 1;
+            }
+        }
+
+        for (int j = 0; j < ws->q; j++) {
+            ws->dvec[j] = 0.0;
+            if (ws->row_state[j] == ROW_DROPPED || ws->in_kernel[j]) {
+                continue;
+            }
+            double d = 0.0;
+            for (int i = 0; i < n_cand; i++) {
+                d += ws->bcols[IDX_CM(ws->candidates[i], j, ws->N)] *
+                     ws->uvec[i];
+            }
+            ws->dvec[j] = d;
+            if (d > tol) {
+                double cap = ws->slack[j] / d;
+                if (cap < lambda1) {
+                    lambda1 = cap;
+                    ws->bind1 = j;
+                }
+            } else if (d < -tol) {
+                double cap = ws->slack[j] / (-d);
+                if (cap < lambda2) {
+                    lambda2 = cap;
+                    ws->bind2 = j;
+                }
+            }
+        }
+        if (lambda1 < 0.0) lambda1 = 0.0;
+        if (lambda2 < 0.0) lambda2 = 0.0;
+    }
+
+    /* Stall test. With bounds, either side capped at ~0 is a stall: the
+     * martingale coin would pick the zero step with probability ~1, so
+     * no unbiased progress is possible along this direction. (For
+     * q == 0 the classic sum test is kept bit-identical.) */
+    int stalled = (ws->q > 0)
+        ? (lambda1 < tol || lambda2 < tol)
+        : (lambda1 + lambda2 < tol);
+    if (stalled) {
+        /* If a binding row sits on its face, converting it to an
+         * equality re-orients the next kernel direction — progress
+         * without moving (and without a random draw, so E(s) = pik is
+         * untouched). */
+        int activated = 0;
+        int binds[2] = {ws->bind1, ws->bind2};
+        for (int b = 0; b < 2; b++) {
+            int j = binds[b];
+            if (j >= 0 && ws->row_state[j] == ROW_INACTIVE &&
+                ws->slack[j] <= ROW_ACT_TOL(ws->rvec[j])) {
+                cube_row_activate(ws, j);
+                activated = 1;
+            }
+        }
+        return activated;
+    }
 
     double lambda = (unif_rand() * (lambda1 + lambda2) < lambda2)
                     ? lambda1 : -lambda2;
@@ -323,15 +534,40 @@ static void cube_update(CubeWorkspace *ws, int n_cand) {
         if (ws->prob[id] < eps) ws->prob[id] = 0.0;
         if (ws->prob[id] > 1.0 - eps) ws->prob[id] = 1.0;
     }
+
+    if (ws->q > 0) {
+        for (int j = 0; j < ws->q; j++) {
+            double d = ws->dvec[j];
+            if (d == 0.0) continue;  /* dropped, in kernel, or untouched */
+            double g = ws->slack[j] - lambda * d;
+            if (ws->row_state[j] == ROW_INACTIVE &&
+                g <= ROW_ACT_TOL(ws->rvec[j])) {
+                cube_row_activate(ws, j);
+            } else {
+                /* ROW_ACTIVE rows outside the kernel only occur during
+                 * landing; their slack can grow back (the walk may leave
+                 * the face inward — the bound itself still holds). */
+                ws->slack[j] = g < 0.0 ? 0.0 : g;
+            }
+        }
+    }
+
+    return 1;
 }
 
 static void cube_flight(CubeWorkspace *ws) {
-    int max_cand = ws->p + 1;
     double eps = ws->eps;
     int max_iter = (ws->N > 31622) ? 1000000000 : ws->N * ws->N;
     int iter = 0;
 
-    while (ws->idx->len >= max_cand) {
+    if (ws->q == 0) {
+        /* Legacy entry paths (stratified phases) manage prob/idx
+         * directly; make sure the constraint count is in sync. */
+        ws->n_eq = ws->p;
+    }
+
+    /* The window grows as inequality rows become equalities. */
+    while (ws->idx->len >= ws->n_eq + 1) {
         R_CheckUserInterrupt();
         if (++iter > max_iter) {
             error("cube flight phase did not converge after %d iterations. "
@@ -339,17 +575,25 @@ static void cube_flight(CubeWorkspace *ws) {
                   max_iter);
         }
 
+        int max_cand = ws->n_eq + 1;
         for (int i = 0; i < max_cand; i++) {
             ws->candidates[i] = ws->idx->list[i];
         }
 
-        cube_update(ws, max_cand);
+        int progress = cube_update(ws, max_cand, ws->cons, ws->n_eq);
 
         for (int i = 0; i < max_cand; i++) {
             int id = ws->candidates[i];
             if (PROB_IS_INT(ws->prob[id], eps)) {
                 indexlist_remove(ws->idx, id);
             }
+        }
+
+        /* With bounds, a no-progress step is deterministic (no RNG was
+         * consumed), so retrying the same window cannot help. */
+        if (ws->q > 0 && !progress) {
+            error("cube flight phase stalled; this usually indicates "
+                  "collinear balancing variables or badly scaled bounds");
         }
     }
 }
@@ -359,7 +603,50 @@ static void cube_landing(CubeWorkspace *ws) {
     int max_iter = (ws->N > 31622) ? 1000000000 : ws->N * ws->N;
     int iter = 0;
 
-    while (ws->idx->len > 1) {
+    if (ws->q == 0) {
+        ws->n_eq = ws->p;
+
+        while (ws->idx->len > 1) {
+            R_CheckUserInterrupt();
+            if (++iter > max_iter) {
+                error(
+                    "cube landing phase did not converge after %d iterations.",
+                    max_iter
+                );
+            }
+
+            int n_cand = ws->idx->len;
+
+            for (int i = 0; i < n_cand; i++) {
+                ws->candidates[i] = ws->idx->list[i];
+            }
+
+            cube_update(ws, n_cand, ws->cons, n_cand - 1);
+
+            for (int i = 0; i < n_cand; i++) {
+                int id = ws->candidates[i];
+                if (PROB_IS_INT(ws->prob[id], eps)) {
+                    indexlist_remove(ws->idx, id);
+                }
+            }
+        }
+
+        /* Single remaining unit: resolve by coin flip */
+        if (ws->idx->len == 1) {
+            int id = ws->idx->list[0];
+            ws->prob[id] = (unif_rand() < ws->prob[id]) ? 1.0 : 0.0;
+            indexlist_remove(ws->idx, id);
+        }
+        return;
+    }
+
+    /* Landing with inequality bounds. The kernel keeps as many
+     * constraints as the candidate count allows, in priority order:
+     * the size constraint, then bounds that became equalities, then
+     * auxiliary variables (relaxed from the last, as usual). All
+     * remaining bounds keep capping the steps; a bound that provably
+     * blocks completion is dropped (reported back for a warning). */
+    while (ws->idx->len > 0) {
         R_CheckUserInterrupt();
         if (++iter > max_iter) {
             error("cube landing phase did not converge after %d iterations.",
@@ -367,26 +654,70 @@ static void cube_landing(CubeWorkspace *ws) {
         }
 
         int n_cand = ws->idx->len;
-
         for (int i = 0; i < n_cand; i++) {
             ws->candidates[i] = ws->idx->list[i];
         }
 
-        cube_update(ws, n_cand);
-
-        for (int i = 0; i < n_cand; i++) {
-            int id = ws->candidates[i];
-            if (PROB_IS_INT(ws->prob[id], eps)) {
-                indexlist_remove(ws->idx, id);
+        /* Kernel priority: size constraint, then bound rows that are
+         * tight NOW and act on the current candidates (rows whose walk
+         * moved back inside, or with no support in the window, are
+         * fully handled by the step caps), then auxiliary variables.
+         * All of them are enforced at once — dependent rows (e.g.
+         * redundant margin systems) cost nothing. Only when the system
+         * has full column rank is the tail relaxed, one constraint at
+         * a time: auxiliaries first (from the last, as in the classic
+         * landing), then tight bounds, then the size constraint for
+         * the final coin flip. */
+        int m = 0;
+        ws->landing_cons[m++] = 0;
+        for (int i = ws->p; i < ws->n_eq; i++) {
+            int c = ws->cons[i];
+            int j = c - ws->p;
+            if (ws->row_state[j] != ROW_ACTIVE) continue;
+            if (ws->slack[j] > ROW_ACT_TOL(ws->rvec[j])) continue;
+            int supported = 0;
+            for (int k = 0; k < n_cand; k++) {
+                if (ws->bcols[IDX_CM(ws->candidates[k], j, ws->N)] != 0.0) {
+                    supported = 1;
+                    break;
+                }
+            }
+            if (supported) {
+                ws->landing_cons[m++] = c;
             }
         }
-    }
+        for (int c = 1; c < ws->p; c++) {
+            ws->landing_cons[m++] = c;
+        }
 
-    /* Single remaining unit: resolve by coin flip */
-    if (ws->idx->len == 1) {
-        int id = ws->idx->list[0];
-        ws->prob[id] = (unif_rand() < ws->prob[id]) ? 1.0 : 0.0;
-        indexlist_remove(ws->idx, id);
+        int progress = -1;
+        while (m >= 0) {
+            progress = cube_update(ws, n_cand, ws->landing_cons, m);
+            if (progress != -1) break;
+            m--;
+        }
+
+        if (progress == 1) {
+            for (int i = 0; i < n_cand; i++) {
+                int id = ws->candidates[i];
+                if (PROB_IS_INT(ws->prob[id], eps)) {
+                    indexlist_remove(ws->idx, id);
+                }
+            }
+            continue;
+        }
+
+        /* Stalled: relax the binding bound (there is no exact 0/1
+         * completion satisfying it — e.g. an infeasible controlled
+         * rounding structure). Unbiasedness is unaffected: no move was
+         * made. If no bound binds, the stall is a degeneracy of the
+         * balancing system itself; keep the classic behavior of
+         * erroring out (via max_iter, message above). */
+        int j = (ws->bind1 >= 0) ? ws->bind1 : ws->bind2;
+        if (j >= 0) {
+            ws->row_state[j] = ROW_DROPPED;
+            ws->n_dropped++;
+        }
     }
 }
 
@@ -534,14 +865,41 @@ static void cube_check_X_dim(SEXP X_sexp, int N, int *p_out) {
     *p_out = p;
 }
 
+/* Validate the inequality system (B, r) and return q = ncol(B).
+ * The R layer always passes a double N x q matrix (q may be 0). */
+static int cube_check_bounds(SEXP B_sexp, SEXP r_sexp, int N) {
+    SEXP dim = getAttrib(B_sexp, R_DimSymbol);
+    if (isNull(dim)) {
+        error("'B' must be a numeric matrix");
+    }
+    int B_nrow = INTEGER(dim)[0];
+    int q = INTEGER(dim)[1];
+    if (q > 0 && B_nrow != N) {
+        error("nrow(B) = %d does not match length(prob) = %d", B_nrow, N);
+    }
+    if (length(r_sexp) != q) {
+        error("length(r) = %d does not match ncol(B) = %d",
+              length(r_sexp), q);
+    }
+    return q;
+}
+
 /* --- Internal draw helpers (no RNG state management) -------------------- */
 
 static int cube_draw_unstratified(const double *prob, const double *X,
-                                  int N, int p, double eps, int *out_idx) {
-    CubeWorkspace *ws = cube_workspace_alloc(N, p, eps);
+                                  const double *B, const double *r,
+                                  int N, int p, int q, double eps,
+                                  int *out_idx, int *n_dropped) {
+    CubeWorkspace *ws = cube_workspace_alloc(N, p, q, eps);
+    if (q > 0) {
+        ws->bcols = B;
+        memcpy(ws->rvec, r, (size_t)q * sizeof(double));
+    }
     cube_workspace_init(ws, prob, X);
+    cube_ineq_reset(ws);
     cube_flight(ws);
     cube_landing(ws);
+    *n_dropped = ws->n_dropped;
     return cube_extract_selected(ws->prob, N, eps, out_idx);
 }
 
@@ -596,7 +954,7 @@ static int cube_draw_stratified(const double *prob, const double *X,
     int p_stratum = p_orig + 1;  /* 1 (size constraint) + p_orig */
     int max_cand_stratum = p_stratum + 1;
 
-    CubeWorkspace *ws = cube_workspace_alloc(N, p_stratum, eps);
+    CubeWorkspace *ws = cube_workspace_alloc(N, p_stratum, 0, eps);
     memcpy(ws->prob, work_prob, N * sizeof(double));
 
     for (int h = 0; h < n_strata; h++) {
@@ -639,7 +997,7 @@ static int cube_draw_stratified(const double *prob, const double *X,
 
         if (total_remaining >= max_cand_global) {
             CubeWorkspace *ws_global =
-                cube_workspace_alloc(N, p_global, eps);
+                cube_workspace_alloc(N, p_global, 0, eps);
             memcpy(ws_global->prob, work_prob, N * sizeof(double));
 
             int *active_levels = (int *)R_alloc(active_strata, sizeof(int));
@@ -699,31 +1057,42 @@ static int cube_draw_stratified(const double *prob, const double *X,
 
 /* --- R-callable entry points -------------------------------------------- */
 
-SEXP C_cube(SEXP prob_sexp, SEXP X_sexp, SEXP eps_sexp) {
+SEXP C_cube(SEXP prob_sexp, SEXP X_sexp, SEXP B_sexp, SEXP r_sexp,
+            SEXP eps_sexp) {
     const int N = length(prob_sexp);
     int p = 0;
     cube_check_X_dim(X_sexp, N, &p);
+    const int q = cube_check_bounds(B_sexp, r_sexp, N);
 
     const double eps = asReal(eps_sexp);
     const double *prob = REAL(prob_sexp);
     const double *X = REAL(X_sexp);
+    const double *B = REAL(B_sexp);
+    const double *r = REAL(r_sexp);
     int *selected = (int *)R_alloc(N, sizeof(int));
+    int n_dropped = 0;
 
     GetRNGstate();
-    int n_selected = cube_draw_unstratified(prob, X, N, p, eps, selected);
+    int n_selected = cube_draw_unstratified(
+        prob, X, B, r, N, p, q, eps, selected, &n_dropped
+    );
     PutRNGstate();
 
     SEXP result = PROTECT(allocVector(INTSXP, n_selected));
     memcpy(INTEGER(result), selected, (size_t)n_selected * sizeof(int));
+    if (n_dropped > 0) {
+        setAttrib(result, install("relaxed"), ScalarInteger(n_dropped));
+    }
     UNPROTECT(1);
     return result;
 }
 
-SEXP C_cube_batch(SEXP prob_sexp, SEXP X_sexp, SEXP eps_sexp,
-                  SEXP nrep_sexp) {
+SEXP C_cube_batch(SEXP prob_sexp, SEXP X_sexp, SEXP B_sexp, SEXP r_sexp,
+                  SEXP eps_sexp, SEXP nrep_sexp) {
     const int N = length(prob_sexp);
     int p = 0;
     cube_check_X_dim(X_sexp, N, &p);
+    const int q = cube_check_bounds(B_sexp, r_sexp, N);
 
     const int nrep = INTEGER(nrep_sexp)[0];
     const double eps = asReal(eps_sexp);
@@ -743,16 +1112,24 @@ SEXP C_cube_batch(SEXP prob_sexp, SEXP X_sexp, SEXP eps_sexp,
     }
 
     /* Allocate workspace once; build A = X/pi once (constant across reps) */
-    CubeWorkspace *ws = cube_workspace_alloc(N, p, eps);
+    CubeWorkspace *ws = cube_workspace_alloc(N, p, q, eps);
+    if (q > 0) {
+        ws->bcols = REAL(B_sexp);
+        memcpy(ws->rvec, REAL(r_sexp), (size_t)q * sizeof(double));
+    }
     cube_workspace_build_amat(ws, prob, X);
+
+    int relaxed_reps = 0;
 
     GetRNGstate();
     for (int s = 0; s < nrep; s++) {
         if (s % 32 == 0) R_CheckUserInterrupt();
 
         cube_workspace_reset(ws, prob);
+        cube_ineq_reset(ws);
         cube_flight(ws);
         cube_landing(ws);
+        if (ws->n_dropped > 0) relaxed_reps++;
 
         int *col = res + s * n_target;
         int n_selected = cube_extract_selected(ws->prob, N, eps, col);
@@ -769,6 +1146,9 @@ SEXP C_cube_batch(SEXP prob_sexp, SEXP X_sexp, SEXP eps_sexp,
     }
     PutRNGstate();
 
+    if (relaxed_reps > 0) {
+        setAttrib(result, install("relaxed_reps"), ScalarInteger(relaxed_reps));
+    }
     UNPROTECT(1);
     return result;
 }
@@ -897,9 +1277,9 @@ SEXP C_cube_stratified_batch(SEXP prob_sexp, SEXP X_sexp, SEXP strata_sexp,
     /* Allocate workspaces once (reused across replicates) */
     int p_stratum = p_orig + 1;
     int max_cand_stratum = p_stratum + 1;
-    CubeWorkspace *ws = cube_workspace_alloc(N, p_stratum, eps);
+    CubeWorkspace *ws = cube_workspace_alloc(N, p_stratum, 0, eps);
     /* ws_global allocated with max p = n_strata + p_orig; actual p set per rep */
-    CubeWorkspace *ws_global = cube_workspace_alloc(N, n_strata + p_orig, eps);
+    CubeWorkspace *ws_global = cube_workspace_alloc(N, n_strata + p_orig, 0, eps);
 
     GetRNGstate();
     for (int s = 0; s < nrep; s++) {

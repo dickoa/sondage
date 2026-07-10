@@ -19,7 +19,24 @@
 #'   sample sizes while balancing on `aux`. Requires `sum(pik)` within
 #'   each stratum to be close to an integer for exact sizes. If not, a
 #'   warning is issued and `fixed_size` is set to `FALSE`.
-#' @param method The sampling method. Currently only `"cube"`.
+#' @param spread An optional numeric matrix (N x d) of spatial
+#'   coordinates (or other spreading variables) for well-spread,
+#'   spatially balanced sampling. Only supported by methods registered
+#'   via [register_method()] with `supports_spread = TRUE`; the
+#'   built-in `"cube"` method does not use it and will error.
+#' @param bounds An optional list with elements `B`, `lower`, and
+#'   `upper` describing linear inequality constraints on the realized
+#'   sample (Tripet & \enc{Tillé}{Tille}, 2026): `B` is a numeric
+#'   matrix (N x q) whose columns are constraint variables, and the
+#'   sample `s` is drawn so that
+#'   \eqn{lower_j \le \sum_{k \in s} B_{kj} \le upper_j} for every
+#'   constraint `j`. `-Inf` / `Inf` entries make a constraint
+#'   one-sided; `lower[j] == upper[j]` enforces an exact equality.
+#'   The starting probabilities must be feasible:
+#'   `lower <= colSums(B * pik) <= upper`. Only supported by the
+#'   built-in `"cube"` method. See **Inequality constraints** below.
+#' @param method The sampling method. `"cube"` (built-in), or the name
+#'   of a balanced method added via [register_method()].
 #' @param nrep Number of replicate samples (default 1). When `nrep > 1`,
 #'   `$sample` holds a matrix (n x nrep) for fixed-size designs, or a
 #'   list of integer vectors when within-stratum sizes are not exact.
@@ -57,6 +74,41 @@
 #' approximation (Brewer & Donadio, 2003), which is appropriate since
 #' the cube produces a near-maximum-entropy design.
 #'
+#' @section Inequality constraints:
+#'
+#' `bounds` implements the cube method with inequality constraints of
+#' Tripet & \enc{Tillé}{Tille} (2026). During the flight phase, steps
+#' are capped so every constraint stays feasible, and a constraint
+#' whose slack reaches zero becomes an equality from then on. The
+#' inclusion probabilities are respected exactly (`E(s) = pik`),
+#' unlike rejective procedures.
+#'
+#' `B` applies to the realized sample directly (counts / raw sums);
+#' it is \strong{not} divided by `pik`. To bound a Horvitz-Thompson
+#' estimator, pass `x / pik` as the constraint column.
+#'
+#' The main application is controlled selection (Goodman & Kish,
+#' 1950): bounding category counts to the integers adjacent to their
+#' expectation. With indicator columns `B` and
+#' `S <- colSums(B * pik)`, use `lower = floor(S)`,
+#' `upper = ceiling(S)`. Categories may overlap (e.g. row and column
+#' margins of a two-way control table, as in NAEP-style designs).
+#'
+#' Integer-valued bound systems on partitions or two-way margins are
+#' satisfied exactly. For structures with no exact integer solution —
+#' some three-way controlled rounding problems, or continuous-valued
+#' constraints that end the flight phase tight against a boundary —
+#' bounds that provably block the landing phase are relaxed one at a
+#' time, with a warning; `E(s) = pik` still holds. In other words,
+#' the bounds are guaranteed whenever no relaxation warning is
+#' raised.
+#'
+#' The high-entropy approximation used by [joint_inclusion_prob()] is
+#' less accurate under tight bounds, which distort the design away
+#' from maximum entropy; Tripet & \enc{Tillé}{Tille} (2026) recommend
+#' Monte Carlo estimation of joint inclusion probabilities in that
+#' case.
+#'
 #' @return An object of class `c("unequal_prob", "wor", "sondage_sample")`.
 #'   When `nrep = 1`, `$sample` is an integer vector of selected unit
 #'   indices. When `nrep > 1`, `$sample` is a matrix (n x nrep) for
@@ -76,6 +128,12 @@
 #'
 #' Chauvet, G. (2009). Stratified balanced sampling. \emph{Survey
 #'   Methodology}, 35, 115-119.
+#'
+#' Tripet, A. and \enc{Tillé}{Tille}, Y. (2026). Balanced sampling with
+#'   inequalities: application to category bounding, matrix rounding,
+#'   and spread sampling. \emph{Journal of the American Statistical
+#'   Association}, 121(553), 796-806.
+#'   \doi{10.1080/01621459.2025.2550667}
 #'
 #' @seealso [unequal_prob_wor()] for unbalanced designs,
 #'   [inclusion_prob()] to compute inclusion probabilities from size measures.
@@ -100,16 +158,59 @@
 #' s <- balanced_wor(pik, aux = x, strata = strata)
 #' s$sample
 #'
+#' # Controlled selection: bound category counts to the integers
+#' # adjacent to their expectation (floor/ceil)
+#' pik <- rep(0.5, 12)  # n = 6
+#' groups <- rep(c("a", "b", "c"), each = 4)
+#' B <- sapply(unique(groups), function(g) as.double(groups == g))
+#' S <- colSums(B * pik)  # 2, 2, 2 per category
+#' set.seed(1)
+#' s <- balanced_wor(
+#'   pik,
+#'   bounds = list(B = B, lower = floor(S), upper = ceiling(S))
+#' )
+#' table(groups[s$sample])  # exactly 2 per category
+#'
 #' @export
 balanced_wor <- function(
   pik,
   aux = NULL,
   strata = NULL,
+  spread = NULL,
+  bounds = NULL,
   method = "cube",
   nrep = 1L,
   ...
 ) {
+  if (
+    is.character(method) && length(method) == 1L && is_registered_method(method)
+  ) {
+    if (!is.null(bounds)) {
+      stop(
+        "registered balanced methods do not support 'bounds'",
+        call. = FALSE
+      )
+    }
+    return(
+      .dispatch_registered_balanced(pik, aux, strata, spread, method, nrep, ...)
+    )
+  }
   method <- match.arg(method)
+  if (!is.null(spread)) {
+    stop(
+      "method 'cube' does not support spatial spreading; ",
+      "use a method registered with supports_spread = TRUE",
+      call. = FALSE
+    )
+  }
+  if (!is.null(bounds) && !is.null(strata)) {
+    stop(
+      "'bounds' cannot be combined with 'strata'; ",
+      "express within-stratum size constraints through 'bounds' ",
+      "(with lower = upper) instead",
+      call. = FALSE
+    )
+  }
   nrep <- check_integer(nrep, "nrep")
   if (nrep < 1L) {
     stop("'nrep' must be at least 1", call. = FALSE)
@@ -118,14 +219,21 @@ balanced_wor <- function(
   check_pik(pik, fixed_size = TRUE)
 
   if (nrep == 1L) {
-    .cube_sample(pik, aux = aux, strata = strata, ...)
+    .cube_sample(pik, aux = aux, strata = strata, bounds = bounds, ...)
   } else {
-    .batch_balanced_wor(pik, aux, strata, method, nrep, ...)
+    .batch_balanced_wor(pik, aux, strata, bounds, method, nrep, ...)
   }
 }
 
 #' @noRd
-.cube_sample <- function(pik, aux = NULL, strata = NULL, eps = 1e-10, ...) {
+.cube_sample <- function(
+  pik,
+  aux = NULL,
+  strata = NULL,
+  bounds = NULL,
+  eps = 1e-10,
+  ...
+) {
   N <- length(pik)
   dots <- list(...)
   condition_aux <- isTRUE(dots[["condition_aux"]])
@@ -145,7 +253,16 @@ balanced_wor <- function(
       condition_aux = condition_aux,
       qr_tol = qr_tol
     )
-    idx <- .Call(C_cube, as.double(pik), X, as.double(eps))
+    ineq <- .check_cube_bounds(bounds, pik, N)
+    idx <- .Call(
+      C_cube,
+      as.double(pik),
+      X,
+      ineq$B,
+      ineq$r,
+      as.double(eps)
+    )
+    idx <- .warn_relaxed_bounds(idx)
   } else {
     strata_int <- .check_strata(strata, N)
     strata_fixed <- .check_stratum_sizes(pik, strata_int)
@@ -166,7 +283,7 @@ balanced_wor <- function(
     )
   }
 
-  .new_wor_sample(
+  out <- .new_wor_sample(
     sample = idx,
     pik = pik,
     n = ifelse(strata_fixed, as.integer(round(sum(pik))), sum(pik)),
@@ -176,6 +293,10 @@ balanced_wor <- function(
     prob_class = "unequal_prob",
     extra_class = "balanced"
   )
+  if (!is.null(bounds)) {
+    out$bounds <- bounds
+  }
+  out
 }
 
 #' Build the balancing matrix for the cube C code.
@@ -202,19 +323,7 @@ balanced_wor <- function(
     return(matrix(0, nrow = N, ncol = 0))
   }
 
-  if (!is.matrix(aux)) {
-    aux <- as.matrix(aux)
-  }
-  if (anyNA(aux) || any(!is.finite(aux))) {
-    stop("aux must not contain NA, NaN, or Inf values", call. = FALSE)
-  }
-  if (nrow(aux) != N) {
-    stop(
-      sprintf("nrow(aux) = %d does not match length(pik) = %d", nrow(aux), N),
-      call. = FALSE
-    )
-  }
-  storage.mode(aux) <- "double"
+  aux <- .check_cube_aux(aux, N)
 
   if (isTRUE(condition_aux) && ncol(aux) > 0L) {
     aux <- .condition_cube_aux(aux, pik_d, qr_tol = qr_tol)
@@ -225,6 +334,165 @@ balanced_wor <- function(
   } else {
     aux
   }
+}
+
+#' Validate an auxiliary design matrix (balancing or spreading).
+#'
+#' Coerces to a double matrix and checks dimensions and finiteness.
+#' Shared by the built-in cube path and registered balanced methods;
+#' `what` names the argument in error messages ("aux" or "spread").
+#'
+#' @noRd
+.check_cube_aux <- function(aux, N, what = "aux") {
+  if (!is.matrix(aux)) {
+    aux <- as.matrix(aux)
+  }
+  if (anyNA(aux) || any(!is.finite(aux))) {
+    stop(
+      sprintf("%s must not contain NA, NaN, or Inf values", what),
+      call. = FALSE
+    )
+  }
+  if (nrow(aux) != N) {
+    stop(
+      sprintf(
+        "nrow(%s) = %d does not match length(pik) = %d",
+        what,
+        nrow(aux),
+        N
+      ),
+      call. = FALSE
+    )
+  }
+  storage.mode(aux) <- "double"
+  aux
+}
+
+#' Validate inequality bounds and convert to the one-sided form B's <= r
+#' used by the C code (Tripet & Tillé 2026).
+#'
+#' Each two-sided constraint `lower_j <= t(B[, j]) s <= upper_j` becomes
+#' up to two one-sided rows: `(+B[, j], upper_j)` and `(-B[, j], -lower_j)`,
+#' skipping infinite sides. Always returns a valid (possibly 0-column)
+#' system so the C call site does not need to branch.
+#'
+#' @return `list(B = N x q' double matrix, r = double vector length q')`.
+#' @noRd
+.check_cube_bounds <- function(bounds, pik, N) {
+  if (is.null(bounds)) {
+    return(list(B = matrix(numeric(0), nrow = N, ncol = 0), r = double(0)))
+  }
+  if (!is.list(bounds)) {
+    stop(
+      "'bounds' must be a list with elements 'B', 'lower', and 'upper'",
+      call. = FALSE
+    )
+  }
+  required <- c("B", "lower", "upper")
+  missing_el <- setdiff(required, names(bounds))
+  if (length(missing_el) > 0L) {
+    stop(
+      "'bounds' is missing element(s): ",
+      paste(missing_el, collapse = ", "),
+      call. = FALSE
+    )
+  }
+  extra <- setdiff(names(bounds), required)
+  if (length(extra) > 0L) {
+    stop(
+      "unknown element(s) in 'bounds': ",
+      paste(extra, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  B <- .check_cube_aux(bounds$B, N, what = "bounds$B")
+  q <- ncol(B)
+  if (q == 0L) {
+    stop("'bounds$B' must have at least one column", call. = FALSE)
+  }
+
+  lower <- bounds$lower
+  upper <- bounds$upper
+  for (side in c("lower", "upper")) {
+    v <- if (side == "lower") lower else upper
+    if (!is.numeric(v) || length(v) != q) {
+      stop(
+        sprintf(
+          "'bounds$%s' must be a numeric vector of length ncol(bounds$B) = %d",
+          side,
+          q
+        ),
+        call. = FALSE
+      )
+    }
+    if (anyNA(v)) {
+      stop(
+        sprintf("there are missing values in 'bounds$%s'", side),
+        call. = FALSE
+      )
+    }
+  }
+  if (any(lower > upper)) {
+    stop("'bounds$lower' must be <= 'bounds$upper'", call. = FALSE)
+  }
+  no_side <- !is.finite(lower) & !is.finite(upper)
+  if (any(no_side)) {
+    stop(
+      "constraint(s) ",
+      paste(which(no_side), collapse = ", "),
+      " in 'bounds' have no finite bound",
+      call. = FALSE
+    )
+  }
+
+  # Feasibility: the walk starts at pik and must start inside the polytope
+  v <- as.numeric(crossprod(B, as.double(pik)))
+  infeasible <- (is.finite(upper) & v > upper + 1e-8 * (1 + abs(upper))) |
+    (is.finite(lower) & v < lower - 1e-8 * (1 + abs(lower)))
+  if (any(infeasible)) {
+    stop(
+      "initial inclusion probabilities violate 'bounds' for constraint(s) ",
+      paste(which(infeasible), collapse = ", "),
+      "; 'lower <= colSums(B * pik) <= upper' is required",
+      call. = FALSE
+    )
+  }
+
+  up <- which(is.finite(upper))
+  lo <- which(is.finite(lower))
+  list(
+    B = cbind(B[, up, drop = FALSE], -B[, lo, drop = FALSE]),
+    r = as.double(c(upper[up], -lower[lo]))
+  )
+}
+
+#' Warn when the C code had to relax bounds during landing, and strip
+#' the signalling attributes from the result.
+#' @noRd
+.warn_relaxed_bounds <- function(x, nrep = 1L) {
+  relaxed <- attr(x, "relaxed", exact = TRUE)
+  if (!is.null(relaxed)) {
+    warning(
+      relaxed,
+      " bound(s) could not be met exactly and were relaxed during landing",
+      call. = FALSE
+    )
+    attr(x, "relaxed") <- NULL
+  }
+  relaxed_reps <- attr(x, "relaxed_reps", exact = TRUE)
+  if (!is.null(relaxed_reps)) {
+    warning(
+      "bounds were relaxed during landing in ",
+      relaxed_reps,
+      " of ",
+      nrep,
+      " replicate(s)",
+      call. = FALSE
+    )
+    attr(x, "relaxed_reps") <- NULL
+  }
+  x
 }
 
 #' Condition auxiliary matrix for numerical stability in cube updates.
@@ -307,7 +575,7 @@ balanced_wor <- function(
 }
 
 #' @noRd
-.batch_balanced_wor <- function(pik, aux, strata, method, nrep, ...) {
+.batch_balanced_wor <- function(pik, aux, strata, bounds, method, nrep, ...) {
   N <- length(pik)
   n <- sum(pik)
   dots <- list(...)
@@ -332,13 +600,17 @@ balanced_wor <- function(
       condition_aux = condition_aux,
       qr_tol = qr_tol
     )
+    ineq <- .check_cube_bounds(bounds, pik, N)
     sample_data <- .Call(
       C_cube_batch,
       pik_d,
       X,
+      ineq$B,
+      ineq$r,
       as.double(eps),
       as.integer(nrep)
     )
+    sample_data <- .warn_relaxed_bounds(sample_data, nrep = nrep)
     fixed_size <- TRUE
   } else {
     strata_int <- .check_strata(strata, N)
@@ -375,7 +647,7 @@ balanced_wor <- function(
     }
   }
 
-  .new_wor_sample(
+  out <- .new_wor_sample(
     sample = sample_data,
     pik = pik,
     n = if (fixed_size) as.integer(round(n)) else n,
@@ -385,4 +657,8 @@ balanced_wor <- function(
     prob_class = "unequal_prob",
     extra_class = "balanced"
   )
+  if (!is.null(bounds)) {
+    out$bounds <- bounds
+  }
+  out
 }

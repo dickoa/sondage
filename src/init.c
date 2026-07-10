@@ -20,8 +20,8 @@ extern SEXP C_up_systematic(SEXP pik, SEXP eps);
 extern SEXP C_up_poisson(SEXP pik, SEXP prn);
 extern SEXP C_up_sps(SEXP pik, SEXP prn, SEXP eps);
 extern SEXP C_up_pareto(SEXP pik, SEXP prn, SEXP eps);
-extern SEXP C_cube(SEXP prob, SEXP X, SEXP eps);
-extern SEXP C_cube_batch(SEXP prob, SEXP X, SEXP eps, SEXP nrep);
+extern SEXP C_cube(SEXP prob, SEXP X, SEXP B, SEXP r, SEXP eps);
+extern SEXP C_cube_batch(SEXP prob, SEXP X, SEXP B, SEXP r, SEXP eps, SEXP nrep);
 extern SEXP C_cube_stratified(SEXP prob, SEXP X, SEXP strata, SEXP eps);
 extern SEXP C_cube_stratified_batch(SEXP prob, SEXP X, SEXP strata, SEXP eps, SEXP nrep);
 
@@ -43,8 +43,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"C_up_poisson",            (DL_FUNC) &C_up_poisson,            2},
     {"C_up_sps",                (DL_FUNC) &C_up_sps,                3},
     {"C_up_pareto",             (DL_FUNC) &C_up_pareto,             3},
-    {"C_cube",                  (DL_FUNC) &C_cube,                  3},
-    {"C_cube_batch",            (DL_FUNC) &C_cube_batch,            4},
+    {"C_cube",                  (DL_FUNC) &C_cube,                  5},
+    {"C_cube_batch",            (DL_FUNC) &C_cube_batch,            6},
     {"C_cube_stratified",       (DL_FUNC) &C_cube_stratified,       4},
     {"C_cube_stratified_batch", (DL_FUNC) &C_cube_stratified_batch, 5},
     {NULL, NULL, 0}
