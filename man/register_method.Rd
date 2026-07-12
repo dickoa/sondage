@@ -10,6 +10,7 @@ register_method(
   sample_fn,
   joint_fn = NULL,
   fixed_size = TRUE,
+  variance_family = NULL,
   supports_prn = FALSE,
   supports_aux = TRUE,
   supports_strata = FALSE,
@@ -33,6 +34,14 @@ probabilities (WOR) or joint expected hits (WR). If \code{NULL},
 this method.}
 
 \item{fixed_size}{Does this method always produce exactly \code{n} units?}
+
+\item{variance_family}{Optional declaration of how design-based
+variance should be estimated for this method, for downstream
+packages that export designs for variance estimation. One of
+\code{"srs"}, \code{"pps_brewer"}, \code{"poisson"}, \code{"wr"}, or
+\code{"unsupported"}; see \strong{Variance families} below. \code{NULL} (the
+default) means undeclared: consumers fall back on inferring a
+treatment from \code{type} and \code{fixed_size}.}
 
 \item{supports_prn}{Does this method support permanent random
 numbers for sample coordination? Only \code{"wor"} and \code{"wr"} methods;
@@ -116,6 +125,50 @@ unit indices. Return only the submatrix for these units.}
 }
 }
 
+\section{Variance families}{
+
+
+\code{variance_family} names the estimator treatment a variance consumer
+(such as a survey-export package) should apply to samples drawn
+with this method. Selection metadata alone cannot determine it: a
+fixed-size WOR method may need Brewer's unequal-probability
+approximation or an SRS-style variance, and for a random-size WOR
+method no safe inference exists at all, because a Poisson-type
+method (independent selections) and a correlated random-size
+scheme need different estimators.
+
+\describe{
+\item{\code{"srs"}}{Equal-probability fixed-size WOR. SRS-style
+variance with a finite population correction. Requires
+\code{fixed_size = TRUE}.}
+\item{\code{"pps_brewer"}}{Fixed-size unequal-probability WOR.
+Brewer's approximation from the marginal inclusion
+probabilities. Requires \code{fixed_size = TRUE}.}
+\item{\code{"poisson"}}{Random-size WOR with \strong{independent}
+selections (Poisson-type). Exact Poisson linearization.
+Requires \code{type = "wor"} and \code{fixed_size = FALSE}.}
+\item{\code{"wr"}}{With-replacement (or minimum-replacement)
+selection. Hansen-Hurwitz variance, no finite population
+correction. Requires \code{type = "wr"}.}
+\item{\code{"unsupported"}}{No linearization treatment is valid;
+consumers should refuse to linearize and point to replicate
+methods instead. The honest choice for correlated random-size
+schemes. Always allowed.}
+}
+
+Balanced methods allow only \code{"pps_brewer"} or \code{"unsupported"}:
+balancing constraints couple selections across units, so
+\code{"poisson"} can never hold for them.
+
+The declaration is an assertion by the method author, not
+something sondage can verify — \code{"poisson"} in particular asserts
+that units are selected independently, and a wrong declaration
+produces silently wrong variance estimates for every user of the
+method. The package vignette
+(\code{vignette("custom-methods", package = "sondage")}) shows how to
+check a declared family by simulation.
+}
+
 \examples{
 # Register a toy random sampler
 my_sampler <- function(pik, n = NULL, prn = NULL, ...) {
@@ -139,6 +192,6 @@ unregister_method("toy_bal")
 
 }
 \seealso{
-\code{\link[=registered_methods]{registered_methods()}}, \code{\link[=unequal_prob_wor]{unequal_prob_wor()}},
-\code{\link[=unequal_prob_wr]{unequal_prob_wr()}}, \code{\link[=balanced_wor]{balanced_wor()}}
+\code{\link[=registered_methods]{registered_methods()}}, \code{\link[=method_spec]{method_spec()}},
+\code{\link[=unequal_prob_wor]{unequal_prob_wor()}}, \code{\link[=unequal_prob_wr]{unequal_prob_wr()}}, \code{\link[=balanced_wor]{balanced_wor()}}
 }

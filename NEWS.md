@@ -1,4 +1,4 @@
-# sondage 0.8.5
+# sondage 0.8.5.9999
 
 Initial CRAN release.
 
@@ -57,6 +57,11 @@ sampled-units submatrix (useful for large populations).
   `supports_prn`. Spread-only methods can declare
   `supports_aux = FALSE` so that passing `aux` errors instead of
   being silently ignored.
+* Registered methods can declare a `variance_family` (`"srs"`,
+  `"pps_brewer"`, `"poisson"`, `"wr"`, `"unsupported"`) describing
+  the design-based variance treatment downstream packages should
+  apply; `method_spec()` reports it for built-in and registered
+  methods.
 * `he_jip()` (Brewer & Donadio 2003 high-entropy approximation) and
   `hajek_jip()` (Hajek 1964) are exported and can be passed directly
   as `joint_fn` to `register_method()`.

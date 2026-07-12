@@ -4,28 +4,39 @@
 # context to avoid cross-contamination (e.g. bernoulli never appears in
 # unequal-prob PRN checks). These tables, the resolver, and the hook helpers
 # are the future insertion points for custom method registration.
+# variance_family names the design-based variance treatment a
+# downstream consumer (e.g. a survey-export package) should apply.
+# It names the estimator family, not a guarantee of exactness:
+# equal-probability systematic gets the SRS treatment even though
+# that variance is an approximation for it.
+.variance_families <- c("srs", "pps_brewer", "poisson", "wr", "unsupported")
+
 .wor_specs <- list(
-  cps = list(fixed_size = TRUE, prn = FALSE),
-  brewer = list(fixed_size = TRUE, prn = FALSE),
-  systematic = list(fixed_size = TRUE, prn = FALSE),
-  poisson = list(fixed_size = FALSE, prn = TRUE),
-  sps = list(fixed_size = TRUE, prn = TRUE),
-  pareto = list(fixed_size = TRUE, prn = TRUE)
+  cps = list(fixed_size = TRUE, prn = FALSE, variance_family = "pps_brewer"),
+  brewer = list(fixed_size = TRUE, prn = FALSE, variance_family = "pps_brewer"),
+  systematic = list(
+    fixed_size = TRUE,
+    prn = FALSE,
+    variance_family = "pps_brewer"
+  ),
+  poisson = list(fixed_size = FALSE, prn = TRUE, variance_family = "poisson"),
+  sps = list(fixed_size = TRUE, prn = TRUE, variance_family = "pps_brewer"),
+  pareto = list(fixed_size = TRUE, prn = TRUE, variance_family = "pps_brewer")
 )
 
 .wr_specs <- list(
-  chromy = list(fixed_size = TRUE, prn = FALSE),
-  multinomial = list(fixed_size = TRUE, prn = FALSE)
+  chromy = list(fixed_size = TRUE, prn = FALSE, variance_family = "wr"),
+  multinomial = list(fixed_size = TRUE, prn = FALSE, variance_family = "wr")
 )
 
 .ep_wor_specs <- list(
-  srs = list(fixed_size = TRUE, prn = FALSE),
-  systematic = list(fixed_size = TRUE, prn = FALSE),
-  bernoulli = list(fixed_size = FALSE, prn = TRUE)
+  srs = list(fixed_size = TRUE, prn = FALSE, variance_family = "srs"),
+  systematic = list(fixed_size = TRUE, prn = FALSE, variance_family = "srs"),
+  bernoulli = list(fixed_size = FALSE, prn = TRUE, variance_family = "poisson")
 )
 
 .ep_wr_specs <- list(
-  srs = list(fixed_size = TRUE, prn = FALSE)
+  srs = list(fixed_size = TRUE, prn = FALSE, variance_family = "wr")
 )
 
 .balanced_specs <- list(
@@ -34,7 +45,8 @@
     prn = FALSE,
     aux = TRUE,
     strata = TRUE,
-    spread = FALSE
+    spread = FALSE,
+    variance_family = "pps_brewer"
   )
 )
 
@@ -74,11 +86,17 @@
 #'   dispatchers (e.g. `"brewer"`, `"cube"`, `"srs"`).
 #'
 #' @return A list with elements `type` (`"wor"`, `"wr"`, or
-#'   `"balanced"`), `fixed_size` (logical), `supports_prn` (logical),
-#'   `supports_aux` (logical), `supports_strata` (logical), and
-#'   `supports_spread` (logical), or `NULL` if the method is unknown.
-#'   The aux/strata/spread capabilities are only `TRUE` for balanced
-#'   methods.
+#'   `"balanced"`), `fixed_size` (logical), `variance_family` (one of
+#'   `"srs"`, `"pps_brewer"`, `"poisson"`, `"wr"`, `"unsupported"`, or
+#'   `NULL` for a registered method that did not declare one; see
+#'   [register_method()]), `supports_prn` (logical), `supports_aux`
+#'   (logical), `supports_strata` (logical), and `supports_spread`
+#'   (logical), or `NULL` if the method is unknown. The
+#'   aux/strata/spread capabilities are only `TRUE` for balanced
+#'   methods. For the two names shared by an equal- and an
+#'   unequal-probability built-in, the lookup resolves as it does for
+#'   `type`: `"systematic"` reports the unequal-probability variant
+#'   and `"srs"` the without-replacement variant.
 #'
 #' @seealso [register_method()], [registered_methods()]
 #'
@@ -98,6 +116,9 @@ method_spec <- function(name) {
     return(list(
       type = reg$type,
       fixed_size = reg$fixed_size,
+      # NULL when undeclared: list(x = NULL) keeps the element, so the
+      # field is always present in the returned spec
+      variance_family = reg$variance_family,
       supports_prn = reg$supports_prn,
       supports_aux = isTRUE(reg$supports_aux),
       supports_strata = isTRUE(reg$supports_strata),
@@ -126,6 +147,7 @@ method_spec <- function(name) {
       return(list(
         type = type,
         fixed_size = isTRUE(spec$fixed_size),
+        variance_family = spec$variance_family,
         supports_prn = isTRUE(spec$prn),
         supports_aux = isTRUE(spec$aux),
         supports_strata = isTRUE(spec$strata),

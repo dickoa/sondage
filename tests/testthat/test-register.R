@@ -1009,3 +1009,183 @@ test_that("unknown method (not built-in, not registered) still errors", {
   expect_error(unequal_prob_wor(c(0.5, 0.5), method = "nonexistent"))
   expect_error(unequal_prob_wr(c(1, 1), method = "nonexistent"))
 })
+
+# variance_family declaration
+test_that("register_method validates variance_family values", {
+  expect_error(
+    register_method(
+      "vf_bad",
+      "wor",
+      sample_fn = toy_wor_sample,
+      variance_family = "banana"
+    ),
+    "'variance_family' must be NULL or one of"
+  )
+  expect_error(
+    register_method(
+      "vf_bad",
+      "wor",
+      sample_fn = toy_wor_sample,
+      variance_family = 1
+    ),
+    "'variance_family' must be NULL or one of"
+  )
+  expect_error(
+    register_method(
+      "vf_bad",
+      "wor",
+      sample_fn = toy_wor_sample,
+      variance_family = c("srs", "wr")
+    ),
+    "'variance_family' must be NULL or one of"
+  )
+  expect_false(is_registered_method("vf_bad"))
+})
+
+test_that("variance_family consistency matrix is enforced", {
+  # srs / pps_brewer require fixed_size = TRUE
+  expect_error(
+    register_method(
+      "vf_bad",
+      "wor",
+      sample_fn = toy_wor_sample,
+      fixed_size = FALSE,
+      variance_family = "srs"
+    ),
+    "requires fixed_size = TRUE"
+  )
+  expect_error(
+    register_method(
+      "vf_bad",
+      "wor",
+      sample_fn = toy_wor_sample,
+      fixed_size = FALSE,
+      variance_family = "pps_brewer"
+    ),
+    "requires fixed_size = TRUE"
+  )
+  # poisson requires type = "wor" and fixed_size = FALSE
+  expect_error(
+    register_method(
+      "vf_bad",
+      "wor",
+      sample_fn = toy_wor_sample,
+      fixed_size = TRUE,
+      variance_family = "poisson"
+    ),
+    "fixed_size = FALSE"
+  )
+  expect_error(
+    register_method(
+      "vf_bad",
+      "wr",
+      sample_fn = toy_wr_sample,
+      fixed_size = FALSE,
+      variance_family = "poisson"
+    ),
+    'type = "wor"'
+  )
+  expect_error(
+    register_method(
+      "vf_bad",
+      "balanced",
+      sample_fn = toy_wor_sample,
+      fixed_size = FALSE,
+      variance_family = "poisson"
+    ),
+    'type = "wor"'
+  )
+  # wr family requires type = "wr"
+  expect_error(
+    register_method(
+      "vf_bad",
+      "wor",
+      sample_fn = toy_wor_sample,
+      variance_family = "wr"
+    ),
+    'requires type = "wr"'
+  )
+  # type = "wr" allows only wr / unsupported
+  expect_error(
+    register_method(
+      "vf_bad",
+      "wr",
+      sample_fn = toy_wr_sample,
+      variance_family = "srs"
+    ),
+    '"wr" or "unsupported"'
+  )
+  # balanced allows only pps_brewer / unsupported
+  expect_error(
+    register_method(
+      "vf_bad",
+      "balanced",
+      sample_fn = toy_wor_sample,
+      variance_family = "srs"
+    ),
+    '"pps_brewer" or "unsupported"'
+  )
+  expect_false(is_registered_method("vf_bad"))
+})
+
+test_that("valid variance_family combinations register and are reported", {
+  combos <- list(
+    list(name = "vf_srs", type = "wor", fixed = TRUE, family = "srs"),
+    list(name = "vf_brw", type = "wor", fixed = TRUE, family = "pps_brewer"),
+    list(name = "vf_poi", type = "wor", fixed = FALSE, family = "poisson"),
+    list(name = "vf_wun", type = "wor", fixed = FALSE, family = "unsupported"),
+    list(name = "vf_wr", type = "wr", fixed = TRUE, family = "wr"),
+    list(name = "vf_run", type = "wr", fixed = TRUE, family = "unsupported"),
+    list(
+      name = "vf_bal",
+      type = "balanced",
+      fixed = TRUE,
+      family = "pps_brewer"
+    ),
+    list(
+      name = "vf_bun",
+      type = "balanced",
+      fixed = TRUE,
+      family = "unsupported"
+    )
+  )
+  for (cmb in combos) {
+    on.exit(unregister_method(cmb$name), add = TRUE)
+    register_method(
+      cmb$name,
+      cmb$type,
+      sample_fn = toy_wor_sample,
+      fixed_size = cmb$fixed,
+      variance_family = cmb$family
+    )
+    expect_identical(
+      method_spec(cmb$name)$variance_family,
+      cmb$family,
+      info = cmb$name
+    )
+  }
+})
+
+test_that("variance_family defaults to NULL (undeclared), field present", {
+  on.exit(unregister_method("vf_default"), add = TRUE)
+  register_method("vf_default", "wor", sample_fn = toy_wor_sample)
+
+  spec <- method_spec("vf_default")
+  expect_true("variance_family" %in% names(spec))
+  expect_null(spec$variance_family)
+})
+
+test_that("declared variance_family does not affect sampling dispatch", {
+  on.exit(unregister_method("vf_draw"), add = TRUE)
+  register_method(
+    "vf_draw",
+    "wor",
+    sample_fn = toy_wor_sample,
+    variance_family = "pps_brewer"
+  )
+
+  pik <- inclusion_prob(c(1, 2, 3, 4, 5), n = 2)
+  s <- unequal_prob_wor(pik, method = "vf_draw")
+  expect_s3_class(s, "sondage_sample")
+  expect_length(s$sample, 2L)
+})

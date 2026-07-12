@@ -22,6 +22,13 @@
 #'   [joint_inclusion_prob()] / [joint_expected_hits()] will error for
 #'   this method.
 #' @param fixed_size Does this method always produce exactly `n` units?
+#' @param variance_family Optional declaration of how design-based
+#'   variance should be estimated for this method, for downstream
+#'   packages that export designs for variance estimation. One of
+#'   `"srs"`, `"pps_brewer"`, `"poisson"`, `"wr"`, or
+#'   `"unsupported"`; see **Variance families** below. `NULL` (the
+#'   default) means undeclared: consumers fall back on inferring a
+#'   treatment from `type` and `fixed_size`.
 #' @param supports_prn Does this method support permanent random
 #'   numbers for sample coordination? Only `"wor"` and `"wr"` methods;
 #'   [balanced_wor()] has no `prn` argument.
@@ -91,10 +98,52 @@
 #'     `length(sample_idx)` otherwise).}
 #' }
 #'
+#' @section Variance families:
+#'
+#' `variance_family` names the estimator treatment a variance consumer
+#' (such as a survey-export package) should apply to samples drawn
+#' with this method. Selection metadata alone cannot determine it: a
+#' fixed-size WOR method may need Brewer's unequal-probability
+#' approximation or an SRS-style variance, and for a random-size WOR
+#' method no safe inference exists at all, because a Poisson-type
+#' method (independent selections) and a correlated random-size
+#' scheme need different estimators.
+#'
+#' \describe{
+#'   \item{`"srs"`}{Equal-probability fixed-size WOR. SRS-style
+#'     variance with a finite population correction. Requires
+#'     `fixed_size = TRUE`.}
+#'   \item{`"pps_brewer"`}{Fixed-size unequal-probability WOR.
+#'     Brewer's approximation from the marginal inclusion
+#'     probabilities. Requires `fixed_size = TRUE`.}
+#'   \item{`"poisson"`}{Random-size WOR with \strong{independent}
+#'     selections (Poisson-type). Exact Poisson linearization.
+#'     Requires `type = "wor"` and `fixed_size = FALSE`.}
+#'   \item{`"wr"`}{With-replacement (or minimum-replacement)
+#'     selection. Hansen-Hurwitz variance, no finite population
+#'     correction. Requires `type = "wr"`.}
+#'   \item{`"unsupported"`}{No linearization treatment is valid;
+#'     consumers should refuse to linearize and point to replicate
+#'     methods instead. The honest choice for correlated random-size
+#'     schemes. Always allowed.}
+#' }
+#'
+#' Balanced methods allow only `"pps_brewer"` or `"unsupported"`:
+#' balancing constraints couple selections across units, so
+#' `"poisson"` can never hold for them.
+#'
+#' The declaration is an assertion by the method author, not
+#' something sondage can verify — `"poisson"` in particular asserts
+#' that units are selected independently, and a wrong declaration
+#' produces silently wrong variance estimates for every user of the
+#' method. The package vignette
+#' (`vignette("custom-methods", package = "sondage")`) shows how to
+#' check a declared family by simulation.
+#'
 #' @return Invisible `NULL`, called for its side effect.
 #'
-#' @seealso [registered_methods()], [unequal_prob_wor()],
-#'   [unequal_prob_wr()], [balanced_wor()]
+#' @seealso [registered_methods()], [method_spec()],
+#'   [unequal_prob_wor()], [unequal_prob_wr()], [balanced_wor()]
 #'
 #' @examples
 #' # Register a toy random sampler
@@ -124,6 +173,7 @@ register_method <- function(
   sample_fn,
   joint_fn = NULL,
   fixed_size = TRUE,
+  variance_family = NULL,
   supports_prn = FALSE,
   supports_aux = TRUE,
   supports_strata = FALSE,
@@ -141,6 +191,67 @@ register_method <- function(
   }
   if (!isTRUE(fixed_size) && !isFALSE(fixed_size)) {
     stop("'fixed_size' must be TRUE or FALSE", call. = FALSE)
+  }
+  if (!is.null(variance_family)) {
+    if (
+      !is.character(variance_family) ||
+        length(variance_family) != 1L ||
+        !(variance_family %in% .variance_families)
+    ) {
+      stop(
+        "'variance_family' must be NULL or one of: ",
+        paste0('"', .variance_families, '"', collapse = ", "),
+        call. = FALSE
+      )
+    }
+    if (variance_family %in% c("srs", "pps_brewer") && !fixed_size) {
+      stop(
+        sprintf(
+          "variance_family \"%s\" requires fixed_size = TRUE",
+          variance_family
+        ),
+        call. = FALSE
+      )
+    }
+    if (variance_family == "poisson" && (type != "wor" || fixed_size)) {
+      stop(
+        "variance_family \"poisson\" requires type = \"wor\" and ",
+        "fixed_size = FALSE: it asserts independent selections with ",
+        "a random sample size",
+        call. = FALSE
+      )
+    }
+    if (variance_family == "wr" && type != "wr") {
+      stop("variance_family \"wr\" requires type = \"wr\"", call. = FALSE)
+    }
+    if (type == "wr" && !(variance_family %in% c("wr", "unsupported"))) {
+      stop(
+        sprintf(
+          paste0(
+            "type = \"wr\" methods only allow variance_family \"wr\" ",
+            "or \"unsupported\", not \"%s\""
+          ),
+          variance_family
+        ),
+        call. = FALSE
+      )
+    }
+    if (
+      type == "balanced" &&
+        !(variance_family %in% c("pps_brewer", "unsupported"))
+    ) {
+      stop(
+        sprintf(
+          paste0(
+            "type = \"balanced\" methods only allow variance_family ",
+            "\"pps_brewer\" or \"unsupported\", not \"%s\": balancing ",
+            "constraints couple selections across units"
+          ),
+          variance_family
+        ),
+        call. = FALSE
+      )
+    }
   }
   if (!isTRUE(supports_prn) && !isFALSE(supports_prn)) {
     stop("'supports_prn' must be TRUE or FALSE", call. = FALSE)
@@ -200,6 +311,7 @@ register_method <- function(
     sample_fn = sample_fn,
     joint_fn = joint_fn,
     fixed_size = fixed_size,
+    variance_family = variance_family,
     supports_prn = supports_prn,
     # aux is only meaningful for balanced methods; normalise so
     # method_spec() reports FALSE for wor/wr registrations

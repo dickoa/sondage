@@ -34,6 +34,7 @@ register_method(
   sample_fn,                # function(pik, n, prn, ...) -> integer indices
   joint_fn = NULL,          # function(pik, sample_idx, ...) -> matrix (optional)
   fixed_size = TRUE,        # does the method always return exactly n units?
+  variance_family = NULL,   # declared variance-estimation family (optional)
   supports_prn = FALSE,     # does the method support permanent random numbers?
   supports_aux = TRUE,      # balanced only: does it use balancing variables?
   supports_strata = FALSE,  # balanced only: does it handle stratification?
@@ -47,6 +48,8 @@ Two contracts must be respected:
 - **`joint_fn(pik, sample_idx = NULL, ...)`** (optional) returns an $N \times N$ joint inclusion probability matrix when `sample_idx` is `NULL`, or a submatrix for the given indices when it is not.
 
 Capability flags describe what the method can do, and the dispatchers enforce them. A `"wor"` method that sets `supports_prn = TRUE` receives the `prn` vector for sample coordination, while others get a warning that `prn` is ignored. A `"balanced"` method only receives a `strata` argument when registered with `supports_strata = TRUE`, and a `spread` argument (spatial coordinates) when registered with `supports_spread = TRUE`. Spread-only methods that never look at balancing variables should declare `supports_aux = FALSE`. In every case, passing a design input to a method without the matching capability is an error rather than a warning, because silently dropping `aux`, `strata`, or `spread` would change the design. The simplest balanced registration therefore needs nothing beyond `aux`.
+
+`variance_family` declares how design-based variance should be estimated for samples drawn with the method — `"srs"`, `"pps_brewer"`, `"poisson"`, `"wr"`, or `"unsupported"`. `sondage` does not use it itself, but packages that export samples for variance estimation do: without a declaration they must infer a treatment from `type` and `fixed_size`, and for a random-size WOR method no safe inference exists — a Poisson-type method (independent selections) and a correlated random-size scheme need different estimators. The declaration is an assertion the author is responsible for; `?register_method` lists the constraints between `variance_family`, `type`, and `fixed_size`, and Example 1 shows how to check a declaration by simulation. When in doubt, declare `"unsupported"` rather than guess.
 
 Helper functions `registered_methods()`, `is_registered_method()`, and `unregister_method()` manage the registry.
 
@@ -86,12 +89,19 @@ library(sondage)
 
 register_method(
   "sampford",
-  type       = "wor",
-  sample_fn  = sampford_sample,
-  joint_fn   = he_jip,
-  fixed_size = TRUE
+  type            = "wor",
+  sample_fn       = sampford_sample,
+  joint_fn        = he_jip,
+  fixed_size      = TRUE,
+  variance_family = "pps_brewer"
 )
 ```
+
+Sampford's design is fixed-size unequal-probability WOR, so
+`"pps_brewer"` is the natural `variance_family` declaration:
+downstream variance estimation treats it like the built-in fixed-size
+$\pi$ps methods (Brewer, SPS, Pareto). The declaration is verified by
+simulation below.
 
 Once registered, the method is available through the standard
 dispatcher:
@@ -158,6 +168,50 @@ pairs
 ```
 
 The HE approximation is close because Sampford's design is itself a high-entropy design.
+
+The `variance_family` declaration can be checked the same way.
+`"pps_brewer"` asserts that the variance of a Horvitz-Thompson
+estimator under this design is described by the joint probabilities
+implied by the marginal $\pi_k$. Comparing the Monte Carlo variance of
+the HT total for a study variable against the variance implied by the
+declared family,
+$V(\hat{t}_y) = \sum_k \sum_l (\pi_{kl} - \pi_k \pi_l)
+\frac{y_k}{\pi_k} \frac{y_l}{\pi_l}$:
+
+```{r sampford-verify-variance}
+y <- c(5, 13, 8, 22, 16, 34, 27, 41) # a study variable
+ht <- apply(sim$sample, 2, function(idx) sum(y[idx] / pik[idx]))
+
+Delta <- he_pikl - outer(pik, pik) # diagonal is pik * (1 - pik)
+yp <- y / pik
+c(monte_carlo = var(ht), declared_family = sum(Delta * outer(yp, yp)))
+```
+
+The Monte Carlo value is the truth, up to simulation error; the
+declared-family value inherits the HE approximation. The gap is
+noticeably larger on the variance scale than the joint-probability
+comparison above suggests, because $\Delta_{kl} = \pi_{kl} - \pi_k
+\pi_l$ is a small difference of close quantities: percent-level
+errors in $\pi_{kl}$ are amplified, and $n/N = 1/2$ is a demanding
+sampling fraction for any high-entropy approximation. The exact
+Sampford joint probabilities confirm that the discrepancy is
+approximation error, not a wrong declaration:
+
+```{r sampford-verify-exact, eval = requireNamespace("sampling", quietly = TRUE)}
+pikl_exact <- sampling::UPsampfordpi2(pik)
+Delta_exact <- pikl_exact - outer(pik, pik)
+diag(Delta_exact) <- pik * (1 - pik)
+sum(Delta_exact * outer(yp, yp)) # next to the Monte Carlo value
+```
+
+This is the resolution of the check: it validates the order of
+magnitude, which is what a family declaration asserts. A misdeclared
+family is wrong by orders of magnitude, not by tens of percent — a
+random-size method with correlated selections declared `"poisson"`,
+or a Poisson-type method treated as fixed-size $\pi$ps, can report
+standard errors near zero. When no family fits, declare
+`"unsupported"` instead: an error at export time is recoverable, a
+silently wrong standard error is not.
 
 ```{r sampford-cleanup, include = FALSE}
 unregister_method("sampford")

@@ -239,3 +239,65 @@ test_that(".get_builtin_spec resolves balanced context", {
   # Non-cube method in balanced context returns NULL
   expect_null(sondage:::.get_builtin_spec("srs", "balanced"))
 })
+
+# variance_family in the spec tables
+test_that("built-in spec tables declare correct variance families", {
+  # Fixed-size unequal-probability WOR: Brewer treatment
+  for (m in c("cps", "brewer", "systematic", "sps", "pareto")) {
+    expect_identical(
+      .get_builtin_spec(m, "wor")$variance_family,
+      "pps_brewer",
+      info = m
+    )
+  }
+  # Random-size with independent selections: Poisson treatment
+  expect_identical(.get_builtin_spec("poisson", "wor")$variance_family, "poisson")
+  expect_identical(
+    .get_builtin_spec("bernoulli", "ep_wor")$variance_family,
+    "poisson"
+  )
+  # Equal-probability fixed-size WOR: SRS treatment
+  expect_identical(.get_builtin_spec("srs", "ep_wor")$variance_family, "srs")
+  expect_identical(
+    .get_builtin_spec("systematic", "ep_wor")$variance_family,
+    "srs"
+  )
+  # With-replacement / PMR: Hansen-Hurwitz treatment
+  expect_identical(.get_builtin_spec("chromy", "wr")$variance_family, "wr")
+  expect_identical(.get_builtin_spec("multinomial", "wr")$variance_family, "wr")
+  expect_identical(.get_builtin_spec("srs", "ep_wr")$variance_family, "wr")
+  # Balanced: Brewer treatment
+  expect_identical(
+    .get_builtin_spec("cube", "balanced")$variance_family,
+    "pps_brewer"
+  )
+})
+
+test_that("all built-in variance families are in the allowed set", {
+  all_specs <- c(
+    sondage:::.wor_specs,
+    sondage:::.wr_specs,
+    sondage:::.ep_wor_specs,
+    sondage:::.ep_wr_specs,
+    sondage:::.balanced_specs
+  )
+  for (m in names(all_specs)) {
+    expect_true(
+      all_specs[[m]]$variance_family %in% sondage:::.variance_families,
+      info = m
+    )
+  }
+})
+
+test_that("method_spec reports variance_family for built-ins", {
+  expect_identical(method_spec("brewer")$variance_family, "pps_brewer")
+  expect_identical(method_spec("poisson")$variance_family, "poisson")
+  expect_identical(method_spec("bernoulli")$variance_family, "poisson")
+  expect_identical(method_spec("chromy")$variance_family, "wr")
+  expect_identical(method_spec("multinomial")$variance_family, "wr")
+  expect_identical(method_spec("cube")$variance_family, "pps_brewer")
+  # Shared names resolve as they do for $type: "systematic" reports
+  # the unequal-probability variant, "srs" the without-replacement one
+  expect_identical(method_spec("systematic")$variance_family, "pps_brewer")
+  expect_identical(method_spec("srs")$variance_family, "srs")
+})
