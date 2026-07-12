@@ -6,7 +6,8 @@
 #'   For fixed-size methods, `sum(pik)` must be an integer to
 #'   floating-point accuracy: an exact fixed-size design cannot have a
 #'   non-integer sum, so looser sums are rejected rather than silently
-#'   rounded. Units with `pik` of exactly 0 are never selected and
+#'   rounded. Their target sample size, `sum(pik)`, must be at least 1.
+#'   Units with `pik` of exactly 0 are never selected and
 #'   units with exactly 1 are always selected; values in between --
 #'   however close to the boundary -- are sampled as given.
 #' @param method The sampling method:

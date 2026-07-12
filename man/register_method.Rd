@@ -33,7 +33,8 @@ probabilities (WOR) or joint expected hits (WR). If \code{NULL},
 \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} / \code{\link[=joint_expected_hits]{joint_expected_hits()}} will error for
 this method.}
 
-\item{fixed_size}{Does this method always produce exactly \code{n} units?}
+\item{fixed_size}{Does this method always produce exactly \code{n} units?
+Must be \code{TRUE} for \code{type = "wr"}.}
 
 \item{variance_family}{Optional declaration of how design-based
 variance should be estimated for this method, for downstream
@@ -83,11 +84,13 @@ numeric vector of length N.}
 \item{\code{n}}{Target sample size (integer). For WOR this equals
 \code{round(sum(pik))}; for WR \code{round(sum(hits))}.}
 \item{\code{prn}}{Permanent random numbers (numeric vector length N,
-values in (0,1)), or \code{NULL}.}
+values in (0,1)), or \code{NULL}. Always \code{NULL} when the method is
+registered with \code{supports_prn = FALSE}.}
 \item{Returns}{Integer vector of selected unit indices (1-based).
 For WOR: distinct indices of length \code{n} (fixed-size) or varying
 length (random-size). For WR: indices with possible repeats,
-of length \code{n}.}
+of length \code{n}. The dispatcher validates the type, range, size,
+and replacement rules before constructing the sample object.}
 }
 
 \strong{\code{sample_fn(pik, n = NULL, aux = NULL, ...)}} (type \code{"balanced"})
@@ -111,7 +114,7 @@ a numeric matrix (N x d, double) of spatial coordinates (or
 other spreading variables). Declare it as \code{spread = NULL} in
 your function signature.}
 \item{Returns}{Integer vector of distinct selected unit indices
-(1-based).}
+(1-based). The dispatcher validates the returned indices.}
 }
 
 \strong{\code{joint_fn(pik, sample_idx = NULL, ...)}} (optional)
@@ -121,7 +124,9 @@ your function signature.}
 unit indices. Return only the submatrix for these units.}
 \item{Returns}{Symmetric matrix of joint inclusion probabilities
 (N x N when \code{sample_idx} is NULL, \code{length(sample_idx)} x
-\code{length(sample_idx)} otherwise).}
+\code{length(sample_idx)} otherwise). The dispatcher validates that
+the matrix has the required dimensions and contains finite,
+symmetric numeric values.}
 }
 }
 
@@ -161,7 +166,7 @@ balancing constraints couple selections across units, so
 \code{"poisson"} can never hold for them.
 
 The declaration is an assertion by the method author, not
-something sondage can verify — \code{"poisson"} in particular asserts
+something sondage can verify; \code{"poisson"} in particular asserts
 that units are selected independently, and a wrong declaration
 produces silently wrong variance estimates for every user of the
 method. The package vignette

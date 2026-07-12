@@ -18,7 +18,11 @@
 #' \itemize{
 #'   \item [balanced_wor()] - Cube method (Deville & \enc{Tillé}{Tille}, 2004) for
 #'     balanced sampling with unequal probabilities, with optional
-#'     stratification (Chauvet, 2009)
+#'     stratification (Chauvet, 2009), the local pivotal method 2
+#'     (\enc{Grafström}{Grafstrom}, \enc{Lundström}{Lundstrom} &
+#'     Schelin, 2012), and spatially correlated Poisson sampling
+#'     (\enc{Grafström}{Grafstrom}, 2012) for spatially balanced,
+#'     well-spread sampling
 #' }
 #'
 #' @section Design Queries:

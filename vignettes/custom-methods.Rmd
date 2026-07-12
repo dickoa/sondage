@@ -18,9 +18,9 @@ knitr::opts_chunk$set(
 
 ## Overview
 
-`sondage` ships with 13 built-in sampling methods, but researchers and agencies often need algorithms that are not included. The registration API lets you plug a custom unequal probability or balanced sampling method into the existing dispatchers and generics without modifying the package source.
+`sondage` ships with 15 built-in sampling methods, but researchers and agencies often need algorithms that are not included. The registration API lets you plug a custom unequal probability or balanced sampling method into the existing dispatchers and generics without modifying the package source.
 
-After registering a method, it works everywhere a built-in method works: `unequal_prob_wor()`, `unequal_prob_wr()`, `balanced_wor()`, `joint_inclusion_prob()`, `sampling_cov()`, batch mode (`nrep`), etc.
+After registering a method, it participates in the same dispatcher and sample-object API as built-in methods. Joint-probability and covariance queries are available when the registration supplies a `joint_fn`.
 
 ## The registration API
 
@@ -33,7 +33,7 @@ register_method(
   type = "wor",             # "wor", "wr", or "balanced"
   sample_fn,                # function(pik, n, prn, ...) -> integer indices
   joint_fn = NULL,          # function(pik, sample_idx, ...) -> matrix (optional)
-  fixed_size = TRUE,        # does the method always return exactly n units?
+  fixed_size = TRUE,        # required for with-replacement methods
   variance_family = NULL,   # declared variance-estimation family (optional)
   supports_prn = FALSE,     # does the method support permanent random numbers?
   supports_aux = TRUE,      # balanced only: does it use balancing variables?
@@ -44,12 +44,12 @@ register_method(
 
 Two contracts must be respected:
 
-- **`sample_fn(pik, n = NULL, prn = NULL, ...)`** receives the inclusion probability vector and returns an integer vector of selected unit indices (1-based). Balanced methods use the signature `sample_fn(pik, n = NULL, aux = NULL, ...)` instead, where `aux` is the auxiliary balancing matrix passed to `balanced_wor()` (or `NULL`).
-- **`joint_fn(pik, sample_idx = NULL, ...)`** (optional) returns an $N \times N$ joint inclusion probability matrix when `sample_idx` is `NULL`, or a submatrix for the given indices when it is not.
+- **`sample_fn(pik, n = NULL, prn = NULL, ...)`** receives the inclusion probability vector and returns an integer vector of selected unit indices (1-based). Balanced methods use the signature `sample_fn(pik, n = NULL, aux = NULL, ...)` instead, where `aux` is the auxiliary balancing matrix passed to `balanced_wor()` (or `NULL`). The dispatcher validates that returned indices are finite integers in range, distinct for WOR, and of length `n` for fixed-size methods.
+- **`joint_fn(pik, sample_idx = NULL, ...)`** (optional) returns an $N \times N$ joint inclusion probability matrix when `sample_idx` is `NULL`, or a submatrix for the given indices when it is not. The dispatcher checks that it is a finite numeric matrix with the expected dimensions and is symmetric; statistical properties remain the method author's responsibility.
 
-Capability flags describe what the method can do, and the dispatchers enforce them. A `"wor"` method that sets `supports_prn = TRUE` receives the `prn` vector for sample coordination, while others get a warning that `prn` is ignored. A `"balanced"` method only receives a `strata` argument when registered with `supports_strata = TRUE`, and a `spread` argument (spatial coordinates) when registered with `supports_spread = TRUE`. Spread-only methods that never look at balancing variables should declare `supports_aux = FALSE`. In every case, passing a design input to a method without the matching capability is an error rather than a warning, because silently dropping `aux`, `strata`, or `spread` would change the design. The simplest balanced registration therefore needs nothing beyond `aux`.
+Capability flags describe what the method can do, and the dispatchers enforce them. A `"wor"` or `"wr"` method that sets `supports_prn = TRUE` receives a validated `prn` vector for sample coordination. Otherwise the dispatcher warns that `prn` is ignored and passes `NULL` to the method. A `"balanced"` method only receives a `strata` argument when registered with `supports_strata = TRUE`, and a `spread` argument (spatial coordinates) when registered with `supports_spread = TRUE`. Spread-only methods that never look at balancing variables should declare `supports_aux = FALSE`. In every case, passing a design input to a method without the matching capability is an error rather than a warning, because silently dropping `aux`, `strata`, or `spread` would change the design. The simplest balanced registration therefore needs nothing beyond `aux`.
 
-`variance_family` declares how design-based variance should be estimated for samples drawn with the method — `"srs"`, `"pps_brewer"`, `"poisson"`, `"wr"`, or `"unsupported"`. `sondage` does not use it itself, but packages that export samples for variance estimation do: without a declaration they must infer a treatment from `type` and `fixed_size`, and for a random-size WOR method no safe inference exists — a Poisson-type method (independent selections) and a correlated random-size scheme need different estimators. The declaration is an assertion the author is responsible for; `?register_method` lists the constraints between `variance_family`, `type`, and `fixed_size`, and Example 1 shows how to check a declaration by simulation. When in doubt, declare `"unsupported"` rather than guess.
+`variance_family` declares how design-based variance should be estimated for samples drawn with the method: `"srs"`, `"pps_brewer"`, `"poisson"`, `"wr"`, or `"unsupported"`. `sondage` does not use it itself, but packages that export samples for variance estimation do. Without a declaration they must infer a treatment from `type` and `fixed_size`, and for a random-size WOR method no safe inference exists because a Poisson-type method (independent selections) and a correlated random-size scheme need different estimators. The declaration is an assertion the author is responsible for; `?register_method` lists the constraints between `variance_family`, `type`, and `fixed_size`, and Example 1 shows how to check a declaration by simulation. When in doubt, declare `"unsupported"` rather than guess.
 
 Helper functions `registered_methods()`, `is_registered_method()`, and `unregister_method()` manage the registry.
 
@@ -206,7 +206,7 @@ sum(Delta_exact * outer(yp, yp)) # next to the Monte Carlo value
 
 This is the resolution of the check: it validates the order of
 magnitude, which is what a family declaration asserts. A misdeclared
-family is wrong by orders of magnitude, not by tens of percent — a
+family is wrong by orders of magnitude, not by tens of percent. A
 random-size method with correlated selections declared `"poisson"`,
 or a Poisson-type method treated as fixed-size $\pi$ps, can report
 standard errors near zero. When no family fits, declare
@@ -346,15 +346,19 @@ spatial spreading with `supports_spread = TRUE`, and then receive
 the coordinate matrix that the caller passes to
 `balanced_wor(spread = )`.
 
-Here is a compact pure-R implementation of the local pivotal method
-[@grafstrom2012], which repeatedly lets a random undecided unit and
-its nearest undecided neighbour compete in a pivotal step. Packages
-such as **BalancedSampling** or **rsamplr** provide fast compiled
-implementations of this and related algorithms (SCPS, local cube),
-and wrapping one of those instead only changes the function body.
+`sondage` ships LPM2 and SCPS as the built-in spread-only methods
+`balanced_wor(pik, spread = , method = "lpm2")` and
+`balanced_wor(pik, spread = , method = "scps")`. Here we register
+its sibling LPM1 [@grafstrom2012], which differs only in the pair
+rule: a random undecided unit competes with its nearest undecided
+neighbour *only when the two are mutual nearest neighbours*,
+giving slightly better spread at extra cost. The in-house SCPS core uses
+the maximal-weight rule of @grafstrom2012scps with a weighted quickselect
+distance cutoff. Methods not shipped in `sondage`, such as local cube, can
+still be supplied through the same registration contract.
 
-```{r lpm2-fn}
-lpm2_sample <- function(pik, n = NULL, aux = NULL, spread = NULL, ...) {
+```{r lpm1-fn}
+lpm1_sample <- function(pik, n = NULL, aux = NULL, spread = NULL, ...) {
   d <- as.matrix(dist(spread))
   diag(d) <- Inf
   p <- pik
@@ -371,6 +375,10 @@ lpm2_sample <- function(pik, n = NULL, aux = NULL, spread = NULL, ...) {
     i <- u[sample.int(length(u), 1L)]
     v <- u[u != i]
     j <- v[which.min(d[i, v])]
+    w <- u[u != j]
+    if (w[which.min(d[j, w])] != i) {
+      next # not mutual nearest neighbours: redraw i
+    }
     s <- p[i] + p[j]
     if (s > 1) {
       if (runif(1) < (1 - p[j]) / (2 - s)) {
@@ -394,26 +402,27 @@ lpm2_sample <- function(pik, n = NULL, aux = NULL, spread = NULL, ...) {
 }
 
 register_method(
-  "lpm2",
+  "lpm1",
   type            = "balanced",
-  sample_fn       = lpm2_sample,
+  sample_fn       = lpm1_sample,
   supports_aux    = FALSE,
   supports_spread = TRUE
 )
 ```
 
-Since the local pivotal method spreads but never balances on
-auxiliary variables, it is registered with `supports_aux = FALSE`.
+Since the local pivotal method and SCPS spread but never exactly balance
+on auxiliary totals, a custom method in this family is registered with
+`supports_aux = FALSE`.
 A caller who passes `aux` then gets an immediate error instead of a
 sample that silently ignored the requested balancing constraints.
 
-```{r lpm2-run}
+```{r lpm1-run}
 set.seed(42)
 N <- 200
 coords <- cbind(runif(N), runif(N))
 pik <- rep(0.15, N)
 
-s <- balanced_wor(pik, spread = coords, method = "lpm2")
+s <- balanced_wor(pik, spread = coords, method = "lpm1")
 s
 
 # Spread diagnostic: mean distance to the nearest sampled neighbour
@@ -423,7 +432,14 @@ nn_dist <- function(idx) {
   diag(d) <- Inf
   mean(apply(d, 1, min))
 }
-c(lpm2 = nn_dist(s$sample), srs = nn_dist(sample.int(N, s$n)))
+s2 <- balanced_wor(pik, spread = coords, method = "lpm2")
+s3 <- balanced_wor(pik, spread = coords, method = "scps")
+c(
+  lpm1 = nn_dist(s$sample),
+  lpm2 = nn_dist(s2$sample),
+  scps = nn_dist(s3$sample),
+  srs = nn_dist(sample.int(N, s$n))
+)
 ```
 
 A note on variance estimation. Well-spread designs have no
@@ -433,11 +449,11 @@ nearby joint probabilities toward zero), so `joint_fn` is usually
 left as `NULL` and `joint_inclusion_prob()` / `sampling_cov()`
 will error for these methods. In practice, variance for spatially
 balanced samples is estimated with local-neighbourhood estimators
-such as the local mean estimator of @grafstrom2014, which sondage
+such as the local mean estimator of @grafstrom2014, which `sondage`
 does not implement yet.
 
-```{r lpm2-cleanup, include = FALSE}
-unregister_method("lpm2")
+```{r lpm1-cleanup, include = FALSE}
+unregister_method("lpm1")
 ```
 
 ## Writing a `joint_fn`

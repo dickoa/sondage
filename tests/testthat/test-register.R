@@ -1189,3 +1189,164 @@ test_that("declared variance_family does not affect sampling dispatch", {
   expect_s3_class(s, "sondage_sample")
   expect_length(s$sample, 2L)
 })
+
+test_that("registered WOR methods must return valid sample indices", {
+  pik <- rep(0.5, 4)
+  bad_samples <- list(
+    duplicate = c(1, 1),
+    out_of_range = c(1, 5),
+    fractional = c(1, 2.5),
+    missing = c(1, NA_real_),
+    matrix = matrix(c(1, 2), ncol = 1)
+  )
+
+  for (case in names(bad_samples)) {
+    method <- paste0("bad_wor_", case)
+    on.exit(unregister_method(method), add = TRUE)
+    value <- bad_samples[[case]]
+    register_method(method, "wor", sample_fn = function(...) value)
+    expect_error(
+      unequal_prob_wor(pik, method = method),
+      method,
+      info = case
+    )
+  }
+})
+
+test_that("registered fixed-size WOR draws cannot be recycled in batches", {
+  on.exit(unregister_method("short_wor"), add = TRUE)
+  register_method("short_wor", "wor", sample_fn = function(...) 1)
+
+  expect_error(
+    unequal_prob_wor(rep(0.5, 4), method = "short_wor", nrep = 2),
+    "short_wor"
+  )
+})
+
+test_that("registered WR methods must return valid fixed-size indices", {
+  on.exit(unregister_method("bad_wr"), add = TRUE)
+  register_method("bad_wr", "wr", sample_fn = function(...) c(1, 3))
+
+  expect_error(
+    unequal_prob_wr(c(1, 1), method = "bad_wr"),
+    "bad_wr"
+  )
+
+  unregister_method("bad_wr")
+  register_method("bad_wr", "wr", sample_fn = function(...) 1)
+  expect_error(
+    unequal_prob_wr(c(1, 1), method = "bad_wr", nrep = 2),
+    "bad_wr"
+  )
+})
+
+test_that("registered balanced methods must return valid WOR indices", {
+  on.exit(unregister_method("bad_balanced"), add = TRUE)
+  register_method(
+    "bad_balanced",
+    "balanced",
+    sample_fn = function(...) c(1, 1)
+  )
+
+  expect_error(
+    balanced_wor(rep(0.5, 4), method = "bad_balanced"),
+    "bad_balanced"
+  )
+})
+
+test_that("unsupported PRN is not forwarded to registered methods", {
+  on.exit(unregister_method("no_prn"), add = TRUE)
+  received_prn <- "not called"
+  sampler <- function(pik, n = NULL, prn = NULL, ...) {
+    received_prn <<- prn
+    seq_len(n)
+  }
+  register_method("no_prn", "wor", sample_fn = sampler)
+
+  expect_warning(
+    unequal_prob_wor(rep(0.5, 4), method = "no_prn", prn = rep(0.5, 4)),
+    "will be ignored"
+  )
+  expect_null(received_prn)
+})
+
+test_that("supported PRN is validated for registered methods", {
+  on.exit(unregister_method("with_prn"), add = TRUE)
+  register_method(
+    "with_prn",
+    "wor",
+    sample_fn = toy_wor_sample,
+    supports_prn = TRUE
+  )
+
+  expect_error(
+    unequal_prob_wor(rep(0.5, 4), method = "with_prn", prn = c(0.5, 0.5)),
+    "must have length 4"
+  )
+})
+
+test_that("registered WR methods reject PRN with multiple replicates", {
+  on.exit(unregister_method("wr_prn"), add = TRUE)
+  register_method(
+    "wr_prn",
+    "wr",
+    sample_fn = toy_wr_sample,
+    supports_prn = TRUE
+  )
+
+  expect_error(
+    unequal_prob_wr(
+      c(1, 1),
+      method = "wr_prn",
+      prn = c(0.25, 0.75),
+      nrep = 2
+    ),
+    "prn and nrep > 1 cannot be used together"
+  )
+})
+
+test_that("registered WR methods must be fixed-size", {
+  on.exit(unregister_method("random_wr"), add = TRUE)
+  expect_error(
+    register_method(
+      "random_wr",
+      "wr",
+      sample_fn = toy_wr_sample,
+      fixed_size = FALSE
+    ),
+    "type = \"wr\".*fixed_size = TRUE"
+  )
+  expect_false(is_registered_method("random_wr"))
+})
+
+test_that("registered joint methods must return a valid matrix", {
+  pik <- rep(0.5, 4)
+  bad_joint <- list(
+    vector = rep(0.25, 16),
+    wrong_size = matrix(0.25, 3, 3),
+    non_finite = {
+      value <- matrix(0.25, 4, 4)
+      value[1, 2] <- value[2, 1] <- NA_real_
+      value
+    },
+    asymmetric = {
+      value <- matrix(0.25, 4, 4)
+      value[1, 2] <- 0.4
+      value
+    }
+  )
+
+  for (case in names(bad_joint)) {
+    method <- paste0("bad_joint_", case)
+    on.exit(unregister_method(method), add = TRUE)
+    value <- bad_joint[[case]]
+    register_method(
+      method,
+      "wor",
+      sample_fn = toy_wor_sample,
+      joint_fn = function(...) value
+    )
+    s <- unequal_prob_wor(pik, method = method)
+    expect_error(joint_inclusion_prob(s), method, info = case)
+  }
+})

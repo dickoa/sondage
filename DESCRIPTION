@@ -1,7 +1,7 @@
 Package: sondage
 Type: Package
 Title: Survey Sampling Algorithms
-Version: 0.8.5.9999
+Version: 0.8.6
 Authors@R: c(person(given = "Ahmadou",
                     family = "Dicko",
 	            email = "mail@ahmadoudicko.com",
@@ -10,7 +10,11 @@ Authors@R: c(person(given = "Ahmadou",
              person(given = "Thomas",
                     family = "Lumley",
 	            email = "t.lumley@auckland.ac.nz",
-                    role = "ctb"))
+                    role = "ctb"),
+             person(given = "Wilmer",
+                    family = "Prentius",
+                    role = c("ctb", "cph"),
+                    comment = "Author of the BalancedSampling 2.0.6 (GPL >= 2) cube implementation from which src/cube.c was ported"))
 Description: Fast implementations of survey sampling algorithms for
     single-stage probability sampling from finite populations,
     written in C.
@@ -18,15 +22,18 @@ Description: Fast implementations of survey sampling algorithms for
     systematic, Bernoulli), unequal probability methods (conditional
     Poisson / maximum entropy, Brewer, systematic PPS, Pareto,
     sequential Poisson, Poisson, Chromy's minimum replacement,
-    multinomial), and balanced sampling via the cube method.
+    multinomial), balanced sampling via the cube method, and
+    spatially balanced sampling via the local pivotal method and
+    spatially correlated Poisson sampling.
     All sampling functions return design objects carrying sample
     indices, inclusion probabilities, and design metadata. Generics
     compute joint inclusion probabilities, pairwise expectations, and
     sampling covariances for variance estimation. Mostly based on
-    algorithms from Tille (2006, <doi:10.1007/0-387-34240-0>).
+    algorithms from Tillé (2006, <doi:10.1007/0-387-34240-0>).
 Depends: R (>= 4.1.0)
 License: GPL (>= 2)
 Encoding: UTF-8
+Language: en-US
 URL: https://dickoa.gitlab.io/sondage,
         https://gitlab.com/dickoa/sondage
 BugReports: https://gitlab.com/dickoa/sondage/-/work_items

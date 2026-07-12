@@ -47,6 +47,22 @@
     strata = TRUE,
     spread = FALSE,
     variance_family = "pps_brewer"
+  ),
+  lpm2 = list(
+    fixed_size = TRUE,
+    prn = FALSE,
+    aux = FALSE,
+    strata = FALSE,
+    spread = TRUE,
+    variance_family = "unsupported"
+  ),
+  scps = list(
+    fixed_size = TRUE,
+    prn = FALSE,
+    aux = FALSE,
+    strata = FALSE,
+    spread = TRUE,
+    variance_family = "unsupported"
   )
 )
 

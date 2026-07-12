@@ -42,7 +42,10 @@ The class vector records the design family:
 \item{\code{c("equal_prob", "wor", "sondage_sample")}}{Equal probability, without replacement.}
 \item{\code{c("equal_prob", "wr", "sondage_sample")}}{Equal probability, with replacement.}
 \item{\code{c("unequal_prob", "wor", "sondage_sample")}}{Unequal probability, without replacement.}
-\item{\code{c("balanced", "unequal_prob", "wor", "sondage_sample")}}{Balanced sampling (cube method); dispatches to \code{unequal_prob} / \code{wor} methods unless a \code{balanced}-specific method is defined.}
+\item{\code{c("balanced", "unequal_prob", "wor", "sondage_sample")}}{Balanced
+or spatially balanced sampling, including cube, LPM2, SCPS, and
+registered methods; dispatches to \code{unequal_prob} / \code{wor} methods
+unless a \code{balanced}-specific method is defined.}
 \item{\code{c("unequal_prob", "wr", "sondage_sample")}}{Unequal probability, with replacement.}
 }
 }

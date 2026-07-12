@@ -1,14 +1,19 @@
 #' Balanced Sampling Without Replacement
 #'
-#' Draws a balanced sample using the cube method (Deville & \enc{Tillé}{Tille}, 2004).
+#' Draws a balanced sample using the cube method (Deville & \enc{Tillé}{Tille}, 2004),
+#' or a spatially balanced (well-spread) sample using the local pivotal
+#' method (\enc{Grafström}{Grafstrom}, \enc{Lundström}{Lundstrom} & Schelin,
+#' 2012) or spatially correlated Poisson sampling
+#' (\enc{Grafström}{Grafstrom}, 2012).
 #' A balanced sample satisfies (approximately) the balancing equations
 #' \eqn{\sum_{k \in S} x_k / \pi_k \approx \sum_{k \in U} x_k} for each
-#' auxiliary variable \eqn{x}.
+#' auxiliary variable \eqn{x}; a well-spread sample selects units that
+#' are far apart in the space spanned by the spreading variables.
 #'
 #' @param pik A numeric vector of inclusion probabilities (length N).
 #'   `sum(pik)` must be an integer to floating-point accuracy; see
 #'   [unequal_prob_wor()] for the exact-0/1 handling of boundary
-#'   values.
+#'   values. The target sample size, `sum(pik)`, must be at least 1.
 #' @param aux An optional numeric matrix (N x p) of auxiliary balancing
 #'   variables. Each column defines a balancing constraint. The sample
 #'   size constraint is always included automatically; `aux` specifies
@@ -23,9 +28,11 @@
 #'   warning is issued and `fixed_size` is set to `FALSE`.
 #' @param spread An optional numeric matrix (N x d) of spatial
 #'   coordinates (or other spreading variables) for well-spread,
-#'   spatially balanced sampling. Only supported by methods registered
-#'   via [register_method()] with `supports_spread = TRUE`; the
-#'   built-in `"cube"` method does not use it and will error.
+#'   spatially balanced sampling. Required by the built-in `"lpm2"`
+#'   and `"scps"` methods, and supported by methods registered via
+#'   [register_method()] with `supports_spread = TRUE`; the built-in
+#'   `"cube"` method does not use it and will error. A non-matrix
+#'   vector is treated as a single spreading variable.
 #' @param bounds An optional list with elements `B`, `lower`, and
 #'   `upper` describing linear inequality constraints on the realized
 #'   sample (Tripet & \enc{Tillé}{Tille}, 2026): `B` is a numeric
@@ -37,19 +44,23 @@
 #'   The starting probabilities must be feasible:
 #'   `lower <= colSums(B * pik) <= upper`. Only supported by the
 #'   built-in `"cube"` method. See **Inequality constraints** below.
-#' @param method The sampling method. `"cube"` (built-in), or the name
-#'   of a balanced method added via [register_method()].
+#' @param method The sampling method. `"cube"` (the default) balances
+#'   on `aux`; `"lpm2"` (local pivotal method 2) and `"scps"`
+#'   (spatially correlated Poisson sampling) spread on `spread`; or the
+#'   name of a balanced method added via [register_method()].
 #' @param nrep Number of replicate samples (default 1). When `nrep > 1`,
 #'   `$sample` holds a matrix (n x nrep) for fixed-size designs, or a
 #'   list of integer vectors when within-stratum sizes are not exact.
 #' @param ... Additional arguments passed to methods:
 #'   \describe{
-#'     \item{`eps`}{Flight-phase boundary tolerance (default `1e-10`):
-#'       decides when an updated \emph{working} probability has
-#'       numerically reached 0 or 1. It never reclassifies the input;
-#'       supplied `pik` inside `(0, eps]` or `[1 - eps, 1)` are
-#'       rejected. Only `pik` of exactly 0 or exactly 1 enter the
-#'       flight phase as already-resolved units.}
+#'     \item{`eps`}{Boundary tolerance (default `1e-10`): decides when
+#'       an updated \emph{working} probability has numerically reached
+#'       0 or 1 (during the cube flight phase, or during the pivotal
+#'       steps of `"lpm2"` or `"scps"`). It never reclassifies the input;
+#'       supplied
+#'       `pik` inside `(0, eps]` or `[1 - eps, 1)` are rejected. Only
+#'       `pik` of exactly 0 or exactly 1 enter the algorithm as
+#'       already-resolved units.}
 #'     \item{`condition_aux`}{Logical; if `TRUE`, pre-conditions `aux` by
 #'       weighted centering/scaling and QR-pivot rank pruning to improve
 #'       numerical stability with ill-conditioned or collinear auxiliary
@@ -100,9 +111,9 @@
 #' margins of a two-way control table, as in NAEP-style designs).
 #'
 #' Integer-valued bound systems on partitions or two-way margins are
-#' satisfied exactly. For structures with no exact integer solution —
+#' satisfied exactly. For structures with no exact integer solution,
 #' some three-way controlled rounding problems, or continuous-valued
-#' constraints that end the flight phase tight against a boundary —
+#' constraints that end the flight phase tight against a boundary,
 #' bounds that provably block the landing phase are relaxed one at a
 #' time, with a warning; `E(s) = pik` still holds. In other words,
 #' the bounds are guaranteed whenever no relaxation warning is
@@ -114,7 +125,63 @@
 #' Monte Carlo estimation of joint inclusion probabilities in that
 #' case.
 #'
-#' @return An object of class `c("unequal_prob", "wor", "sondage_sample")`.
+#' @section Spatially balanced sampling (`lpm2` and `scps`):
+#'
+#' `method = "lpm2"` implements the local pivotal method 2 of
+#' \enc{Grafström}{Grafstrom}, \enc{Lundström}{Lundstrom} & Schelin
+#' (2012). Repeatedly, a randomly chosen undecided unit and its
+#' nearest undecided neighbour in the `spread` space compete in a
+#' pivotal step (Deville & \enc{Tillé}{Tille}, 1998) that resolves at
+#' least one of them to 0 or 1 while preserving the inclusion
+#' probabilities exactly (`E(s) = pik`). Nearby units thereby tend to
+#' exclude each other, spreading the sample over the population.
+#' Nearest-neighbour distance ties (common on gridded coordinates)
+#' are broken uniformly at random.
+#'
+#' Spreading variables should be on comparable scales, since
+#' nearness is plain Euclidean distance in the `spread` columns;
+#' rescale them (e.g. with [scale()]) when they are not. `"lpm2"` and
+#' `"scps"` use `spread` only: they do not accept `aux`, `strata`, or
+#' `bounds`. To exactly balance covariate totals \emph{and} spread
+#' spatially, register a method that supports both `aux` and `spread`
+#' (for example, a local-cube implementation). Running `"cube"` with
+#' coordinates in `aux` balances their totals but does not itself enforce
+#' spatial spread.
+#'
+#' `method = "scps"` implements spatially correlated Poisson sampling
+#' with the maximal-weight strategy of \enc{Grafström}{Grafstrom} (2012).
+#' At each step, a randomly chosen undecided unit is accepted or rejected
+#' using its current conditional probability. Its probability displacement
+#' is then distributed to the nearest undecided units, subject to feasibility
+#' bounds that keep every working probability in \eqn{[0, 1]}.
+#' Equal-distance
+#' units share weight as evenly as their bounds allow. Random selection of
+#' the step unit avoids dependence on input row order.
+#'
+#' Both spatial methods deliberately drive joint inclusion probabilities of
+#' nearby units toward zero, so the design is \emph{not} high
+#' entropy and no joint-probability approximation is provided:
+#' [joint_inclusion_prob()] errors for these designs. Variance for
+#' well-spread samples is usually estimated with local-neighbourhood
+#' estimators (e.g. \enc{Grafström}{Grafstrom} & Schelin, 2014).
+#'
+#' Both methods are \emph{spread-only}: neither exactly balances the totals
+#' of `aux`. They are dispatched by `balanced_wor()` because “spatially
+#' balanced sampling” is the standard name for well-spread fixed-size
+#' designs, and because the same interface accommodates local-cube methods
+#' that combine exact balancing with spread. Capability metadata keeps the
+#' distinction explicit: both report `supports_aux = FALSE` and
+#' `supports_spread = TRUE` through [method_spec()].
+#'
+#' LPM2 costs O(N^2 * d) time per draw. SCPS uses weighted quickselect to
+#' find the distance at which its maximal weights sum to one, avoiding a
+#' full sort of the remaining units at each step. Its expected cost is also
+#' O(N^2 * d). Both implementations use O(N) workspace and store no
+#' distance matrix; SCPS sorts only equal-distance cutoff groups to share
+#' their weight fairly.
+#'
+#' @return An object of class
+#'   `c("balanced", "unequal_prob", "wor", "sondage_sample")`.
 #'   When `nrep = 1`, `$sample` is an integer vector of selected unit
 #'   indices. When `nrep > 1`, `$sample` is a matrix (n x nrep) for
 #'   fixed-size designs, or a list of integer vectors when `fixed_size`
@@ -125,6 +192,10 @@
 #'   an integer; `$fixed_size` is set to `FALSE` and a warning is issued.
 #'
 #' @references
+#' Deville, J.C. and \enc{Tillé}{Tille}, Y. (1998). Unequal probability
+#'   sampling without replacement through a splitting method.
+#'   \emph{Biometrika}, 85(1), 89-101.
+#'
 #' Deville, J.C. and \enc{Tillé}{Tille}, Y. (2004). Efficient balanced sampling: the
 #'   cube method. \emph{Biometrika}, 91(4), 893-912.
 #'
@@ -133,6 +204,19 @@
 #'
 #' Chauvet, G. (2009). Stratified balanced sampling. \emph{Survey
 #'   Methodology}, 35, 115-119.
+#'
+#' \enc{Grafström}{Grafstrom}, A., \enc{Lundström}{Lundstrom}, N.L.P.
+#'   and Schelin, L. (2012). Spatially balanced sampling through the
+#'   pivotal method. \emph{Biometrics}, 68(2), 514-520.
+#'   \doi{10.1111/j.1541-0420.2011.01699.x}
+#'
+#' \enc{Grafström}{Grafstrom}, A. (2012). Spatially correlated Poisson
+#'   sampling. \emph{Journal of Statistical Planning and Inference},
+#'   142(1), 139-147. \doi{10.1016/j.jspi.2011.07.003}
+#'
+#' \enc{Grafström}{Grafstrom}, A. and Schelin, L. (2014). How to select
+#'   representative samples. \emph{Scandinavian Journal of Statistics},
+#'   41(2), 277-290. \doi{10.1111/sjos.12016}
 #'
 #' Tripet, A. and \enc{Tillé}{Tille}, Y. (2026). Balanced sampling with
 #'   inequalities: application to category bounding, matrix rounding,
@@ -176,6 +260,19 @@
 #' )
 #' table(groups[s$sample])  # exactly 2 per category
 #'
+#' # Spatially balanced (well-spread) sample: local pivotal method 2
+#' N <- 100
+#' coords <- cbind(runif(N), runif(N))
+#' pik <- rep(0.1, N)
+#' set.seed(1)
+#' s <- balanced_wor(pik, spread = coords, method = "lpm2")
+#' s$sample
+#'
+#' # Spatially correlated Poisson sampling uses the same spread contract
+#' set.seed(1)
+#' s_scps <- balanced_wor(pik, spread = coords, method = "scps")
+#' s_scps$sample
+#'
 #' @export
 balanced_wor <- function(
   pik,
@@ -183,7 +280,7 @@ balanced_wor <- function(
   strata = NULL,
   spread = NULL,
   bounds = NULL,
-  method = "cube",
+  method = c("cube", "lpm2", "scps"),
   nrep = 1L,
   ...
 ) {
@@ -201,10 +298,53 @@ balanced_wor <- function(
     )
   }
   method <- match.arg(method)
+  nrep <- check_integer(nrep, "nrep")
+  if (nrep < 1L) {
+    stop("'nrep' must be at least 1", call. = FALSE)
+  }
+
+  if (method %in% c("lpm2", "scps")) {
+    if (!is.null(aux)) {
+      stop(
+        sprintf("method '%s' does not use auxiliary balancing variables; ", method),
+        "use method = \"cube\" to balance on 'aux'",
+        call. = FALSE
+      )
+    }
+    if (!is.null(strata)) {
+      stop(
+        sprintf("method '%s' does not support 'strata'", method),
+        call. = FALSE
+      )
+    }
+    if (!is.null(bounds)) {
+      stop(
+        "'bounds' is only supported by the built-in \"cube\" method",
+        call. = FALSE
+      )
+    }
+    if (is.null(spread)) {
+      stop(
+        sprintf("method '%s' requires 'spread' ", method),
+        "(a matrix of spatial coordinates or other spreading variables)",
+        call. = FALSE
+      )
+    }
+    check_pik(pik, fixed_size = TRUE)
+    return(
+      switch(
+        method,
+        lpm2 = .lpm2_wor(pik, spread, nrep = nrep, ...),
+        scps = .scps_wor(pik, spread, nrep = nrep, ...)
+      )
+    )
+  }
+
   if (!is.null(spread)) {
     stop(
       "method 'cube' does not support spatial spreading; ",
-      "use a method registered with supports_spread = TRUE",
+      "use method = \"lpm2\", method = \"scps\", or a method registered with ",
+      "supports_spread = TRUE",
       call. = FALSE
     )
   }
@@ -216,10 +356,6 @@ balanced_wor <- function(
       call. = FALSE
     )
   }
-  nrep <- check_integer(nrep, "nrep")
-  if (nrep < 1L) {
-    stop("'nrep' must be at least 1", call. = FALSE)
-  }
 
   check_pik(pik, fixed_size = TRUE)
 
@@ -228,6 +364,84 @@ balanced_wor <- function(
   } else {
     .batch_balanced_wor(pik, aux, strata, bounds, method, nrep, ...)
   }
+}
+
+#' Local pivotal method 2: validate inputs, draw, wrap the design object.
+#'
+#' `eps` plays the same role as in the cube method: it decides when a
+#' *working* probability has numerically reached 0 or 1 during the
+#' pivotal steps, and must not reclassify the input pik.
+#'
+#' @noRd
+.lpm2_wor <- function(pik, spread, nrep = 1L, eps = 1e-10, ...) {
+  N <- length(pik)
+  eps <- check_eps(eps)
+  .check_cube_eps_classification(pik, eps)
+  spread <- .check_cube_aux(spread, N, what = "spread")
+  if (ncol(spread) == 0L) {
+    stop("'spread' must have at least one column", call. = FALSE)
+  }
+  n <- as.integer(round(sum(pik)))
+
+  sample_data <- if (nrep == 1L) {
+    .Call(C_lpm2, as.double(pik), spread, as.double(eps))
+  } else {
+    .Call(
+      C_lpm2_batch,
+      as.double(pik),
+      spread,
+      as.double(eps),
+      as.integer(nrep)
+    )
+  }
+
+  .new_wor_sample(
+    sample = sample_data,
+    pik = pik,
+    n = n,
+    N = N,
+    method = "lpm2",
+    fixed_size = TRUE,
+    prob_class = "unequal_prob",
+    extra_class = "balanced"
+  )
+}
+
+#' Spatially correlated Poisson sampling: validate, draw, wrap.
+#'
+#' @noRd
+.scps_wor <- function(pik, spread, nrep = 1L, eps = 1e-10, ...) {
+  N <- length(pik)
+  eps <- check_eps(eps)
+  .check_cube_eps_classification(pik, eps)
+  spread <- .check_cube_aux(spread, N, what = "spread")
+  if (ncol(spread) == 0L) {
+    stop("'spread' must have at least one column", call. = FALSE)
+  }
+  n <- as.integer(round(sum(pik)))
+
+  sample_data <- if (nrep == 1L) {
+    .Call(C_scps, as.double(pik), spread, as.double(eps))
+  } else {
+    .Call(
+      C_scps_batch,
+      as.double(pik),
+      spread,
+      as.double(eps),
+      as.integer(nrep)
+    )
+  }
+
+  .new_wor_sample(
+    sample = sample_data,
+    pik = pik,
+    n = n,
+    N = N,
+    method = "scps",
+    fixed_size = TRUE,
+    prob_class = "unequal_prob",
+    extra_class = "balanced"
+  )
 }
 
 #' @noRd

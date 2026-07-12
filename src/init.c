@@ -24,6 +24,10 @@ extern SEXP C_cube(SEXP prob, SEXP X, SEXP B, SEXP r, SEXP eps);
 extern SEXP C_cube_batch(SEXP prob, SEXP X, SEXP B, SEXP r, SEXP eps, SEXP nrep);
 extern SEXP C_cube_stratified(SEXP prob, SEXP X, SEXP strata, SEXP eps);
 extern SEXP C_cube_stratified_batch(SEXP prob, SEXP X, SEXP strata, SEXP eps, SEXP nrep);
+extern SEXP C_lpm2(SEXP pik, SEXP z, SEXP eps);
+extern SEXP C_lpm2_batch(SEXP pik, SEXP z, SEXP eps, SEXP nrep);
+extern SEXP C_scps(SEXP pik, SEXP z, SEXP eps);
+extern SEXP C_scps_batch(SEXP pik, SEXP z, SEXP eps, SEXP nrep);
 
 static const R_CallMethodDef CallEntries[] = {
     {"C_up_brewer",               (DL_FUNC) &C_up_brewer,               1},
@@ -47,6 +51,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"C_cube_batch",            (DL_FUNC) &C_cube_batch,            6},
     {"C_cube_stratified",       (DL_FUNC) &C_cube_stratified,       4},
     {"C_cube_stratified_batch", (DL_FUNC) &C_cube_stratified_batch, 5},
+    {"C_lpm2",                  (DL_FUNC) &C_lpm2,                  3},
+    {"C_lpm2_batch",            (DL_FUNC) &C_lpm2_batch,            4},
+    {"C_scps",                  (DL_FUNC) &C_scps,                  3},
+    {"C_scps_batch",            (DL_FUNC) &C_scps_batch,            4},
     {NULL, NULL, 0}
 };
 

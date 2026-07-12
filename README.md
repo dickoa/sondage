@@ -3,8 +3,6 @@
 
 <!-- badges: start -->
 
-[![CRAN
-status](https://www.r-pkg.org/badges/version/sondage)](https://CRAN.R-project.org/package=sondage)
 [![R-CMD-check](https://gitlab.com/dickoa/sondage/badges/main/pipeline.svg)](https://gitlab.com/dickoa/sondage/-/pipelines)
 [![Codecov test
 coverage](https://codecov.io/gl/dickoa/sondage/branch/main/graph/badge.svg)](https://app.codecov.io/gl/dickoa/sondage?branch=main)
@@ -68,28 +66,17 @@ chk   <- sampling_cov(s, weighted = TRUE) # 1 - pi_i * pi_j / pi_ij
 # Equal probability sampling
 s <- equal_prob_wor(nrow(states), 10)
 states[s$sample, ]
-#>                Population Income Illiteracy Life Exp Murder HS Grad Frost
-#> Minnesota            3921   4675        0.6    72.96    2.3    57.6   160
-#> Colorado             2541   4884        0.7    72.06    6.8    63.9   166
-#> South Carolina       2816   3635        2.3    67.96   11.6    37.8    65
-#> Utah                 1203   4022        0.6    72.90    4.5    67.3   137
-#> Missouri             4767   4254        0.8    70.69    9.3    48.8   108
-#> Wisconsin            4589   4468        0.7    72.48    3.0    54.5   149
-#> Rhode Island          931   4558        1.3    71.90    2.4    46.4   127
-#> Tennessee            4173   3821        1.7    70.11   11.0    41.8    70
-#> Vermont               472   3907        0.6    71.64    5.5    57.1   168
-#> Mississippi          2341   3098        2.4    68.09   12.5    41.0    50
-#>                  Area
-#> Minnesota       79289
-#> Colorado       103766
-#> South Carolina  30225
-#> Utah            82096
-#> Missouri        68995
-#> Wisconsin       54464
-#> Rhode Island     1049
-#> Tennessee       41328
-#> Vermont          9267
-#> Mississippi     47296
+#>                Population Income Illiteracy Life Exp Murder HS Grad Frost   Area
+#> Minnesota            3921   4675        0.6    72.96    2.3    57.6   160  79289
+#> Colorado             2541   4884        0.7    72.06    6.8    63.9   166 103766
+#> South Carolina       2816   3635        2.3    67.96   11.6    37.8    65  30225
+#> Utah                 1203   4022        0.6    72.90    4.5    67.3   137  82096
+#> Missouri             4767   4254        0.8    70.69    9.3    48.8   108  68995
+#> Wisconsin            4589   4468        0.7    72.48    3.0    54.5   149  54464
+#> Rhode Island          931   4558        1.3    71.90    2.4    46.4   127   1049
+#> Tennessee            4173   3821        1.7    70.11   11.0    41.8    70  41328
+#> Vermont               472   3907        0.6    71.64    5.5    57.1   168   9267
+#> Mississippi          2341   3098        2.4    68.09   12.5    41.0    50  47296
 ```
 
 ``` r
@@ -128,15 +115,12 @@ sim <- unequal_prob_wor(pik, method = "cps", nrep = 1000)
 dim(sim$sample)   # 10 x 1000
 #> [1]   10 1000
 inclusion_prob(sim) # generics still work
-#>  [1] 0.17026107 0.01719095 0.10418188 0.09937783 0.99839394 0.11967728
-#>  [7] 0.14600534 0.02727003 0.38983426 0.23224269 0.04088150 0.03829108
-#> [13] 0.52736187 0.25023432 0.13474880 0.10738457 0.15952261 0.17925688
-#> [19] 0.04983021 0.19414000 0.27383066 0.42911441 0.18467321 0.11025758
-#> [25] 0.22451854 0.03513548 0.07272008 0.02778811 0.03824398 0.34537328
-#> [31] 0.05388068 0.85135243 0.25626292 0.03000174 0.50560237 0.12787242
-#> [37] 0.10757297 0.55858818 0.04384870 0.13262937 0.03207408 0.19654203
-#> [43] 0.57634431 0.05665949 0.02223049 0.23459761 0.16762355 0.08473020
-#> [49] 0.21613500 0.01770903
+#>  [1] 0.17026107 0.01719095 0.10418188 0.09937783 0.99839394 0.11967728 0.14600534 0.02727003 0.38983426
+#> [10] 0.23224269 0.04088150 0.03829108 0.52736187 0.25023432 0.13474880 0.10738457 0.15952261 0.17925688
+#> [19] 0.04983021 0.19414000 0.27383066 0.42911441 0.18467321 0.11025758 0.22451854 0.03513548 0.07272008
+#> [28] 0.02778811 0.03824398 0.34537328 0.05388068 0.85135243 0.25626292 0.03000174 0.50560237 0.12787242
+#> [37] 0.10757297 0.55858818 0.04384870 0.13262937 0.03207408 0.19654203 0.57634431 0.05665949 0.02223049
+#> [46] 0.23459761 0.16762355 0.08473020 0.21613500 0.01770903
 ```
 
 ## Sampling functions
@@ -181,6 +165,11 @@ inclusion_prob(sim) # generics still work
 - `balanced_wor(pik, bounds = list(B, lower, upper))` - Cube with
   inequality constraints (Tripet & Tillé, 2026): controlled selection à
   la Goodman & Kish, controlled matrix rounding, minimum group sizes
+- `balanced_wor(pik, spread, method = "lpm2")` - Spatially balanced,
+  well-spread sampling with the local pivotal method 2 (Grafström,
+  Lundström & Schelin, 2012)
+- `balanced_wor(pik, spread, method = "scps")` - Spatially correlated
+  Poisson sampling with Grafström’s (2012) maximal-weight strategy
 
 ## Design queries
 
@@ -219,6 +208,8 @@ inclusion_prob(sim) # generics still work
 | `multinomial` | `unequal_prob_wr` | yes | yes | yes (analytic) | no |
 | `chromy` | `unequal_prob_wr` | yes | yes | simulated | no |
 | `cube` | `balanced_wor` | yes | yes | approx (HE) | no |
+| `lpm2` | `balanced_wor` | yes | yes | not available | no |
+| `scps` | `balanced_wor` | yes | yes | not available | no |
 
 †For WOR methods, design marginals are first-order inclusion
 probabilities `\pi_k`. For WR methods, design marginals are expected
@@ -249,6 +240,12 @@ the stored target `pik` vector. HE = high-entropy approximation.
   when approximate first- and second-order quantities are acceptable.
 - Use `cube` when balancing on auxiliary variables is more important
   than exact second-order inclusion probabilities.
+- Use `lpm2` or `scps` when the study variable is spatially structured
+  and a well-spread sample matters more than joint inclusion
+  probabilities. LPM2 makes local pairwise competitions and SCPS
+  distributes each decision over the nearest feasible neighbours.
+  Variance is then usually estimated with local-neighbourhood
+  estimators.
 
 ## Custom methods
 
@@ -259,6 +256,12 @@ dispatch through `unequal_prob_wor()` / `unequal_prob_wr()`, and
 balanced methods (`type = "balanced"`) through `balanced_wor()`, where
 they declare which design inputs they use (`supports_aux`,
 `supports_strata`, `supports_spread`):
+
+Here `type = "balanced"` names the dispatcher family, which includes
+spatially balanced designs. Spread-only methods such as LPM2 and SCPS do
+not exactly balance auxiliary totals; their `supports_aux = FALSE`
+metadata makes that distinction enforceable rather than silently
+ignoring `aux`.
 
 ``` r
 # A simple Sampford wrapper
@@ -322,6 +325,13 @@ Statistical Association*.
 
 Deville, J.C. and Tillé, Y. (2004). Efficient balanced sampling: the
 cube method. *Biometrika*, 91(4), 893-912.
+
+Grafström, A. (2012). Spatially correlated Poisson sampling. *Journal of
+Statistical Planning and Inference*, 142(1), 139-147.
+
+Grafström, A., Lundström, N.L.P. and Schelin, L. (2012). Spatially
+balanced sampling through the pivotal method. *Biometrics*, 68(2),
+514-520.
 
 Tripet, A. and Tillé, Y. (2026). Balanced sampling with inequalities:
 application to category bounding, matrix rounding, and spread sampling.

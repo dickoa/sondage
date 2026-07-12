@@ -22,6 +22,7 @@
 #'   [joint_inclusion_prob()] / [joint_expected_hits()] will error for
 #'   this method.
 #' @param fixed_size Does this method always produce exactly `n` units?
+#'   Must be `TRUE` for `type = "wr"`.
 #' @param variance_family Optional declaration of how design-based
 #'   variance should be estimated for this method, for downstream
 #'   packages that export designs for variance estimation. One of
@@ -57,11 +58,13 @@
 #'   \item{`n`}{Target sample size (integer). For WOR this equals
 #'     `round(sum(pik))`; for WR `round(sum(hits))`.}
 #'   \item{`prn`}{Permanent random numbers (numeric vector length N,
-#'     values in (0,1)), or `NULL`.}
+#'     values in (0,1)), or `NULL`. Always `NULL` when the method is
+#'     registered with `supports_prn = FALSE`.}
 #'   \item{Returns}{Integer vector of selected unit indices (1-based).
 #'     For WOR: distinct indices of length `n` (fixed-size) or varying
 #'     length (random-size). For WR: indices with possible repeats,
-#'     of length `n`.}
+#'     of length `n`. The dispatcher validates the type, range, size,
+#'     and replacement rules before constructing the sample object.}
 #' }
 #'
 #' **`sample_fn(pik, n = NULL, aux = NULL, ...)`** (type `"balanced"`)
@@ -85,7 +88,7 @@
 #'     other spreading variables). Declare it as `spread = NULL` in
 #'     your function signature.}
 #'   \item{Returns}{Integer vector of distinct selected unit indices
-#'     (1-based).}
+#'     (1-based). The dispatcher validates the returned indices.}
 #' }
 #'
 #' **`joint_fn(pik, sample_idx = NULL, ...)`** (optional)
@@ -95,7 +98,9 @@
 #'     unit indices. Return only the submatrix for these units.}
 #'   \item{Returns}{Symmetric matrix of joint inclusion probabilities
 #'     (N x N when `sample_idx` is NULL, `length(sample_idx)` x
-#'     `length(sample_idx)` otherwise).}
+#'     `length(sample_idx)` otherwise). The dispatcher validates that
+#'     the matrix has the required dimensions and contains finite,
+#'     symmetric numeric values.}
 #' }
 #'
 #' @section Variance families:
@@ -133,7 +138,7 @@
 #' `"poisson"` can never hold for them.
 #'
 #' The declaration is an assertion by the method author, not
-#' something sondage can verify — `"poisson"` in particular asserts
+#' something sondage can verify; `"poisson"` in particular asserts
 #' that units are selected independently, and a wrong declaration
 #' produces silently wrong variance estimates for every user of the
 #' method. The package vignette
@@ -252,6 +257,12 @@ register_method <- function(
         call. = FALSE
       )
     }
+  }
+  if (type == "wr" && !fixed_size) {
+    stop(
+      "type = \"wr\" methods require fixed_size = TRUE",
+      call. = FALSE
+    )
   }
   if (!isTRUE(supports_prn) && !isFALSE(supports_prn)) {
     stop("'supports_prn' must be TRUE or FALSE", call. = FALSE)
@@ -397,6 +408,45 @@ unregister_method <- function(name) {
 }
 
 #' @noRd
+.check_registered_sample <- function(
+  sample,
+  N,
+  n,
+  method,
+  fixed_size,
+  replace
+) {
+  prefix <- sprintf("registered method '%s' returned", method)
+  if (!is.numeric(sample) || !is.null(dim(sample))) {
+    stop(prefix, " a sample that is not a numeric vector", call. = FALSE)
+  }
+  if (any(!is.finite(sample))) {
+    stop(prefix, " non-finite sample indices", call. = FALSE)
+  }
+  if (any(sample != trunc(sample))) {
+    stop(prefix, " non-integer sample indices", call. = FALSE)
+  }
+  if (any(sample < 1 | sample > N)) {
+    stop(
+      prefix,
+      sprintf(" sample indices outside 1:%d", N),
+      call. = FALSE
+    )
+  }
+  if (!replace && anyDuplicated(sample)) {
+    stop(prefix, " duplicate sample indices", call. = FALSE)
+  }
+  if (fixed_size && length(sample) != n) {
+    stop(
+      prefix,
+      sprintf(" %d sample indices; expected %d", length(sample), n),
+      call. = FALSE
+    )
+  }
+  as.integer(sample)
+}
+
+#' @noRd
 .dispatch_registered_wor <- function(pik, method, nrep, prn, ...) {
   reg <- .method_registry[[method]]
   .check_registered_type(reg, "wor")
@@ -410,6 +460,7 @@ unregister_method <- function(name) {
       sprintf("prn is not used by method '%s' and will be ignored", method),
       call. = FALSE
     )
+    prn <- NULL
   }
   if (!is.null(prn) && nrep > 1L) {
     stop(
@@ -422,22 +473,34 @@ unregister_method <- function(name) {
 
   check_pik(pik, fixed_size = reg$fixed_size)
   N <- length(pik)
+  if (!is.null(prn)) {
+    check_prn(prn, N)
+  }
   n <- if (reg$fixed_size) as.integer(round(sum(pik))) else sum(pik)
 
+  draw <- function() {
+    .check_registered_sample(
+      reg$sample_fn(pik, n = n, prn = prn, ...),
+      N,
+      n,
+      method,
+      reg$fixed_size,
+      replace = FALSE
+    )
+  }
+
   if (nrep == 1L) {
-    idx <- as.integer(reg$sample_fn(pik, n = n, prn = prn, ...))
+    idx <- draw()
     .new_wor_sample(idx, pik, n, N, method, reg$fixed_size, "unequal_prob")
   } else if (reg$fixed_size) {
     n_int <- as.integer(round(sum(pik)))
     mat <- matrix(0L, n_int, nrep)
     for (i in seq_len(nrep)) {
-      mat[, i] <- as.integer(reg$sample_fn(pik, n = n_int, prn = prn, ...))
+      mat[, i] <- draw()
     }
     .new_wor_sample(mat, pik, n_int, N, method, TRUE, "unequal_prob")
   } else {
-    samples <- lapply(seq_len(nrep), function(i) {
-      as.integer(reg$sample_fn(pik, n = n, prn = prn, ...))
-    })
+    samples <- lapply(seq_len(nrep), function(i) draw())
     .new_wor_sample(samples, pik, n, N, method, FALSE, "unequal_prob")
   }
 }
@@ -456,15 +519,38 @@ unregister_method <- function(name) {
       sprintf("prn is not used by method '%s' and will be ignored", method),
       call. = FALSE
     )
+    prn <- NULL
+  }
+  if (!is.null(prn) && nrep > 1L) {
+    stop(
+      "prn and nrep > 1 cannot be used together. ",
+      "Permanent random numbers produce identical samples across replicates. ",
+      "Use a loop with different prn vectors for coordinated repeated sampling.",
+      call. = FALSE
+    )
   }
 
   check_hits(hits)
   n <- check_integer(sum(hits), "sum(hits)")
   N <- length(hits)
+  if (!is.null(prn)) {
+    check_prn(prn, N)
+  }
   prob <- hits / sum(hits)
 
+  draw <- function() {
+    .check_registered_sample(
+      reg$sample_fn(hits, n = n, prn = prn, ...),
+      N,
+      n,
+      method,
+      reg$fixed_size,
+      replace = TRUE
+    )
+  }
+
   if (nrep == 1L) {
-    idx <- as.integer(reg$sample_fn(hits, n = n, prn = prn, ...))
+    idx <- draw()
     realized_hits <- tabulate(idx, nbins = N)
     .new_wr_sample(
       idx,
@@ -480,7 +566,7 @@ unregister_method <- function(name) {
     sample_mat <- matrix(0L, n, nrep)
     hits_mat <- matrix(0L, N, nrep)
     for (i in seq_len(nrep)) {
-      idx <- as.integer(reg$sample_fn(hits, n = n, prn = prn, ...))
+      idx <- draw()
       sample_mat[, i] <- idx
       hits_mat[, i] <- tabulate(idx, nbins = N)
     }
@@ -585,7 +671,14 @@ unregister_method <- function(name) {
   sample_args <- c(sample_args, list(...))
 
   draw <- function() {
-    as.integer(do.call(reg$sample_fn, sample_args))
+    .check_registered_sample(
+      do.call(reg$sample_fn, sample_args),
+      N,
+      n,
+      method,
+      fixed_size,
+      replace = FALSE
+    )
   }
 
   if (nrep == 1L) {
@@ -620,5 +713,35 @@ unregister_method <- function(name) {
   if (is.null(reg$joint_fn)) {
     .stop_no_joint(method, quantity)
   }
-  reg$joint_fn(pik, sample_idx = sample_idx, ...)
+  joint <- reg$joint_fn(pik, sample_idx = sample_idx, ...)
+  expected <- if (is.null(sample_idx)) length(pik) else length(sample_idx)
+  prefix <- sprintf("registered method '%s' returned", method)
+  if (!is.matrix(joint) || !is.numeric(joint) || is.complex(joint)) {
+    stop(prefix, " joint probabilities that are not a numeric matrix", call. = FALSE)
+  }
+  if (!identical(dim(joint), c(expected, expected))) {
+    stop(
+      prefix,
+      sprintf(
+        " a %d x %d joint-probability matrix; expected %d x %d",
+        nrow(joint),
+        ncol(joint),
+        expected,
+        expected
+      ),
+      call. = FALSE
+    )
+  }
+  if (any(!is.finite(joint))) {
+    stop(prefix, " non-finite joint probabilities", call. = FALSE)
+  }
+  if (!isTRUE(all.equal(
+    joint,
+    t(joint),
+    tolerance = sqrt(.Machine$double.eps),
+    check.attributes = FALSE
+  ))) {
+    stop(prefix, " a non-symmetric joint-probability matrix", call. = FALSE)
+  }
+  joint
 }

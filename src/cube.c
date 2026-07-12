@@ -1,9 +1,11 @@
 /*
  * cube.c - Cube method for balanced sampling
  *
- * C port of BalancedSampling cube method for the sondage package.
+ * C port of the cube method from BalancedSampling version 2.0.6,
+ * the last release under GPL (>= 2); the package moved to AGPL-3
+ * at 2.1.1 (2024-11-18), after the version ported here.
  * Original C++ implementation by Wilmer Prentius (GPL >= 2).
- * https://CRAN.R-project.org/package=BalancedSampling
+ * https://cran.r-project.org/src/contrib/Archive/BalancedSampling/BalancedSampling_2.0.6.tar.gz
  *
  * References:
  * - Deville, J.C. and Tillé, Y. (2004). Efficient balanced sampling:
@@ -379,7 +381,7 @@ static void cube_ineq_reset(CubeWorkspace *ws) {
  *
  * Returns 1 when progress was made (a move and/or an activation),
  * 0 on a stall (degenerate direction, or a binding row that cannot be
- * activated — the landing phase then relaxes it), and -1 when the
+ * activated (the landing phase then relaxes it), and -1 when the
  * constraint system has full column rank (no direction exists; the
  * caller must relax a constraint). No RNG is consumed unless a move
  * is made. */
@@ -508,7 +510,7 @@ static int cube_update(CubeWorkspace *ws, int n_cand,
         : (lambda1 + lambda2 < tol);
     if (stalled) {
         /* If a binding row sits on its face, converting it to an
-         * equality re-orients the next kernel direction — progress
+         * equality re-orients the next kernel direction, so progress
          * without moving (and without a random draw, so E(s) = pik is
          * untouched). */
         int activated = 0;
@@ -546,7 +548,7 @@ static int cube_update(CubeWorkspace *ws, int n_cand,
             } else {
                 /* ROW_ACTIVE rows outside the kernel only occur during
                  * landing; their slack can grow back (the walk may leave
-                 * the face inward — the bound itself still holds). */
+                 * the face inward; the bound itself still holds). */
                 ws->slack[j] = g < 0.0 ? 0.0 : g;
             }
         }
@@ -662,7 +664,7 @@ static void cube_landing(CubeWorkspace *ws) {
          * tight NOW and act on the current candidates (rows whose walk
          * moved back inside, or with no support in the window, are
          * fully handled by the step caps), then auxiliary variables.
-         * All of them are enforced at once — dependent rows (e.g.
+         * All of them are enforced at once. Dependent rows (e.g.
          * redundant margin systems) cost nothing. Only when the system
          * has full column rank is the tail relaxed, one constraint at
          * a time: auxiliaries first (from the last, as in the classic
@@ -708,7 +710,7 @@ static void cube_landing(CubeWorkspace *ws) {
         }
 
         /* Stalled: relax the binding bound (there is no exact 0/1
-         * completion satisfying it — e.g. an infeasible controlled
+         * completion satisfying it, e.g. an infeasible controlled
          * rounding structure). Unbiasedness is unaffected: no move was
          * made. If no bound binds, the stall is a degeneracy of the
          * balancing system itself; keep the classic behavior of

@@ -273,7 +273,7 @@ test_that("non-indicator constraint columns work (HT estimator bound)", {
   # Continuous-valued constraints that end the flight tight against a
   # boundary generally admit no exact 0/1 completion (the boundary
   # value is not integer-representable), so the landing may relax them
-  # with a warning — the paper's own supplementary code inflates the
+  # with a warning; the paper's own supplementary code inflates the
   # bounds in this situation. The contract: bounds hold whenever no
   # relaxation warning was raised, and E(s) = pik holds regardless.
   set.seed(7)

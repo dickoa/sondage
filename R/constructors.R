@@ -38,7 +38,10 @@
 #'   \item{`c("equal_prob", "wor", "sondage_sample")`}{Equal probability, without replacement.}
 #'   \item{`c("equal_prob", "wr", "sondage_sample")`}{Equal probability, with replacement.}
 #'   \item{`c("unequal_prob", "wor", "sondage_sample")`}{Unequal probability, without replacement.}
-#'   \item{`c("balanced", "unequal_prob", "wor", "sondage_sample")`}{Balanced sampling (cube method); dispatches to `unequal_prob` / `wor` methods unless a `balanced`-specific method is defined.}
+#'   \item{`c("balanced", "unequal_prob", "wor", "sondage_sample")`}{Balanced
+#'   or spatially balanced sampling, including cube, LPM2, SCPS, and
+#'   registered methods; dispatches to `unequal_prob` / `wor` methods
+#'   unless a `balanced`-specific method is defined.}
 #'   \item{`c("unequal_prob", "wr", "sondage_sample")`}{Unequal probability, with replacement.}
 #' }
 #'

@@ -6,7 +6,7 @@
 \alias{sondage-package}
 \title{sondage: Survey Sampling Algorithms}
 \description{
-Fast implementations of survey sampling algorithms for single-stage probability sampling from finite populations, written in C. Provides equal probability methods (simple random sampling, systematic, Bernoulli), unequal probability methods (conditional Poisson / maximum entropy, Brewer, systematic PPS, Pareto, sequential Poisson, Poisson, Chromy's minimum replacement, multinomial), and balanced sampling via the cube method. All sampling functions return design objects carrying sample indices, inclusion probabilities, and design metadata. Generics compute joint inclusion probabilities, pairwise expectations, and sampling covariances for variance estimation. Mostly based on algorithms from Tille (2006, \doi{10.1007/0-387-34240-0}).
+Fast implementations of survey sampling algorithms for single-stage probability sampling from finite populations, written in C. Provides equal probability methods (simple random sampling, systematic, Bernoulli), unequal probability methods (conditional Poisson / maximum entropy, Brewer, systematic PPS, Pareto, sequential Poisson, Poisson, Chromy's minimum replacement, multinomial), balanced sampling via the cube method, and spatially balanced sampling via the local pivotal method and spatially correlated Poisson sampling. All sampling functions return design objects carrying sample indices, inclusion probabilities, and design metadata. Generics compute joint inclusion probabilities, pairwise expectations, and sampling covariances for variance estimation. Mostly based on algorithms from Tillé (2006, \doi{10.1007/0-387-34240-0}).
 }
 \section{Unequal Probability Sampling}{
 
@@ -33,7 +33,11 @@ Bernoulli (random size)
 \itemize{
 \item \code{\link[=balanced_wor]{balanced_wor()}} - Cube method (Deville & \enc{Tillé}{Tille}, 2004) for
 balanced sampling with unequal probabilities, with optional
-stratification (Chauvet, 2009)
+stratification (Chauvet, 2009), the local pivotal method 2
+(\enc{Grafström}{Grafstrom}, \enc{Lundström}{Lundstrom} &
+Schelin, 2012), and spatially correlated Poisson sampling
+(\enc{Grafström}{Grafstrom}, 2012) for spatially balanced,
+well-spread sampling
 }
 }
 
@@ -110,6 +114,7 @@ Authors:
 Other contributors:
 \itemize{
   \item Thomas Lumley \email{t.lumley@auckland.ac.nz} [contributor]
+  \item Wilmer Prentius (Author of the BalancedSampling 2.0.6 (GPL >= 2) cube implementation from which src/cube.c was ported) [contributor, copyright holder]
 }
 
 }

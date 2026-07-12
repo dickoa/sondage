@@ -136,8 +136,8 @@ test_that("CPS single draws also avoid positional bias at large N", {
   counts <- integer(N)
   nrep <- 60L
   for (i in seq_len(nrep)) {
-    counts[unequal_prob_wor(rep(0.5, N), "cps")$sample] <-
-      counts[unequal_prob_wor(rep(0.5, N), "cps")$sample] + 1L
+    idx <- unequal_prob_wor(rep(0.5, N), "cps")$sample
+    counts[idx] <- counts[idx] + 1L
   }
   # crude but catches the audit failure mode (halves at 0.235 vs 0.765)
   expect_lt(

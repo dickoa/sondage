@@ -14,7 +14,6 @@ set.seed(1)
 # sondage
 
 <!-- badges: start -->
-[![CRAN status](https://www.r-pkg.org/badges/version/sondage)](https://CRAN.R-project.org/package=sondage)
 [![R-CMD-check](https://gitlab.com/dickoa/sondage/badges/main/pipeline.svg)](https://gitlab.com/dickoa/sondage/-/pipelines)
 [![Codecov test coverage](https://codecov.io/gl/dickoa/sondage/branch/main/graph/badge.svg)](https://app.codecov.io/gl/dickoa/sondage?branch=main)
 <!-- badges: end -->
@@ -126,6 +125,10 @@ inclusion_prob(sim) # generics still work
 - `balanced_wor(pik, bounds = list(B, lower, upper))` - Cube with inequality
   constraints (Tripet & Tillé, 2026): controlled selection à la Goodman & Kish,
   controlled matrix rounding, minimum group sizes
+- `balanced_wor(pik, spread, method = "lpm2")` - Spatially balanced, well-spread
+  sampling with the local pivotal method 2 (Grafström, Lundström & Schelin, 2012)
+- `balanced_wor(pik, spread, method = "scps")` - Spatially correlated Poisson
+  sampling with Grafström's (2012) maximal-weight strategy
 
 ## Design queries
 
@@ -158,6 +161,8 @@ inclusion_prob(sim) # generics still work
 | `multinomial` | `unequal_prob_wr`  | yes     | yes              | yes (analytic)     | no  |
 | `chromy`      | `unequal_prob_wr`  | yes     | yes              | simulated          | no  |
 | `cube`        | `balanced_wor`     | yes     | yes              | approx (HE)        | no  |
+| `lpm2`        | `balanced_wor`     | yes     | yes              | not available      | no  |
+| `scps`        | `balanced_wor`     | yes     | yes              | not available      | no  |
 
 †For WOR methods, design marginals are first-order inclusion probabilities `\pi_k`. For WR methods, design marginals are expected hits `E(N_k)`.
 
@@ -174,6 +179,7 @@ stored target `pik` vector. HE = high-entropy approximation.
 - Use `poisson` when a random sample size is acceptable and independent selection is desirable.
 - Use `sps` or `pareto` as fast high-entropy order-sampling alternatives when approximate first- and second-order quantities are acceptable.
 - Use `cube` when balancing on auxiliary variables is more important than exact second-order inclusion probabilities.
+- Use `lpm2` or `scps` when the study variable is spatially structured and a well-spread sample matters more than joint inclusion probabilities. LPM2 makes local pairwise competitions and SCPS distributes each decision over the nearest feasible neighbours. Variance is then usually estimated with local-neighbourhood estimators.
 
 ## Custom methods
 
@@ -184,6 +190,11 @@ dispatch through `unequal_prob_wor()` / `unequal_prob_wr()`, and
 balanced methods (`type = "balanced"`) through `balanced_wor()`, where
 they declare which design inputs they use (`supports_aux`,
 `supports_strata`, `supports_spread`):
+
+Here `type = "balanced"` names the dispatcher family, which includes
+spatially balanced designs. Spread-only methods such as LPM2 and SCPS do not
+exactly balance auxiliary totals; their `supports_aux = FALSE` metadata makes
+that distinction enforceable rather than silently ignoring `aux`.
 
 ```{r}
 # A simple Sampford wrapper
@@ -230,6 +241,10 @@ Chromy, J.R. (1979). Sequential sample selection methods. *Proceedings of the Su
 Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson estimator. *Proceedings of the Survey Research Methods Section, American Statistical Association*.
 
 Deville, J.C. and Tillé, Y. (2004). Efficient balanced sampling: the cube method. *Biometrika*, 91(4), 893-912.
+
+Grafström, A. (2012). Spatially correlated Poisson sampling. *Journal of Statistical Planning and Inference*, 142(1), 139-147.
+
+Grafström, A., Lundström, N.L.P. and Schelin, L. (2012). Spatially balanced sampling through the pivotal method. *Biometrics*, 68(2), 514-520.
 
 Tripet, A. and Tillé, Y. (2026). Balanced sampling with inequalities: application to category bounding, matrix rounding, and spread sampling. *Journal of the American Statistical Association*, 121(553), 796-806.
 
