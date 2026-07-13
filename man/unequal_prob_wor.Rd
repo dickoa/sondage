@@ -6,7 +6,7 @@
 \usage{
 unequal_prob_wor(
   pik,
-  method = c("cps", "brewer", "systematic", "poisson", "sps", "pareto"),
+  method = c("cps", "sampford", "brewer", "systematic", "poisson", "sps", "pareto"),
   nrep = 1L,
   prn = NULL,
   ...
@@ -30,6 +30,13 @@ with all \eqn{\pi_{ij} > 0}. Calibration and the conditional
 probability table are O(Nn) (probability-domain
 Poisson-binomial recurrence); each draw is O(N) thereafter.
 Equal \code{pik} are drawn directly as SRS.}
+\item{\code{"sampford"}}{Sampford's (1967) fixed-size PPS design.
+Gives the supplied first-order inclusion probabilities exactly
+and has exact joint inclusion probabilities. A native C kernel
+combines the fast rejection construction with Grafstrom's
+non-rejective conditional-Poisson fallback and draws the smaller
+of the sample and its complement. Typical O(N + n); O(Nn) in the
+fallback.}
 \item{\code{"brewer"}}{Brewer's (1975) draw-by-draw method. Fixed
 size, approximate joint probabilities (high-entropy
 approximation; see \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}). O(Nn).}
@@ -132,6 +139,13 @@ population sampling to maximize entropy. \emph{Biometrika}, 81(3),
 
 Brewer, K.R.W. (1975). A simple procedure for sampling pi-ps wor.
 \emph{Australian Journal of Statistics}, 17(3), 166-172.
+
+Sampford, M.R. (1967). On sampling without replacement with unequal
+probabilities of selection. \emph{Biometrika}, 54(3/4), 499-513.
+
+Grafstrom, A. (2009). Non-rejective implementations of the Sampford
+sampling design. \emph{Journal of Statistical Planning and Inference},
+139(6), 2111-2114.
 
 Ohlsson, E. (1998). Sequential Poisson sampling. \emph{Journal of
 Official Statistics}, 14(2), 149-162.

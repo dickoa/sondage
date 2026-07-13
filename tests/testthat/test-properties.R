@@ -5,11 +5,11 @@ pik5 <- inclusion_prob(c(10, 20, 30, 40, 50), n = 3) # n=3, N=5
 hits5 <- expected_hits(c(10, 20, 30, 40, 50), n = 3)
 
 # WOR fixed-size methods (excluding poisson: random size)
-wor_methods <- c("cps", "brewer", "systematic")
+wor_methods <- c("cps", "sampford", "brewer", "systematic")
 
 # Methods with exact joint inclusion probabilities
 # (Brewer uses an approximation, so exclude from exact analytical tests)
-exact_jip_methods <- c("cps", "systematic")
+exact_jip_methods <- c("cps", "sampford", "systematic")
 
 nrep <- 10000 # simulation reps
 
@@ -115,7 +115,7 @@ test_that("Delta matrix rows sum to zero for SRS", {
 
 # Property 4: Negative covariance for WOR designs
 test_that("Off-diagonal covariance is negative for WOR designs", {
-  for (method in c("cps", "brewer")) {
+  for (method in c("cps", "sampford", "brewer")) {
     s <- unequal_prob_wor(pik4, method = method)
     delta <- sampling_cov(s)
     off_diag <- delta[row(delta) != col(delta)]
@@ -129,7 +129,7 @@ test_that("Off-diagonal covariance is negative for WOR designs", {
 
 # Property 5: SYG check quantities non-positive for WOR
 test_that("SYG check quantities are non-positive off-diagonal", {
-  for (method in c("cps")) {
+  for (method in c("cps", "sampford")) {
     s <- unequal_prob_wor(pik5, method = method)
     chk <- sampling_cov(s, weighted = TRUE)
     off_diag <- chk[row(chk) != col(chk)]
@@ -143,7 +143,7 @@ test_that("SYG check quantities are non-positive off-diagonal", {
 
 # Property 6: Joint probability positivity (CPS, Brewer)
 test_that("All joint probabilities positive for CPS and Brewer (n >= 2)", {
-  for (method in c("cps", "brewer")) {
+  for (method in c("cps", "sampford", "brewer")) {
     s <- unequal_prob_wor(pik4, method = method)
     pikl <- joint_inclusion_prob(s)
     expect_true(all(pikl > 0), label = paste("All pikl > 0 for", method))

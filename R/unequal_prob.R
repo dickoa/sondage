@@ -18,6 +18,13 @@
 #'       probability table are O(Nn) (probability-domain
 #'       Poisson-binomial recurrence); each draw is O(N) thereafter.
 #'       Equal `pik` are drawn directly as SRS.}
+#'     \item{`"sampford"`}{Sampford's (1967) fixed-size PPS design.
+#'       Gives the supplied first-order inclusion probabilities exactly
+#'       and has exact joint inclusion probabilities. A native C kernel
+#'       combines the fast rejection construction with Grafstrom's
+#'       non-rejective conditional-Poisson fallback and draws the smaller
+#'       of the sample and its complement. Typical O(N + n); O(Nn) in the
+#'       fallback.}
 #'     \item{`"brewer"`}{Brewer's (1975) draw-by-draw method. Fixed
 #'       size, approximate joint probabilities (high-entropy
 #'       approximation; see [joint_inclusion_prob()]). O(Nn).}
@@ -72,6 +79,13 @@
 #'
 #' Brewer, K.R.W. (1975). A simple procedure for sampling pi-ps wor.
 #'   \emph{Australian Journal of Statistics}, 17(3), 166-172.
+#'
+#' Sampford, M.R. (1967). On sampling without replacement with unequal
+#'   probabilities of selection. \emph{Biometrika}, 54(3/4), 499-513.
+#'
+#' Grafstrom, A. (2009). Non-rejective implementations of the Sampford
+#'   sampling design. \emph{Journal of Statistical Planning and Inference},
+#'   139(6), 2111-2114.
 #'
 #' Ohlsson, E. (1998). Sequential Poisson sampling. \emph{Journal of
 #'   Official Statistics}, 14(2), 149-162.
@@ -128,7 +142,7 @@
 #' @export
 unequal_prob_wor <- function(
   pik,
-  method = c("cps", "brewer", "systematic", "poisson", "sps", "pareto"),
+  method = c("cps", "sampford", "brewer", "systematic", "poisson", "sps", "pareto"),
   nrep = 1L,
   prn = NULL,
   ...
@@ -162,6 +176,7 @@ unequal_prob_wor <- function(
     switch(
       method,
       cps = .cps_sample(pik, ...),
+      sampford = .sampford_sample(pik, ...),
       brewer = .brewer_sample(pik, ...),
       systematic = .systematic_pps_sample(pik, ...),
       poisson = .poisson_pps_sample(pik, prn = prn, ...),
@@ -304,6 +319,22 @@ unequal_prob_wr <- function(
     n = as.integer(round(sum(pik))),
     N = length(pik),
     method = "cps",
+    fixed_size = TRUE,
+    prob_class = "unequal_prob"
+  )
+}
+
+#' @noRd
+.sampford_sample <- function(pik, eps = NULL, ...) {
+  if (!is.null(eps)) .stop_eps_removed()
+  check_pik(pik, fixed_size = TRUE)
+  idx <- .Call(C_up_sampford, as.double(pik))
+  .new_wor_sample(
+    sample = idx,
+    pik = pik,
+    n = as.integer(round(sum(pik))),
+    N = length(pik),
+    method = "sampford",
     fixed_size = TRUE,
     prob_class = "unequal_prob"
   )
@@ -472,6 +503,7 @@ unequal_prob_wr <- function(
     pik_d <- as.double(pik)
     draw_fn <- switch(
       method,
+      sampford = function() .Call(C_up_sampford, pik_d),
       brewer = function() .Call(C_up_brewer, pik_d),
       systematic = function() .Call(C_up_systematic, pik_d),
       sps = function() .Call(C_up_sps, pik_d, NULL),

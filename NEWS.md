@@ -4,12 +4,13 @@ Initial CRAN release.
 
 ## Sampling
 
-Five dispatchers, 15 built-in methods:
+Five dispatchers, 16 built-in methods:
 
 * `equal_prob_wor(N, n, method=)`:  `"srs"`, `"systematic"`, `"bernoulli"`.
 * `equal_prob_wr(N, n, method=)`:  `"srs"`.
 * `unequal_prob_wor(pik, method=)`:  `"cps"` (conditional Poisson /
-  maximum entropy), `"brewer"`, `"systematic"`, `"poisson"`, `"sps"`
+  maximum entropy), `"sampford"` (exact fixed-size PPS with exact joint
+  inclusion probabilities), `"brewer"`, `"systematic"`, `"poisson"`, `"sps"`
   (sequential Poisson), `"pareto"`.
 * `unequal_prob_wr(hits, method=)`:  `"chromy"` (minimum replacement),
   `"multinomial"`.
@@ -37,7 +38,7 @@ additionally carry `"balanced"`).
 * `inclusion_prob()`: first-order inclusion probabilities (from size
   measures, or extracted from a WOR design).
 * `expected_hits()`: expected number of selections (WR analogue).
-* `joint_inclusion_prob()`:  exact for `cps`, `systematic`, `poisson`,
+* `joint_inclusion_prob()`:  exact for `cps`, `sampford`, `systematic`, `poisson`,
   `srs`, `bernoulli`; high-entropy approximation for `brewer`, `sps`,
   `pareto`, `cube`. Not available for `lpm2` or `scps`: well-spread designs are
   deliberately low-entropy, so no tractable approximation applies.

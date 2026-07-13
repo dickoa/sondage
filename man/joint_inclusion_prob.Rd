@@ -46,7 +46,8 @@ The computation depends on the method stored in the design object:
 
 \describe{
 \item{Exact}{\code{cps} (probability-domain Poisson-binomial
-recurrences), \code{systematic} (circular interval overlap), \code{poisson}
+recurrences), \code{sampford} (elementary-symmetric recurrences),
+\code{systematic} (circular interval overlap), \code{poisson}
 (\eqn{\pi_{ij} = \pi_i \pi_j}), \code{srs}, and \code{bernoulli}.}
 \item{Approximate}{\code{brewer}, \code{sps}, \code{pareto}, and \code{cube} use the
 high-entropy approximation (Brewer & Donadio, 2003, eq. 18):

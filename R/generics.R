@@ -226,7 +226,8 @@ expected_hits.wor <- function(x, ...) {
 #'
 #' \describe{
 #'   \item{Exact}{`cps` (probability-domain Poisson-binomial
-#'     recurrences), `systematic` (circular interval overlap), `poisson`
+#'     recurrences), `sampford` (elementary-symmetric recurrences),
+#'     `systematic` (circular interval overlap), `poisson`
 #'     (\eqn{\pi_{ij} = \pi_i \pi_j}), `srs`, and `bernoulli`.}
 #'   \item{Approximate}{`brewer`, `sps`, `pareto`, and `cube` use the
 #'     high-entropy approximation (Brewer & Donadio, 2003, eq. 18):
@@ -337,6 +338,11 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
         as.double(pik),
         as.integer(sample_idx)
       ),
+      sampford = .Call(
+        C_sampford_jip_sub,
+        as.double(pik),
+        as.integer(sample_idx)
+      ),
       systematic = .Call(
         C_up_systematic_jip_sub,
         as.double(pik),
@@ -371,6 +377,7 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
     pikl <- switch(
       x$method,
       cps = .Call(C_cps_jip, as.double(pik)),
+      sampford = .Call(C_sampford_jip, as.double(pik)),
       brewer = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),
       systematic = .Call(C_up_systematic_jip, as.double(pik)),
       sps = .Call(C_high_entropy_jip, as.double(pik), as.double(eps)),

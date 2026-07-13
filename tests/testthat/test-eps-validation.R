@@ -1,6 +1,6 @@
 test_that("fixed-size WOR methods reject the removed eps argument", {
   pik <- c(0.2, 0.3, 0.5)
-  for (method in c("cps", "brewer", "systematic", "sps", "pareto")) {
+  for (method in c("cps", "sampford", "brewer", "systematic", "sps", "pareto")) {
     expect_error(
       unequal_prob_wor(pik, method = method, eps = 1e-6),
       "no longer modifies the design",

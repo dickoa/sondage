@@ -13,7 +13,7 @@
 
 test_that("eps is rejected by fixed-size unequal probability methods", {
   p <- rep(0.1, 10)
-  for (m in c("cps", "brewer", "systematic", "sps", "pareto")) {
+  for (m in c("cps", "sampford", "brewer", "systematic", "sps", "pareto")) {
     expect_error(
       unequal_prob_wor(p, m, eps = 0.2),
       "no longer modifies the design",
@@ -36,7 +36,7 @@ test_that("fixed-size validation rejects non-integer pik sums strictly", {
   # off by 1e-3: statistically impossible fixed-size design
   p <- rep(0.1, 10)
   p[1] <- p[1] + 1e-3
-  for (m in c("cps", "brewer", "systematic", "sps", "pareto")) {
+  for (m in c("cps", "sampford", "brewer", "systematic", "sps", "pareto")) {
     expect_error(
       unequal_prob_wor(p, m),
       "not close to an integer",
@@ -65,7 +65,7 @@ test_that("fixed-size WOR methods return exactly n with exact 0/1 units", {
   # exact zeros and ones mixed with interior values summing to an integer
   base <- c(0, 1, 1, 0.3, 0.7, 0.25, 0.75, 0.5, 0.5, 0)
   n_declared <- as.integer(round(sum(base)))
-  for (m in c("cps", "brewer", "systematic", "sps", "pareto")) {
+  for (m in c("cps", "sampford", "brewer", "systematic", "sps", "pareto")) {
     for (rep in 1:20) {
       s <- suppressWarnings(unequal_prob_wor(base, m))
       expect_identical(length(s$sample), n_declared, info = m)

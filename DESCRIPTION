@@ -20,7 +20,7 @@ Description: Fast implementations of survey sampling algorithms for
     written in C.
     Provides equal probability methods (simple random sampling,
     systematic, Bernoulli), unequal probability methods (conditional
-    Poisson / maximum entropy, Brewer, systematic PPS, Pareto,
+    Poisson / maximum entropy, Sampford, Brewer, systematic PPS, Pareto,
     sequential Poisson, Poisson, Chromy's minimum replacement,
     multinomial), balanced sampling via the cube method, and
     spatially balanced sampling via the local pivotal method and

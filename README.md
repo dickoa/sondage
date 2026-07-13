@@ -66,17 +66,28 @@ chk   <- sampling_cov(s, weighted = TRUE) # 1 - pi_i * pi_j / pi_ij
 # Equal probability sampling
 s <- equal_prob_wor(nrow(states), 10)
 states[s$sample, ]
-#>                Population Income Illiteracy Life Exp Murder HS Grad Frost   Area
-#> Minnesota            3921   4675        0.6    72.96    2.3    57.6   160  79289
-#> Colorado             2541   4884        0.7    72.06    6.8    63.9   166 103766
-#> South Carolina       2816   3635        2.3    67.96   11.6    37.8    65  30225
-#> Utah                 1203   4022        0.6    72.90    4.5    67.3   137  82096
-#> Missouri             4767   4254        0.8    70.69    9.3    48.8   108  68995
-#> Wisconsin            4589   4468        0.7    72.48    3.0    54.5   149  54464
-#> Rhode Island          931   4558        1.3    71.90    2.4    46.4   127   1049
-#> Tennessee            4173   3821        1.7    70.11   11.0    41.8    70  41328
-#> Vermont               472   3907        0.6    71.64    5.5    57.1   168   9267
-#> Mississippi          2341   3098        2.4    68.09   12.5    41.0    50  47296
+#>                Population Income Illiteracy Life Exp Murder HS Grad Frost
+#> Minnesota            3921   4675        0.6    72.96    2.3    57.6   160
+#> Colorado             2541   4884        0.7    72.06    6.8    63.9   166
+#> South Carolina       2816   3635        2.3    67.96   11.6    37.8    65
+#> Utah                 1203   4022        0.6    72.90    4.5    67.3   137
+#> Missouri             4767   4254        0.8    70.69    9.3    48.8   108
+#> Wisconsin            4589   4468        0.7    72.48    3.0    54.5   149
+#> Rhode Island          931   4558        1.3    71.90    2.4    46.4   127
+#> Tennessee            4173   3821        1.7    70.11   11.0    41.8    70
+#> Vermont               472   3907        0.6    71.64    5.5    57.1   168
+#> Mississippi          2341   3098        2.4    68.09   12.5    41.0    50
+#>                  Area
+#> Minnesota       79289
+#> Colorado       103766
+#> South Carolina  30225
+#> Utah            82096
+#> Missouri        68995
+#> Wisconsin       54464
+#> Rhode Island     1049
+#> Tennessee       41328
+#> Vermont          9267
+#> Mississippi     47296
 ```
 
 ``` r
@@ -115,12 +126,15 @@ sim <- unequal_prob_wor(pik, method = "cps", nrep = 1000)
 dim(sim$sample)   # 10 x 1000
 #> [1]   10 1000
 inclusion_prob(sim) # generics still work
-#>  [1] 0.17026107 0.01719095 0.10418188 0.09937783 0.99839394 0.11967728 0.14600534 0.02727003 0.38983426
-#> [10] 0.23224269 0.04088150 0.03829108 0.52736187 0.25023432 0.13474880 0.10738457 0.15952261 0.17925688
-#> [19] 0.04983021 0.19414000 0.27383066 0.42911441 0.18467321 0.11025758 0.22451854 0.03513548 0.07272008
-#> [28] 0.02778811 0.03824398 0.34537328 0.05388068 0.85135243 0.25626292 0.03000174 0.50560237 0.12787242
-#> [37] 0.10757297 0.55858818 0.04384870 0.13262937 0.03207408 0.19654203 0.57634431 0.05665949 0.02223049
-#> [46] 0.23459761 0.16762355 0.08473020 0.21613500 0.01770903
+#>  [1] 0.17026107 0.01719095 0.10418188 0.09937783 0.99839394 0.11967728
+#>  [7] 0.14600534 0.02727003 0.38983426 0.23224269 0.04088150 0.03829108
+#> [13] 0.52736187 0.25023432 0.13474880 0.10738457 0.15952261 0.17925688
+#> [19] 0.04983021 0.19414000 0.27383066 0.42911441 0.18467321 0.11025758
+#> [25] 0.22451854 0.03513548 0.07272008 0.02778811 0.03824398 0.34537328
+#> [31] 0.05388068 0.85135243 0.25626292 0.03000174 0.50560237 0.12787242
+#> [37] 0.10757297 0.55858818 0.04384870 0.13262937 0.03207408 0.19654203
+#> [43] 0.57634431 0.05665949 0.02223049 0.23459761 0.16762355 0.08473020
+#> [49] 0.21613500 0.01770903
 ```
 
 ## Sampling functions
@@ -141,6 +155,8 @@ inclusion_prob(sim) # generics still work
 
 - `unequal_prob_wor(pik, method = "cps")` - Conditional Poisson /
   maximum entropy
+- `unequal_prob_wor(pik, method = "sampford")` - Exact Sampford PPS with
+  exact joint probabilities
 - `unequal_prob_wor(pik, method = "brewer")` - Brewer’s method
 - `unequal_prob_wor(pik, method = "systematic")` - Systematic PPS
 - `unequal_prob_wor(pik, method = "poisson")` - Poisson sampling (random
@@ -200,6 +216,7 @@ inclusion_prob(sim) # generics still work
 | `bernoulli` | `equal_prob_wor` | no | yes | yes (independent) | yes |
 | `srs` | `equal_prob_wr` | yes | yes | yes (analytic) | no |
 | `cps` | `unequal_prob_wor` | yes | yes | yes | no |
+| `sampford` | `unequal_prob_wor` | yes | yes | yes | no |
 | `brewer` | `unequal_prob_wor` | yes | yes | approx (HE) | no |
 | `systematic` | `unequal_prob_wor` | yes | yes | yes (some = 0) | no |
 | `poisson` | `unequal_prob_wor` | no | yes | yes (independent) | yes |
@@ -228,6 +245,9 @@ the stored target `pik` vector. HE = high-entropy approximation.
 - Use `cps` when exactness matters more than speed: it is the
   maximum-entropy fixed-size unequal-probability design, with exact
   first and second-order inclusion probabilities.
+- Use `sampford` for the SAS-familiar fixed-size PPS design with exact
+  first- and second-order inclusion probabilities. Its C kernel uses
+  complement sampling and a bounded-rejection/non-rejective hybrid.
 - Use `systematic` when very fast sampling and ordering or implicit
   stratification are central, and structural zeros in some joint
   inclusion probabilities are acceptable.
@@ -264,25 +284,39 @@ metadata makes that distinction enforceable rather than silently
 ignoring `aux`.
 
 ``` r
-# A simple Sampford wrapper
-sampford_sample <- function(pik, n = NULL, prn = NULL, ...) {
-  N <- length(pik)
-  q <- pik / (1 - pik)
-  repeat {
-    s <- c(sample.int(N, 1L, prob = pik),
-           sample.int(N, n - 1L, replace = TRUE, prob = q))
-    if (anyDuplicated(s) == 0L) return(sort(s))
+# A simple randomized pivotal sampler written in R
+random_pivotal_sample <- function(pik, n = NULL, prn = NULL, ...) {
+  p <- pik
+  tol <- 64 * .Machine$double.eps
+  active <- which(p > tol & p < 1 - tol)
+  while (length(active) >= 2L) {
+    ij <- sample(active, 2L)
+    i <- ij[1L]
+    j <- ij[2L]
+    total <- p[i] + p[j]
+    if (total < 1) {
+      if (runif(1) < p[i] / total) p[c(i, j)] <- c(total, 0)
+      else p[c(i, j)] <- c(0, total)
+    } else {
+      if (runif(1) < (1 - p[j]) / (2 - total)) {
+        p[c(i, j)] <- c(1, total - 1)
+      } else {
+        p[c(i, j)] <- c(total - 1, 1)
+      }
+    }
+    active <- which(p > tol & p < 1 - tol)
   }
+  sort(which(p > 0.5))
 }
 
-register_method("sampford", type = "wor", sample_fn = sampford_sample)
+register_method("random_pivotal", type = "wor", sample_fn = random_pivotal_sample)
 
 pik <- inclusion_prob(1:8, n = 3)
-s <- unequal_prob_wor(pik, method = "sampford")
+s <- unequal_prob_wor(pik, method = "random_pivotal")
 s
-#> Unequal prob WOR [sampford] (n=3, N=8): 3 4 8
+#> Unequal prob WOR [random_pivotal] (n=3, N=8): 6 7 8
 
-unregister_method("sampford")
+unregister_method("random_pivotal")
 ```
 
 See `vignette("custom-methods")` for more examples, including a custom

@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 ## Overview
 
-`sondage` ships with 15 built-in sampling methods, but researchers and agencies often need algorithms that are not included. The registration API lets you plug a custom unequal probability or balanced sampling method into the existing dispatchers and generics without modifying the package source.
+`sondage` ships with 16 built-in sampling methods, but researchers and agencies often need algorithms that are not included. The registration API lets you plug a custom unequal probability or balanced sampling method into the existing dispatchers and generics without modifying the package source.
 
 After registering a method, it participates in the same dispatcher and sample-object API as built-in methods. Joint-probability and covariance queries are available when the registration supplies a `joint_fn`.
 
@@ -53,168 +53,114 @@ Capability flags describe what the method can do, and the dispatchers enforce th
 
 Helper functions `registered_methods()`, `is_registered_method()`, and `unregister_method()` manage the registry.
 
-## Example 1: Sampford's method with high-entropy joint probabilities
+## Example 1: Randomized pivotal sampling
 
-Sampford's [-@sampford1967] rejection procedure draws exact $\pi$ps samples. The first unit is drawn with probability proportional to $\pi_k$; the remaining $n - 1$ units are drawn independently with replacement, each with probability proportional to $\pi_k / (1 -\pi_k)$. The draw is accepted only when all $n$ units are distinct.
+The pivotal method of @deville1998 repeatedly combines two fractional
+inclusion probabilities and resolves at least one of them to zero or one.
+Randomizing the pair at each step gives a compact example of an exact
+fixed-size $\pi$ps sampler that is not already a built-in `sondage` method.
 
-```{r sampford-fn}
-sampford_sample <- function(pik, n = NULL, prn = NULL, ...) {
-  N <- length(pik)
-  if (n == 1L) {
-    return(sample.int(N, 1L, prob = pik))
+```{r pivotal-fn}
+random_pivotal_sample <- function(pik, n = NULL, prn = NULL, ...) {
+  p <- as.double(pik)
+  tol <- 64 * .Machine$double.eps
+  active <- which(p > tol & p < 1 - tol)
+
+  while (length(active) >= 2L) {
+    ij <- sample(active, 2L)
+    i <- ij[1L]
+    j <- ij[2L]
+    total <- p[i] + p[j]
+
+    if (total < 1) {
+      if (runif(1) < p[i] / total) p[c(i, j)] <- c(total, 0)
+      else p[c(i, j)] <- c(0, total)
+    } else {
+      if (runif(1) < (1 - p[j]) / (2 - total)) {
+        p[c(i, j)] <- c(1, total - 1)
+      } else {
+        p[c(i, j)] <- c(total - 1, 1)
+      }
+    }
+    active <- which(p > tol & p < 1 - tol)
   }
-  q <- pik / (1 - pik)
-  repeat {
-    first <- sample.int(N, 1L, prob = pik)
-    rest  <- sample.int(N, n - 1L, replace = TRUE, prob = q)
-    s <- c(first, rest)
-    if (anyDuplicated(s) == 0L)
-      return(sort(s))
-  }
+  sort(which(p > 0.5))
 }
 ```
 
-The acceptance rate decreases as $n / N$ grows, so this implementation is best suited for moderate sampling fractions.
-
 ### Joint probabilities via `he_jip()`
 
-Sampford's design is a high-entropy design, so the high-entropy (HE) approximation of @brewer2003 applies. Rather than reimplementing the formula, we use `he_jip()`, which `sondage` exports for exactly this purpose. It calls the same optimised C code used internally for Brewer, SPS, Pareto, and cube methods, and it already matches the `joint_fn` signature expected by `register_method()`.
+Closed-form joint probabilities are not generally available for randomized
+pivotal sampling. To demonstrate the optional `joint_fn` hook, we attach the
+high-entropy approximation of @brewer2003. This makes the standard variance
+generics available, but it remains an approximation whose suitability should
+be checked for the intended population. For designs closer to conditional
+Poisson sampling, `hajek_jip()` is another exported approximation.
 
-For designs closer to conditional Poisson (rejective) sampling, `hajek_jip()` provides a lighter alternative based on @hajek1964.
-
-### Registering and using Sampford's method
-
-```{r sampford-register}
+```{r pivotal-register}
 library(sondage)
 
 register_method(
-  "sampford",
+  "random_pivotal",
   type            = "wor",
-  sample_fn       = sampford_sample,
+  sample_fn       = random_pivotal_sample,
   joint_fn        = he_jip,
   fixed_size      = TRUE,
   variance_family = "pps_brewer"
 )
 ```
 
-Sampford's design is fixed-size unequal-probability WOR, so
-`"pps_brewer"` is the natural `variance_family` declaration:
-downstream variance estimation treats it like the built-in fixed-size
-$\pi$ps methods (Brewer, SPS, Pareto). The declaration is verified by
-simulation below.
+The method is now available through the standard dispatcher, and its declared
+joint approximation flows through `joint_inclusion_prob()` and
+`sampling_cov()`:
 
-Once registered, the method is available through the standard
-dispatcher:
-
-```{r sampford-use}
+```{r pivotal-use}
 pik <- inclusion_prob(c(2, 3, 4, 5, 6, 7, 8, 9), n = 4)
-pik
-
-s <- unequal_prob_wor(pik, method = "sampford")
+s <- unequal_prob_wor(pik, method = "random_pivotal")
 s
-```
 
-All generics work transparently:
-
-```{r sampford-generics}
-# Joint inclusion probabilities
 pikl <- joint_inclusion_prob(s)
 round(pikl, 4)
-
-# Sampling covariance (Sen-Yates-Grundy check quantities)
 round(sampling_cov(s, weighted = TRUE), 4)
-
-# sampled_only for large populations
 joint_inclusion_prob(s, sampled_only = TRUE)
 ```
 
-### Verifying with simulation
+### Verifying the registration
 
-We can check that the empirical inclusion frequencies match the
-target $\pi_k$ and that the empirical pairwise frequencies match
-the HE approximation.
+Simulation verifies the exact first-order contract and shows how closely the
+chosen joint approximation follows this particular randomized pairing rule.
 
-```{r sampford-verify}
-sim <- unequal_prob_wor(pik, method = "sampford", nrep = 5000)
-dim(sim$sample) # n x nrep
-
-# First-order: empirical vs target
+```{r pivotal-verify}
+sim <- unequal_prob_wor(pik, method = "random_pivotal", nrep = 5000)
 freq <- tabulate(sim$sample, nbins = length(pik)) / 5000
 cbind(target = pik, empirical = freq)
-```
 
-```{r sampford-verify-joint}
-# Second-order: empirical vs HE approximation
 N <- length(pik)
 co_occur <- matrix(0, N, N)
 for (j in seq_len(5000)) {
-  idx <- sim$sample[, j]
-  co_occur[idx, idx] <- co_occur[idx, idx] + 1
+  selected <- sim$sample[, j]
+  co_occur[selected, selected] <- co_occur[selected, selected] + 1
 }
-diag(co_occur) <- 0
 empirical_jip <- co_occur / 5000
-diag(empirical_jip) <- freq
-
 he_pikl <- he_jip(pik)
 
-# Compare a few off-diagonal pairs
 pairs <- data.frame(
-  i      = c(1, 2, 3, 5),
-  j      = c(8, 7, 6, 8),
-  HE     = round(sapply(1:4, \(k) he_pikl[c(1,2,3,5)[k], c(8,7,6,8)[k]]), 4),
-  empirical = round(sapply(1:4, \(k) empirical_jip[c(1,2,3,5)[k], c(8,7,6,8)[k]]), 4)
+  i = c(1, 2, 3, 5),
+  j = c(8, 7, 6, 8)
 )
+pairs$HE <- round(he_pikl[cbind(pairs$i, pairs$j)], 4)
+pairs$empirical <- round(empirical_jip[cbind(pairs$i, pairs$j)], 4)
 pairs
 ```
 
-The HE approximation is close because Sampford's design is itself a high-entropy design.
+The first-order frequencies should agree within Monte Carlo error. Differences
+in the pairwise columns measure approximation error, not failure of the pivotal
+sampler. If that error is unacceptable, omit `joint_fn` and declare
+`variance_family = "unsupported"`, or supply a design-specific joint or
+variance estimator.
 
-The `variance_family` declaration can be checked the same way.
-`"pps_brewer"` asserts that the variance of a Horvitz-Thompson
-estimator under this design is described by the joint probabilities
-implied by the marginal $\pi_k$. Comparing the Monte Carlo variance of
-the HT total for a study variable against the variance implied by the
-declared family,
-$V(\hat{t}_y) = \sum_k \sum_l (\pi_{kl} - \pi_k \pi_l)
-\frac{y_k}{\pi_k} \frac{y_l}{\pi_l}$:
-
-```{r sampford-verify-variance}
-y <- c(5, 13, 8, 22, 16, 34, 27, 41) # a study variable
-ht <- apply(sim$sample, 2, function(idx) sum(y[idx] / pik[idx]))
-
-Delta <- he_pikl - outer(pik, pik) # diagonal is pik * (1 - pik)
-yp <- y / pik
-c(monte_carlo = var(ht), declared_family = sum(Delta * outer(yp, yp)))
-```
-
-The Monte Carlo value is the truth, up to simulation error; the
-declared-family value inherits the HE approximation. The gap is
-noticeably larger on the variance scale than the joint-probability
-comparison above suggests, because $\Delta_{kl} = \pi_{kl} - \pi_k
-\pi_l$ is a small difference of close quantities: percent-level
-errors in $\pi_{kl}$ are amplified, and $n/N = 1/2$ is a demanding
-sampling fraction for any high-entropy approximation. The exact
-Sampford joint probabilities confirm that the discrepancy is
-approximation error, not a wrong declaration:
-
-```{r sampford-verify-exact, eval = requireNamespace("sampling", quietly = TRUE)}
-pikl_exact <- sampling::UPsampfordpi2(pik)
-Delta_exact <- pikl_exact - outer(pik, pik)
-diag(Delta_exact) <- pik * (1 - pik)
-sum(Delta_exact * outer(yp, yp)) # next to the Monte Carlo value
-```
-
-This is the resolution of the check: it validates the order of
-magnitude, which is what a family declaration asserts. A misdeclared
-family is wrong by orders of magnitude, not by tens of percent. A
-random-size method with correlated selections declared `"poisson"`,
-or a Poisson-type method treated as fixed-size $\pi$ps, can report
-standard errors near zero. When no family fits, declare
-`"unsupported"` instead: an error at export time is recoverable, a
-silently wrong standard error is not.
-
-```{r sampford-cleanup, include = FALSE}
-unregister_method("sampford")
+```{r pivotal-cleanup, include = FALSE}
+unregister_method("random_pivotal")
 ```
 
 

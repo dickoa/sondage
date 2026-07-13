@@ -13,6 +13,7 @@
 
 .wor_specs <- list(
   cps = list(fixed_size = TRUE, prn = FALSE, variance_family = "pps_brewer"),
+  sampford = list(fixed_size = TRUE, prn = FALSE, variance_family = "pps_brewer"),
   brewer = list(fixed_size = TRUE, prn = FALSE, variance_family = "pps_brewer"),
   systematic = list(
     fixed_size = TRUE,

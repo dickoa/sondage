@@ -107,6 +107,7 @@ inclusion_prob(sim) # generics still work
 **Unequal probability without replacement** (`unequal_prob_wor`):
 
 - `unequal_prob_wor(pik, method = "cps")` - Conditional Poisson / maximum entropy
+- `unequal_prob_wor(pik, method = "sampford")` - Exact Sampford PPS with exact joint probabilities
 - `unequal_prob_wor(pik, method = "brewer")` - Brewer's method
 - `unequal_prob_wor(pik, method = "systematic")` - Systematic PPS
 - `unequal_prob_wor(pik, method = "poisson")` - Poisson sampling (random size)
@@ -153,6 +154,7 @@ inclusion_prob(sim) # generics still work
 | `bernoulli`   | `equal_prob_wor`   | no      | yes              | yes (independent)  | yes |
 | `srs`         | `equal_prob_wr`    | yes     | yes              | yes (analytic)     | no  |
 | `cps`         | `unequal_prob_wor` | yes     | yes              | yes                | no  |
+| `sampford`    | `unequal_prob_wor` | yes     | yes              | yes                | no  |
 | `brewer`      | `unequal_prob_wor` | yes     | yes              | approx (HE)        | no  |
 | `systematic`  | `unequal_prob_wor` | yes     | yes              | yes (some = 0)     | no  |
 | `poisson`     | `unequal_prob_wor` | no      | yes              | yes (independent)  | yes |
@@ -174,6 +176,7 @@ stored target `pik` vector. HE = high-entropy approximation.
 ## Choosing a method
 
 - Use `cps` when exactness matters more than speed: it is the maximum-entropy fixed-size unequal-probability design, with exact first and second-order inclusion probabilities.
+- Use `sampford` for the SAS-familiar fixed-size PPS design with exact first- and second-order inclusion probabilities. Its C kernel uses complement sampling and a bounded-rejection/non-rejective hybrid.
 - Use `systematic` when very fast sampling and ordering or implicit stratification are central, and structural zeros in some joint inclusion probabilities are acceptable.
 - Use `brewer` when you want exact first-order inclusion probabilities with lower computational cost than `cps`, and can work with approximate second-order quantities in `sondage`.
 - Use `poisson` when a random sample size is acceptable and independent selection is desirable.
@@ -197,24 +200,38 @@ exactly balance auxiliary totals; their `supports_aux = FALSE` metadata makes
 that distinction enforceable rather than silently ignoring `aux`.
 
 ```{r}
-# A simple Sampford wrapper
-sampford_sample <- function(pik, n = NULL, prn = NULL, ...) {
-  N <- length(pik)
-  q <- pik / (1 - pik)
-  repeat {
-    s <- c(sample.int(N, 1L, prob = pik),
-           sample.int(N, n - 1L, replace = TRUE, prob = q))
-    if (anyDuplicated(s) == 0L) return(sort(s))
+# A simple randomized pivotal sampler written in R
+random_pivotal_sample <- function(pik, n = NULL, prn = NULL, ...) {
+  p <- pik
+  tol <- 64 * .Machine$double.eps
+  active <- which(p > tol & p < 1 - tol)
+  while (length(active) >= 2L) {
+    ij <- sample(active, 2L)
+    i <- ij[1L]
+    j <- ij[2L]
+    total <- p[i] + p[j]
+    if (total < 1) {
+      if (runif(1) < p[i] / total) p[c(i, j)] <- c(total, 0)
+      else p[c(i, j)] <- c(0, total)
+    } else {
+      if (runif(1) < (1 - p[j]) / (2 - total)) {
+        p[c(i, j)] <- c(1, total - 1)
+      } else {
+        p[c(i, j)] <- c(total - 1, 1)
+      }
+    }
+    active <- which(p > tol & p < 1 - tol)
   }
+  sort(which(p > 0.5))
 }
 
-register_method("sampford", type = "wor", sample_fn = sampford_sample)
+register_method("random_pivotal", type = "wor", sample_fn = random_pivotal_sample)
 
 pik <- inclusion_prob(1:8, n = 3)
-s <- unequal_prob_wor(pik, method = "sampford")
+s <- unequal_prob_wor(pik, method = "random_pivotal")
 s
 
-unregister_method("sampford")
+unregister_method("random_pivotal")
 ```
 
 See `vignette("custom-methods")` for more examples, including a custom

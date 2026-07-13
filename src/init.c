@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 extern SEXP C_up_brewer(SEXP pik);
+extern SEXP C_up_sampford(SEXP pik);
 extern SEXP C_inclusion_prob(SEXP a, SEXP n);
 extern SEXP C_cps_single(SEXP pik);
 extern SEXP C_cps_design(SEXP pik);
@@ -13,6 +14,8 @@ extern SEXP C_chromy_joint_exp(SEXP x, SEXP n, SEXP nsim);
 extern SEXP C_chromy_joint_exp_sub(SEXP x, SEXP n, SEXP nsim, SEXP idx);
 extern SEXP C_cps_jip(SEXP pik);
 extern SEXP C_cps_jip_sub(SEXP pik, SEXP idx);
+extern SEXP C_sampford_jip(SEXP pik);
+extern SEXP C_sampford_jip_sub(SEXP pik, SEXP idx);
 extern SEXP C_up_systematic_jip(SEXP pik);
 extern SEXP C_up_systematic_jip_sub(SEXP pik, SEXP idx);
 extern SEXP C_high_entropy_jip(SEXP pik, SEXP eps);
@@ -31,6 +34,7 @@ extern SEXP C_scps_batch(SEXP pik, SEXP z, SEXP eps, SEXP nrep);
 
 static const R_CallMethodDef CallEntries[] = {
     {"C_up_brewer",               (DL_FUNC) &C_up_brewer,               1},
+    {"C_up_sampford",             (DL_FUNC) &C_up_sampford,             1},
     {"C_inclusion_prob",          (DL_FUNC) &C_inclusion_prob,          2},
     {"C_cps_single",              (DL_FUNC) &C_cps_single,              1},
     {"C_cps_design",              (DL_FUNC) &C_cps_design,              1},
@@ -40,6 +44,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"C_chromy_joint_exp_sub",    (DL_FUNC) &C_chromy_joint_exp_sub,    4},
     {"C_cps_jip",                 (DL_FUNC) &C_cps_jip,                 1},
     {"C_cps_jip_sub",             (DL_FUNC) &C_cps_jip_sub,             2},
+    {"C_sampford_jip",            (DL_FUNC) &C_sampford_jip,            1},
+    {"C_sampford_jip_sub",        (DL_FUNC) &C_sampford_jip_sub,        2},
     {"C_up_systematic_jip",     (DL_FUNC) &C_up_systematic_jip,     1},
     {"C_up_systematic_jip_sub", (DL_FUNC) &C_up_systematic_jip_sub, 2},
     {"C_high_entropy_jip",      (DL_FUNC) &C_high_entropy_jip,      2},

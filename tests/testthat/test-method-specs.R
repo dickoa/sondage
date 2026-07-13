@@ -8,6 +8,7 @@ test_that("WOR spec table has correct PRN capabilities", {
   expect_true(.method_supports_prn("pareto", "wor"))
   expect_true(.method_supports_prn("poisson", "wor"))
   expect_false(.method_supports_prn("cps", "wor"))
+  expect_false(.method_supports_prn("sampford", "wor"))
   expect_false(.method_supports_prn("brewer", "wor"))
   expect_false(.method_supports_prn("systematic", "wor"))
 })
@@ -25,6 +26,7 @@ test_that("EP WOR spec table has correct PRN capabilities", {
 
 test_that("fixed_size is correct for WOR methods", {
   expect_true(.method_is_fixed_size("cps", "wor"))
+  expect_true(.method_is_fixed_size("sampford", "wor"))
   expect_true(.method_is_fixed_size("brewer", "wor"))
   expect_true(.method_is_fixed_size("systematic", "wor"))
   expect_true(.method_is_fixed_size("sps", "wor"))
@@ -46,6 +48,7 @@ test_that("fixed_size is correct for EP WOR methods", {
 test_that("HE JIP methods list is complete", {
   expect_true(all(c("brewer", "sps", "pareto", "cube") %in% .he_jip_methods))
   expect_false("cps" %in% .he_jip_methods)
+  expect_false("sampford" %in% .he_jip_methods)
   expect_false("systematic" %in% .he_jip_methods)
   expect_false("poisson" %in% .he_jip_methods)
 })
@@ -243,7 +246,7 @@ test_that(".get_builtin_spec resolves balanced context", {
 # variance_family in the spec tables
 test_that("built-in spec tables declare correct variance families", {
   # Fixed-size unequal-probability WOR: Brewer treatment
-  for (m in c("cps", "brewer", "systematic", "sps", "pareto")) {
+  for (m in c("cps", "sampford", "brewer", "systematic", "sps", "pareto")) {
     expect_identical(
       .get_builtin_spec(m, "wor")$variance_family,
       "pps_brewer",
