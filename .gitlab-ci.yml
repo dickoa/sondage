@@ -14,7 +14,7 @@ cache:
 
 check-release:
   stage: check
-  image: rocker/r-ver:4.5.0
+  image: rocker/r-ver:4.6.0
   before_script:
     - apt-get update && apt-get install -y
         libcurl4-openssl-dev
@@ -50,7 +50,7 @@ check-devel:
 
 coverage:
   stage: coverage
-  image: rocker/r-ver:4.5.0
+  image: rocker/r-ver:4.6.0
   before_script:
     - apt-get update && apt-get install -y
         libcurl4-openssl-dev
@@ -72,7 +72,7 @@ coverage:
 
 pages:
   stage: pkgdown
-  image: rocker/r-ver:4.5.0
+  image: rocker/r-ver:4.6.0
   before_script:
     - apt-get update && apt-get install -y
         pandoc

@@ -2,6 +2,7 @@
  * Joint Inclusion Probabilities
  *
  * - C_cps_jip: Exact CPS joint probabilities (Aires' formula)
+ * - C_sampford_jip: Exact Sampford joint probabilities
  * - C_up_systematic_jip: Exact systematic sampling joint probabilities
  * - C_high_entropy_jip: High entropy approximation (equation 18, Brewer & Donadio 2003)
  */
@@ -513,6 +514,285 @@ SEXP C_cps_jip_sub(SEXP pik_sexp, SEXP idx_sexp) {
 
     UNPROTECT(1);
     return result;
+}
+
+/*
+ * Exact Sampford joint probability for one pair, computed with an
+ * elementary-symmetric-polynomial recurrence excluding that pair.
+ */
+static double sampford_pair_direct(const double *p, const long double *q,
+                                   int N, int m, int ii, int jj,
+                                   long double normalizer,
+                                   long double *e, long double *g) {
+    const int d = m - 2;
+    memset(e, 0, (size_t)(d + 1) * sizeof(long double));
+    memset(g, 0, (size_t)(d + 1) * sizeof(long double));
+    e[0] = 1.0L;
+    int seen = 0;
+    for (int k = 0; k < N; k++) {
+        if (k == ii || k == jj) continue;
+        int top = seen + 1;
+        if (top > d) top = d;
+        for (int r = top; r >= 1; r--) {
+            g[r] += q[k] * (g[r - 1] + (long double)p[k] * e[r - 1]);
+            e[r] += q[k] * e[r - 1];
+        }
+        seen++;
+    }
+    const long double raw = q[ii] * q[jj] *
+        (((long double)m - p[ii] - p[jj]) * e[d] - g[d]);
+    return (double)(raw / normalizer);
+}
+
+/* Exact pair value from a quadratic deletion of units i and j. */
+static double sampford_pair_fast(const double *p, const long double *q,
+                                 const long double *E, const long double *G,
+                                 int N, int m, int ii, int jj,
+                                 long double normalizer,
+                                 long double *e, long double *g) {
+    const int d = m - 2;
+    e[0] = 1.0L;
+    g[0] = 0.0L;
+    const long double qi = q[ii], qj = q[jj];
+    const long double s1 = qi + qj;
+    const long double s2 = qi * qj;
+    const long double h1 = (long double)p[ii] * qi +
+                           (long double)p[jj] * qj;
+    const long double h2 = s2 * ((long double)p[ii] + p[jj]);
+
+    int bad = 0;
+    for (int r = 1; r <= d; r++) {
+        const long double em1 = e[r - 1];
+        const long double em2 = (r >= 2) ? e[r - 2] : 0.0L;
+        const long double gm1 = g[r - 1];
+        const long double gm2 = (r >= 2) ? g[r - 2] : 0.0L;
+        e[r] = E[r] - s1 * em1 - s2 * em2;
+        g[r] = G[r] - s1 * gm1 - s2 * gm2 - h1 * em1 - h2 * em2;
+        if (!isfinite(e[r]) || !isfinite(g[r]) ||
+            e[r] < -64.0L * LDBL_EPSILON * fabsl(E[r])) {
+            bad = 1;
+            break;
+        }
+        if (e[r] < 0.0L) e[r] = 0.0L;
+        if (g[r] < 0.0L &&
+            g[r] > -64.0L * LDBL_EPSILON * fmaxl(1.0L, fabsl(G[r]))) {
+            g[r] = 0.0L;
+        }
+    }
+
+    double value = NAN;
+    if (!bad) {
+        const long double raw = qi * qj *
+            (((long double)m - p[ii] - p[jj]) * e[d] - g[d]);
+        value = (double)(raw / normalizer);
+        const double lo = fmax(0.0, p[ii] + p[jj] - 1.0);
+        const double hi = fmin(p[ii], p[jj]);
+        const double tol = 2e-10 * fmax(1.0, hi);
+        if (!R_FINITE(value) || value < lo - tol || value > hi + tol) bad = 1;
+    }
+    if (bad) {
+        value = sampford_pair_direct(p, q, N, m, ii, jj, normalizer, e, g);
+    }
+
+    const double lo = fmax(0.0, p[ii] + p[jj] - 1.0);
+    const double hi = fmin(p[ii], p[jj]);
+    if (value < lo && value > lo - 2e-12) value = lo;
+    if (value > hi && value < hi + 2e-12) value = hi;
+    return value;
+}
+
+/*
+ * Common implementation for the full matrix and a requested submatrix.
+ * idx is NULL for the full matrix and otherwise contains 1-based indices.
+ */
+static SEXP sampford_jip_impl(SEXP pik_sexp, const int *idx, int n_out) {
+    const int N_full = LENGTH(pik_sexp);
+    const double *pik = REAL(pik_sexp);
+    if (idx == NULL) n_out = N_full;
+
+    SEXP result = PROTECT(allocMatrix(REALSXP, n_out, n_out));
+    double *pikl = REAL(result);
+    memset(pikl, 0, (size_t)n_out * n_out * sizeof(double));
+
+    int N = 0;
+    double n_active_sum = 0.0;
+    for (int k = 0; k < N_full; k++) {
+        if (pik[k] > 0.0 && pik[k] < 1.0) {
+            N++;
+            n_active_sum += pik[k];
+        }
+    }
+    const int n_active = (int) floor(n_active_sum + 0.5);
+
+    int *pop_to_active = (int *) R_alloc(N_full, sizeof(int));
+    for (int k = 0; k < N_full; k++) pop_to_active[k] = -1;
+    double *p_orig = (double *) R_alloc((N > 0 ? N : 1), sizeof(double));
+    int ai = 0;
+    for (int k = 0; k < N_full; k++) {
+        if (pik[k] > 0.0 && pik[k] < 1.0) {
+            pop_to_active[k] = ai;
+            p_orig[ai++] = pik[k];
+        }
+    }
+
+    /* Diagonal, certainty pairs, and zero-probability pairs. */
+    for (int a = 0; a < n_out; a++) {
+        const int ka = idx ? idx[a] - 1 : a;
+        pikl[(size_t)a * n_out + a] = pik[ka];
+        for (int b = 0; b < a; b++) {
+            const int kb = idx ? idx[b] - 1 : b;
+            double v = NAN;
+            if (pik[ka] <= 0.0 || pik[kb] <= 0.0) v = 0.0;
+            else if (pik[ka] >= 1.0) v = pik[kb];
+            else if (pik[kb] >= 1.0) v = pik[ka];
+            if (!ISNAN(v)) {
+                pikl[(size_t)a * n_out + b] = v;
+                pikl[(size_t)b * n_out + a] = v;
+            }
+        }
+    }
+
+    if (N < 2 || n_active < 1) {
+        UNPROTECT(1);
+        return result;
+    }
+
+    int use_complement = (n_active > N - n_active);
+    if (use_complement) {
+        for (int i = 0; i < N; i++) {
+            if (!(1.0 - p_orig[i] < 1.0)) {
+                use_complement = 0;
+                break;
+            }
+        }
+    }
+    const int m = use_complement ? N - n_active : n_active;
+    double *p = (double *) R_alloc(N, sizeof(double));
+    for (int i = 0; i < N; i++) {
+        p[i] = use_complement ? 1.0 - p_orig[i] : p_orig[i];
+    }
+
+    int all_equal = 1;
+    const double eqtol = 32.0 * DBL_EPSILON * fmax(1.0, fabs(p[0]));
+    for (int i = 1; i < N; i++) {
+        if (fabs(p[i] - p[0]) > eqtol) {
+            all_equal = 0;
+            break;
+        }
+    }
+
+    if (all_equal) {
+        const double v = (N > 1) ?
+            (double)n_active * (n_active - 1) / ((double)N * (N - 1)) : 0.0;
+        for (int a = 0; a < n_out; a++) {
+            const int ka = idx ? idx[a] - 1 : a;
+            if (pop_to_active[ka] < 0) continue;
+            for (int b = 0; b < a; b++) {
+                const int kb = idx ? idx[b] - 1 : b;
+                if (pop_to_active[kb] < 0) continue;
+                pikl[(size_t)a * n_out + b] = v;
+                pikl[(size_t)b * n_out + a] = v;
+            }
+        }
+        UNPROTECT(1);
+        return result;
+    }
+
+    if (m < 2) {
+        for (int a = 0; a < n_out; a++) {
+            const int ka = idx ? idx[a] - 1 : a;
+            const int iact = pop_to_active[ka];
+            if (iact < 0) continue;
+            for (int b = 0; b < a; b++) {
+                const int kb = idx ? idx[b] - 1 : b;
+                const int jact = pop_to_active[kb];
+                if (jact < 0) continue;
+                double v = use_complement ?
+                    p_orig[iact] + p_orig[jact] - 1.0 : 0.0;
+                if (v < 0.0 && v > -2e-12) v = 0.0;
+                pikl[(size_t)a * n_out + b] = v;
+                pikl[(size_t)b * n_out + a] = v;
+            }
+        }
+        UNPROTECT(1);
+        return result;
+    }
+
+    /* Scale the odds to limit growth in the ESP recurrence. */
+    double max_odds = 0.0;
+    for (int i = 0; i < N; i++) {
+        const double o = p[i] / (1.0 - p[i]);
+        if (o > max_odds) max_odds = o;
+    }
+    long double scaled_sum = 0.0L;
+    for (int i = 0; i < N; i++) {
+        scaled_sum += (long double)(p[i] / (1.0 - p[i])) / max_odds;
+    }
+    long double *q = (long double *) R_alloc(N, sizeof(long double));
+    for (int i = 0; i < N; i++) {
+        q[i] = ((long double)(p[i] / (1.0 - p[i])) / max_odds) *
+               (long double)m / scaled_sum;
+    }
+
+    long double *E = (long double *) R_alloc(m + 1, sizeof(long double));
+    long double *G = (long double *) R_alloc(m + 1, sizeof(long double));
+    memset(E, 0, (size_t)(m + 1) * sizeof(long double));
+    memset(G, 0, (size_t)(m + 1) * sizeof(long double));
+    E[0] = 1.0L;
+    int seen = 0;
+    for (int i = 0; i < N; i++) {
+        int top = seen + 1;
+        if (top > m) top = m;
+        for (int r = top; r >= 1; r--) {
+            G[r] += q[i] * (G[r - 1] + (long double)p[i] * E[r - 1]);
+            E[r] += q[i] * E[r - 1];
+        }
+        seen++;
+    }
+    const long double normalizer = (long double)m * E[m] - G[m];
+    if (!(normalizer > 0.0L) || !isfinite(normalizer)) {
+        UNPROTECT(1);
+        error("Sampford joint-probability normalizer is non-finite");
+    }
+
+    const int d = m - 2;
+    long double *e = (long double *) R_alloc(d + 1, sizeof(long double));
+    long double *g = (long double *) R_alloc(d + 1, sizeof(long double));
+
+    for (int a = 0; a < n_out; a++) {
+        if ((a & 127) == 0) R_CheckUserInterrupt();
+        const int ka = idx ? idx[a] - 1 : a;
+        const int iact = pop_to_active[ka];
+        if (iact < 0) continue;
+        for (int b = 0; b < a; b++) {
+            const int kb = idx ? idx[b] - 1 : b;
+            const int jact = pop_to_active[kb];
+            if (jact < 0) continue;
+            double work_v = sampford_pair_fast(p, q, E, G, N, m,
+                                                iact, jact, normalizer, e, g);
+            double v = work_v;
+            if (use_complement) {
+                v = p_orig[iact] + p_orig[jact] - 1.0 + work_v;
+            }
+            const double lo = fmax(0.0, p_orig[iact] + p_orig[jact] - 1.0);
+            const double hi = fmin(p_orig[iact], p_orig[jact]);
+            if (v < lo && v > lo - 2e-10) v = lo;
+            if (v > hi && v < hi + 2e-10) v = hi;
+            pikl[(size_t)a * n_out + b] = v;
+            pikl[(size_t)b * n_out + a] = v;
+        }
+    }
+
+    UNPROTECT(1);
+    return result;
+}
+
+SEXP C_sampford_jip(SEXP pik_sexp) {
+    return sampford_jip_impl(pik_sexp, NULL, LENGTH(pik_sexp));
+}
+
+SEXP C_sampford_jip_sub(SEXP pik_sexp, SEXP idx_sexp) {
+    return sampford_jip_impl(pik_sexp, INTEGER(idx_sexp), LENGTH(idx_sexp));
 }
 
 /*
