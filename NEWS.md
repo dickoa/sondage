@@ -84,6 +84,10 @@ sampled-units submatrix (useful for large populations).
   itself is never affected. `method_spec()` reports the tier for
   every method: built-ins are `"exact"` except `"sps"` and
   `"pareto"`, which report `"approximate"`.
+* `method_spec()` also returns `sample_fn` and `joint_fn`, the
+  implementation functions of a registered method (`NULL` for
+  built-ins). Downstream packages use them to fingerprint the
+  implementation a saved design was executed with.
 * `he_jip()` (Brewer & Donadio 2003 high-entropy approximation) and
   `hajek_jip()` (Hajek 1964) are exported and can be passed directly
   as `joint_fn` to `register_method()`.

@@ -118,14 +118,17 @@
 #'   `"balanced"`), `fixed_size` (logical), `variance_family` (one of
 #'   `"srs"`, `"pps_brewer"`, `"poisson"`, `"wr"`, `"unsupported"`, or
 #'   `NULL` for a registered method that did not declare one; see
-#'   [register_method()]), `probabilities` (where the method sits in the
+#'   [register_method()]), `supports_prn` (logical), `supports_aux`
+#'   (logical), `supports_strata` (logical), `supports_spread`
+#'   (logical), and `probabilities` (where the method sits in the
 #'   first-order probability taxonomy: `"exact"` for every built-in
 #'   except `"sps"` and `"pareto"`, which honor `pik` to a documented
 #'   approximation and report `"approximate"`; for a registered
 #'   method the declared tier, `"unknown"` when the author did not
-#'   establish one), `supports_prn` (logical), `supports_aux`
-#'   (logical), `supports_strata` (logical), and `supports_spread`
-#'   (logical), or `NULL` if the method is unknown. The
+#'   establish one), plus `sample_fn` and `joint_fn` (the registered
+#'   implementation functions for a registered method, `NULL` for
+#'   built-ins, whose implementations are internal dispatch paths).
+#'   Returns `NULL` if the method is unknown. The
 #'   aux/strata/spread capabilities are only `TRUE` for balanced
 #'   methods. For the two names shared by an equal- and an
 #'   unequal-probability built-in, the lookup resolves as it does for
@@ -153,11 +156,13 @@ method_spec <- function(name) {
       # NULL when undeclared: list(x = NULL) keeps the element, so the
       # field is always present in the returned spec
       variance_family = reg$variance_family,
-      probabilities = reg$probabilities,
       supports_prn = reg$supports_prn,
       supports_aux = isTRUE(reg$supports_aux),
       supports_strata = isTRUE(reg$supports_strata),
-      supports_spread = isTRUE(reg$supports_spread)
+      supports_spread = isTRUE(reg$supports_spread),
+      probabilities = reg$probabilities,
+      sample_fn = reg$sample_fn,
+      joint_fn = reg$joint_fn
     ))
   }
 
@@ -183,6 +188,10 @@ method_spec <- function(name) {
         type = type,
         fixed_size = isTRUE(spec$fixed_size),
         variance_family = spec$variance_family,
+        supports_prn = isTRUE(spec$prn),
+        supports_aux = isTRUE(spec$aux),
+        supports_strata = isTRUE(spec$strata),
+        supports_spread = isTRUE(spec$spread),
         # Exact is the built-in norm; only the order-sampling pair
         # (sps, pareto) carries "approximate" in its spec entry.
         probabilities = if (is.null(spec$probabilities)) {
@@ -190,10 +199,10 @@ method_spec <- function(name) {
         } else {
           spec$probabilities
         },
-        supports_prn = isTRUE(spec$prn),
-        supports_aux = isTRUE(spec$aux),
-        supports_strata = isTRUE(spec$strata),
-        supports_spread = isTRUE(spec$spread)
+        # Built-in implementations are internal dispatch paths, not
+        # registry entries; only registered methods expose functions.
+        sample_fn = NULL,
+        joint_fn = NULL
       ))
     }
   }

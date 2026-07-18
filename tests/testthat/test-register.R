@@ -1233,6 +1233,38 @@ test_that("probabilities defaults to unknown", {
   expect_identical(spec$probabilities, "unknown")
 })
 
+test_that("method_spec exposes registered implementations, NULL for built-ins", {
+  on.exit(unregister_method("impl_expose"), add = TRUE)
+  register_method(
+    "impl_expose", "wor",
+    sample_fn = toy_wor_sample,
+    joint_fn = NULL
+  )
+  spec <- method_spec("impl_expose")
+  expect_identical(spec$sample_fn, toy_wor_sample)
+  expect_null(spec$joint_fn)
+
+  builtin <- method_spec("brewer")
+  expect_true(all(c("sample_fn", "joint_fn") %in% names(builtin)))
+  expect_null(builtin$sample_fn)
+  expect_null(builtin$joint_fn)
+})
+
+test_that("probabilities sits last: pre-0.8.8 positional calls still bind", {
+  on.exit(unregister_method("prob_positional"), add = TRUE)
+  # Positional order through supports_spread predates the probabilities
+  # argument; it must keep binding the capability flags, not probabilities.
+  register_method(
+    "prob_positional", "wor", toy_wor_sample, NULL, TRUE, "pps_brewer",
+    TRUE, TRUE, FALSE, FALSE
+  )
+
+  spec <- method_spec("prob_positional")
+  expect_true(spec$supports_prn)
+  expect_identical(spec$variance_family, "pps_brewer")
+  expect_identical(spec$probabilities, "unknown")
+})
+
 test_that("built-in methods report their probabilities tier", {
   exact <- c(
     "srs", "systematic", "bernoulli",

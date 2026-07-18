@@ -11,11 +11,11 @@ register_method(
   joint_fn = NULL,
   fixed_size = TRUE,
   variance_family = NULL,
-  probabilities = c("unknown", "exact", "approximate"),
   supports_prn = FALSE,
   supports_aux = TRUE,
   supports_strata = FALSE,
-  supports_spread = FALSE
+  supports_spread = FALSE,
+  probabilities = c("unknown", "exact", "approximate")
 )
 }
 \arguments{
@@ -45,38 +45,6 @@ packages that export designs for variance estimation. One of
 default) means undeclared: consumers fall back on inferring a
 treatment from \code{type} and \code{fixed_size}.}
 
-\item{probabilities}{Where the method sits in the first-order
-probability taxonomy, for downstream packages that weight or
-record per-unit selection probabilities:
-\itemize{
-\item \code{"exact"}: the realized first-order inclusion probabilities
-(types \code{"wor"} and \code{"balanced"}) or expected hits (type
-\code{"wr"}) equal the \code{pik} vector passed to \code{sample_fn}, as for
-Sampford or the cube method.
-\item \code{"approximate"}: \code{pik} is the method's first-order target,
-achieved up to a documented approximation, as for Pareto or
-sequential Poisson order sampling. Design weights \code{1/pik}
-remain standard practice.
-\item \code{"unknown"} (the default): \code{pik} is an input weight or
-preference only, so the realized first-order probabilities are
-not known. The toy sampler in the examples is such a method:
-successive sampling with \code{prob = pik} does not yield inclusion
-probabilities equal to \code{pik}, so its design weights \code{1/pik}
-would be systematically biased, not merely noisy. (The same
-draw \emph{with} replacement does honor expected hits, so a
-multinomial-style \code{type = "wr"} method declares \code{"exact"}.)
-}
-
-The default is deliberately strict: if you have not established
-which tier your method is in, its selection probabilities are
-unknown, and downstream packages that weight estimation by
-\code{1/pik} may refuse to draw with it rather than produce biased
-weights. Sampling through sondage itself is unaffected: the
-declaration describes the method, it never disables it. Like
-\code{variance_family}, the declaration is an assertion by the method
-author that sondage cannot verify; the package vignette shows
-how to check a first-order contract by simulation.}
-
 \item{supports_prn}{Does this method support permanent random
 numbers for sample coordination? Only \code{"wor"} and \code{"wr"} methods;
 \code{\link[=balanced_wor]{balanced_wor()}} has no \code{prn} argument.}
@@ -98,6 +66,38 @@ argument.}
 \code{type = "balanced"}. When \code{FALSE} (the default), passing \code{spread}
 to \code{\link[=balanced_wor]{balanced_wor()}} with this method is an error, and \code{sample_fn}
 does not need a \code{spread} argument.}
+
+\item{probabilities}{Where the method sits in the first-order
+probability taxonomy, for downstream packages that weight or
+record per-unit selection probabilities:
+\itemize{
+\item \code{"exact"}: the true first-order inclusion probabilities
+(types \code{"wor"} and \code{"balanced"}) or expected hits (type
+\code{"wr"}) equal the \code{pik} vector passed to \code{sample_fn}, as for
+Sampford or the cube method.
+\item \code{"approximate"}: \code{pik} is the method's first-order target,
+achieved up to a documented approximation, as for Pareto or
+sequential Poisson order sampling. Design weights \code{1/pik}
+remain standard practice.
+\item \code{"unknown"} (the default): \code{pik} is an input weight or
+preference only, so the true first-order probabilities are
+not known. The toy sampler in the examples is such a method:
+successive sampling with \code{prob = pik} does not yield inclusion
+probabilities equal to \code{pik}, so its design weights \code{1/pik}
+would be systematically biased, not merely noisy. (The same
+draw \emph{with} replacement does honor expected hits, so a
+multinomial-style \code{type = "wr"} method declares \code{"exact"}.)
+}
+
+The default is deliberately strict: if you have not established
+which tier your method is in, its selection probabilities are
+unknown, and downstream packages that weight estimation by
+\code{1/pik} may refuse to draw with it rather than produce biased
+weights. Sampling through sondage itself is unaffected: the
+declaration describes the method, it never disables it. Like
+\code{variance_family}, the declaration is an assertion by the method
+author that sondage cannot verify; the package vignette shows
+how to check a first-order contract by simulation.}
 }
 \value{
 Invisible \code{NULL}, called for its side effect.
@@ -190,8 +190,8 @@ selection. Hansen-Hurwitz variance, no finite population
 correction. Requires \code{type = "wr"}.}
 \item{\code{"unsupported"}}{No linearization treatment is valid;
 consumers should refuse to linearize and point to replicate
-methods instead. The honest choice for correlated random-size
-schemes. Always allowed.}
+methods instead. The correct declaration for correlated
+random-size schemes. Always allowed.}
 }
 
 Balanced methods allow only \code{"pps_brewer"} or \code{"unsupported"}:

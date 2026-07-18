@@ -30,35 +30,6 @@
 #'   `"unsupported"`; see **Variance families** below. `NULL` (the
 #'   default) means undeclared: consumers fall back on inferring a
 #'   treatment from `type` and `fixed_size`.
-#' @param probabilities Where the method sits in the first-order
-#'   probability taxonomy, for downstream packages that weight or
-#'   record per-unit selection probabilities:
-#'   - `"exact"`: the realized first-order inclusion probabilities
-#'     (types `"wor"` and `"balanced"`) or expected hits (type
-#'     `"wr"`) equal the `pik` vector passed to `sample_fn`, as for
-#'     Sampford or the cube method.
-#'   - `"approximate"`: `pik` is the method's first-order target,
-#'     achieved up to a documented approximation, as for Pareto or
-#'     sequential Poisson order sampling. Design weights `1/pik`
-#'     remain standard practice.
-#'   - `"unknown"` (the default): `pik` is an input weight or
-#'     preference only, so the realized first-order probabilities are
-#'     not known. The toy sampler in the examples is such a method:
-#'     successive sampling with `prob = pik` does not yield inclusion
-#'     probabilities equal to `pik`, so its design weights `1/pik`
-#'     would be systematically biased, not merely noisy. (The same
-#'     draw \emph{with} replacement does honor expected hits, so a
-#'     multinomial-style `type = "wr"` method declares `"exact"`.)
-#'
-#'   The default is deliberately strict: if you have not established
-#'   which tier your method is in, its selection probabilities are
-#'   unknown, and downstream packages that weight estimation by
-#'   `1/pik` may refuse to draw with it rather than produce biased
-#'   weights. Sampling through sondage itself is unaffected: the
-#'   declaration describes the method, it never disables it. Like
-#'   `variance_family`, the declaration is an assertion by the method
-#'   author that sondage cannot verify; the package vignette shows
-#'   how to check a first-order contract by simulation.
 #' @param supports_prn Does this method support permanent random
 #'   numbers for sample coordination? Only `"wor"` and `"wr"` methods;
 #'   [balanced_wor()] has no `prn` argument.
@@ -77,6 +48,35 @@
 #'   `type = "balanced"`. When `FALSE` (the default), passing `spread`
 #'   to [balanced_wor()] with this method is an error, and `sample_fn`
 #'   does not need a `spread` argument.
+#' @param probabilities Where the method sits in the first-order
+#'   probability taxonomy, for downstream packages that weight or
+#'   record per-unit selection probabilities:
+#'   - `"exact"`: the true first-order inclusion probabilities
+#'     (types `"wor"` and `"balanced"`) or expected hits (type
+#'     `"wr"`) equal the `pik` vector passed to `sample_fn`, as for
+#'     Sampford or the cube method.
+#'   - `"approximate"`: `pik` is the method's first-order target,
+#'     achieved up to a documented approximation, as for Pareto or
+#'     sequential Poisson order sampling. Design weights `1/pik`
+#'     remain standard practice.
+#'   - `"unknown"` (the default): `pik` is an input weight or
+#'     preference only, so the true first-order probabilities are
+#'     not known. The toy sampler in the examples is such a method:
+#'     successive sampling with `prob = pik` does not yield inclusion
+#'     probabilities equal to `pik`, so its design weights `1/pik`
+#'     would be systematically biased, not merely noisy. (The same
+#'     draw \emph{with} replacement does honor expected hits, so a
+#'     multinomial-style `type = "wr"` method declares `"exact"`.)
+#'
+#'   The default is deliberately strict: if you have not established
+#'   which tier your method is in, its selection probabilities are
+#'   unknown, and downstream packages that weight estimation by
+#'   `1/pik` may refuse to draw with it rather than produce biased
+#'   weights. Sampling through sondage itself is unaffected: the
+#'   declaration describes the method, it never disables it. Like
+#'   `variance_family`, the declaration is an assertion by the method
+#'   author that sondage cannot verify; the package vignette shows
+#'   how to check a first-order contract by simulation.
 #'
 #' @section Contracts:
 #'
@@ -158,8 +158,8 @@
 #'     correction. Requires `type = "wr"`.}
 #'   \item{`"unsupported"`}{No linearization treatment is valid;
 #'     consumers should refuse to linearize and point to replicate
-#'     methods instead. The honest choice for correlated random-size
-#'     schemes. Always allowed.}
+#'     methods instead. The correct declaration for correlated
+#'     random-size schemes. Always allowed.}
 #' }
 #'
 #' Balanced methods allow only `"pps_brewer"` or `"unsupported"`:
@@ -214,11 +214,11 @@ register_method <- function(
   joint_fn = NULL,
   fixed_size = TRUE,
   variance_family = NULL,
-  probabilities = c("unknown", "exact", "approximate"),
   supports_prn = FALSE,
   supports_aux = TRUE,
   supports_strata = FALSE,
-  supports_spread = FALSE
+  supports_spread = FALSE,
+  probabilities = c("unknown", "exact", "approximate")
 ) {
   if (!is.character(name) || length(name) != 1L || nchar(name) == 0L) {
     stop("'name' must be a non-empty character string", call. = FALSE)
@@ -360,13 +360,13 @@ register_method <- function(
     joint_fn = joint_fn,
     fixed_size = fixed_size,
     variance_family = variance_family,
-    probabilities = probabilities,
     supports_prn = supports_prn,
     # aux is only meaningful for balanced methods; normalise so
     # method_spec() reports FALSE for wor/wr registrations
     supports_aux = supports_aux && type == "balanced",
     supports_strata = supports_strata,
-    supports_spread = supports_spread
+    supports_spread = supports_spread,
+    probabilities = probabilities
   )
 
   invisible(NULL)
