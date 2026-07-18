@@ -1190,6 +1190,79 @@ test_that("declared variance_family does not affect sampling dispatch", {
   expect_length(s$sample, 2L)
 })
 
+# exact_chance declaration
+test_that("register_method validates exact_chance values", {
+  bad_values <- list("yes", 1, NA, c(TRUE, FALSE), logical(0))
+  for (bad in bad_values) {
+    expect_error(
+      register_method(
+        "ec_bad",
+        "wor",
+        sample_fn = toy_wor_sample,
+        exact_chance = bad
+      ),
+      "'exact_chance' must be NULL, TRUE, or FALSE"
+    )
+  }
+  expect_false(is_registered_method("ec_bad"))
+})
+
+test_that("exact_chance declarations register and are reported per type", {
+  values <- list(declared_true = TRUE, declared_false = FALSE, undeclared = NULL)
+  for (type in c("wor", "wr", "balanced")) {
+    fn <- if (type == "wr") toy_wr_sample else toy_wor_sample
+    for (v in names(values)) {
+      name <- paste0("ec_", type, "_", v)
+      on.exit(unregister_method(name), add = TRUE)
+      register_method(
+        name,
+        type,
+        sample_fn = fn,
+        exact_chance = values[[v]]
+      )
+      spec <- method_spec(name)
+      expect_true("exact_chance" %in% names(spec), info = name)
+      expect_identical(spec$exact_chance, values[[v]], info = name)
+    }
+  }
+})
+
+test_that("exact_chance defaults to NULL (undeclared), field present", {
+  on.exit(unregister_method("ec_default"), add = TRUE)
+  register_method("ec_default", "wor", sample_fn = toy_wor_sample)
+
+  spec <- method_spec("ec_default")
+  expect_true("exact_chance" %in% names(spec))
+  expect_null(spec$exact_chance)
+})
+
+test_that("built-in methods report exact_chance = TRUE", {
+  builtins <- c(
+    "srs", "systematic", "bernoulli",
+    "cps", "sampford", "brewer", "poisson", "sps", "pareto",
+    "chromy", "multinomial",
+    "cube", "lpm2", "scps"
+  )
+  for (m in builtins) {
+    expect_true(method_spec(m)$exact_chance, info = m)
+  }
+})
+
+test_that("declared exact_chance does not affect sampling dispatch", {
+  on.exit(unregister_method("ec_draw"), add = TRUE)
+  register_method(
+    "ec_draw",
+    "wor",
+    sample_fn = toy_wor_sample,
+    exact_chance = FALSE
+  )
+
+  pik <- inclusion_prob(c(1, 2, 3, 4, 5), n = 2)
+  s <- unequal_prob_wor(pik, method = "ec_draw")
+  expect_s3_class(s, "sondage_sample")
+  expect_length(s$sample, 2L)
+})
+
 test_that("registered WOR methods must return valid sample indices", {
   pik <- rep(0.5, 4)
   bad_samples <- list(

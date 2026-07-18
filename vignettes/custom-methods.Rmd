@@ -35,6 +35,7 @@ register_method(
   joint_fn = NULL,          # function(pik, sample_idx, ...) -> matrix (optional)
   fixed_size = TRUE,        # required for with-replacement methods
   variance_family = NULL,   # declared variance-estimation family (optional)
+  exact_chance = NULL,      # does the method honor pik as its chance target? (optional)
   supports_prn = FALSE,     # does the method support permanent random numbers?
   supports_aux = TRUE,      # balanced only: does it use balancing variables?
   supports_strata = FALSE,  # balanced only: does it handle stratification?
@@ -50,6 +51,8 @@ Two contracts must be respected:
 Capability flags describe what the method can do, and the dispatchers enforce them. A `"wor"` or `"wr"` method that sets `supports_prn = TRUE` receives a validated `prn` vector for sample coordination. Otherwise the dispatcher warns that `prn` is ignored and passes `NULL` to the method. A `"balanced"` method only receives a `strata` argument when registered with `supports_strata = TRUE`, and a `spread` argument (spatial coordinates) when registered with `supports_spread = TRUE`. Spread-only methods that never look at balancing variables should declare `supports_aux = FALSE`. In every case, passing a design input to a method without the matching capability is an error rather than a warning, because silently dropping `aux`, `strata`, or `spread` would change the design. The simplest balanced registration therefore needs nothing beyond `aux`.
 
 `variance_family` declares how design-based variance should be estimated for samples drawn with the method: `"srs"`, `"pps_brewer"`, `"poisson"`, `"wr"`, or `"unsupported"`. `sondage` does not use it itself, but packages that export samples for variance estimation do. Without a declaration they must infer a treatment from `type` and `fixed_size`, and for a random-size WOR method no safe inference exists because a Poisson-type method (independent selections) and a correlated random-size scheme need different estimators. The declaration is an assertion the author is responsible for; `?register_method` lists the constraints between `variance_family`, `type`, and `fixed_size`, and Example 1 shows how to check a declaration by simulation. When in doubt, declare `"unsupported"` rather than guess.
+
+`exact_chance` declares whether the method honors `pik` as its first-order chance target: `TRUE` when the realized inclusion probabilities (or expected hits, for `"wr"`) equal the `pik` passed to `sample_fn`, to the same standard as the built-ins; `FALSE` when `pik` only steers the selection, as in successive sampling with `sample.int(prob = pik)`, whose realized inclusion probabilities differ from `pik` (the same draw *with* replacement does honor expected hits, so a multinomial-style `"wr"` method can declare `TRUE`). The flag matters to packages that weight estimation by `1/pik`: for a `FALSE` method those design weights are systematically biased, not merely noisy, so such packages may read the flag through `method_spec()` and refuse the method for weighted estimation rather than assert chances the design never had. Sampling through sondage itself is unaffected — the declaration describes the method, it never disables it. Like `variance_family`, it is an assertion the author is responsible for — the simulation below shows how to check it — and `NULL` (the default) means undeclared.
 
 Helper functions `registered_methods()`, `is_registered_method()`, and `unregister_method()` manage the registry.
 
@@ -106,7 +109,8 @@ register_method(
   sample_fn       = random_pivotal_sample,
   joint_fn        = he_jip,
   fixed_size      = TRUE,
-  variance_family = "pps_brewer"
+  variance_family = "pps_brewer",
+  exact_chance    = TRUE
 )
 ```
 

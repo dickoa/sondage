@@ -11,6 +11,7 @@ register_method(
   joint_fn = NULL,
   fixed_size = TRUE,
   variance_family = NULL,
+  exact_chance = NULL,
   supports_prn = FALSE,
   supports_aux = TRUE,
   supports_strata = FALSE,
@@ -43,6 +44,31 @@ packages that export designs for variance estimation. One of
 \code{"unsupported"}; see \strong{Variance families} below. \code{NULL} (the
 default) means undeclared: consumers fall back on inferring a
 treatment from \code{type} and \code{fixed_size}.}
+
+\item{exact_chance}{Optional declaration of whether the method
+honors \code{pik} as its first-order chance target, for downstream
+packages that record per-unit selection chances. \code{TRUE} asserts
+that the realized first-order inclusion probabilities (types
+\code{"wor"} and \code{"balanced"}) or expected hits (type \code{"wr"}) equal
+the \code{pik} vector passed to \code{sample_fn}, to the same standard as
+the built-in methods (exactly, or up to a documented
+approximation such as Pareto's). \code{FALSE} means \code{pik} is an input
+weight or preference only, so the realized first-order chances
+are not known from \code{pik}; the toy sampler in the examples is
+such a method, because successive sampling with \code{prob = pik}
+does not yield inclusion probabilities equal to \code{pik}. (The same
+draw \emph{with} replacement does honor expected hits, so a
+multinomial-style \code{type = "wr"} method can declare \code{TRUE}.)
+For a \code{FALSE} method the design weights \code{1/pik} are
+systematically biased, not merely noisy, so downstream packages
+that weight estimation by \code{1/pik} may refuse to draw with the
+method rather than record chances the design never had; sampling
+through sondage itself is unaffected, as the declaration
+describes the method but never disables it. \code{NULL} (the default)
+means undeclared. Like \code{variance_family}, the declaration is an
+assertion by the method author that sondage cannot verify; the
+package vignette shows how to check a first-order contract by
+simulation.}
 
 \item{supports_prn}{Does this method support permanent random
 numbers for sample coordination? Only \code{"wor"} and \code{"wr"} methods;
@@ -175,11 +201,18 @@ check a declared family by simulation.
 }
 
 \examples{
-# Register a toy random sampler
+# Register a toy random sampler. Successive sampling with
+# prob = pik does not give first-order inclusion probabilities
+# equal to pik, so it declares exact_chance = FALSE.
 my_sampler <- function(pik, n = NULL, prn = NULL, ...) {
   sample.int(length(pik), size = n, prob = pik)
 }
-register_method("toy", type = "wor", sample_fn = my_sampler)
+register_method(
+  "toy",
+  type = "wor",
+  sample_fn = my_sampler,
+  exact_chance = FALSE
+)
 s <- unequal_prob_wor(c(0.3, 0.3, 0.4), method = "toy")
 s$method
 

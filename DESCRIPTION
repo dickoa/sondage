@@ -1,7 +1,7 @@
 Package: sondage
 Type: Package
 Title: Survey Sampling Algorithms
-Version: 0.8.6
+Version: 0.8.7
 Authors@R: c(person(given = "Ahmadou",
                     family = "Dicko",
 	            email = "mail@ahmadoudicko.com",
