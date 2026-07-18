@@ -1,4 +1,4 @@
-# sondage 0.8.7
+# sondage 0.8.8
 
 Initial CRAN release.
 
@@ -72,14 +72,18 @@ sampled-units submatrix (useful for large populations).
   the design-based variance treatment downstream packages should
   apply; `method_spec()` reports it for built-in and registered
   methods.
-* Registered methods can declare `exact_chance`: whether the method
-  honors `pik` as its first-order inclusion-probability target (or
-  expected-hits target, for `"wr"`), to the same standard as the
-  built-ins. `FALSE` marks methods that treat `pik` as a mere
-  selection weight, so downstream packages that record per-unit
-  selection chances do not assert chances the design never had.
-  `method_spec()` reports the field for every method; built-ins are
-  all `TRUE`.
+* Registered methods declare where they sit in the first-order
+  probability taxonomy with `probabilities`: `"exact"` (realized
+  inclusion probabilities, or expected hits for `"wr"`, equal the
+  `pik` handed to the method), `"approximate"` (honored to a
+  documented approximation, as Pareto and sequential Poisson order
+  sampling do), or `"unknown"` (the default: `pik` is a selection
+  weight only, so design weights `1/pik` would be biased). The
+  default is deliberately strict; downstream packages may refuse to
+  draw with an `"unknown"` method, while sampling through sondage
+  itself is never affected. `method_spec()` reports the tier for
+  every method: built-ins are `"exact"` except `"sps"` and
+  `"pareto"`, which report `"approximate"`.
 * `he_jip()` (Brewer & Donadio 2003 high-entropy approximation) and
   `hajek_jip()` (Hajek 1964) are exported and can be passed directly
   as `joint_fn` to `register_method()`.

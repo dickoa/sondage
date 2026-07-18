@@ -15,10 +15,12 @@ A list with elements \code{type} (\code{"wor"}, \code{"wr"}, or
 \code{"balanced"}), \code{fixed_size} (logical), \code{variance_family} (one of
 \code{"srs"}, \code{"pps_brewer"}, \code{"poisson"}, \code{"wr"}, \code{"unsupported"}, or
 \code{NULL} for a registered method that did not declare one; see
-\code{\link[=register_method]{register_method()}}), \code{exact_chance} (does the method honor \code{pik}
-as its first-order chance target? \code{TRUE} for every built-in;
-for a registered method the declared value, or \code{NULL} when
-undeclared), \code{supports_prn} (logical), \code{supports_aux}
+\code{\link[=register_method]{register_method()}}), \code{probabilities} (where the method sits in the
+first-order probability taxonomy: \code{"exact"} for every built-in
+except \code{"sps"} and \code{"pareto"}, which honor \code{pik} to a documented
+approximation and report \code{"approximate"}; for a registered
+method the declared tier, \code{"unknown"} when the author did not
+establish one), \code{supports_prn} (logical), \code{supports_aux}
 (logical), \code{supports_strata} (logical), and \code{supports_spread}
 (logical), or \code{NULL} if the method is unknown. The
 aux/strata/spread capabilities are only \code{TRUE} for balanced

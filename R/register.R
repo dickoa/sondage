@@ -30,30 +30,35 @@
 #'   `"unsupported"`; see **Variance families** below. `NULL` (the
 #'   default) means undeclared: consumers fall back on inferring a
 #'   treatment from `type` and `fixed_size`.
-#' @param exact_chance Optional declaration of whether the method
-#'   honors `pik` as its first-order chance target, for downstream
-#'   packages that record per-unit selection chances. `TRUE` asserts
-#'   that the realized first-order inclusion probabilities (types
-#'   `"wor"` and `"balanced"`) or expected hits (type `"wr"`) equal
-#'   the `pik` vector passed to `sample_fn`, to the same standard as
-#'   the built-in methods (exactly, or up to a documented
-#'   approximation such as Pareto's). `FALSE` means `pik` is an input
-#'   weight or preference only, so the realized first-order chances
-#'   are not known from `pik`; the toy sampler in the examples is
-#'   such a method, because successive sampling with `prob = pik`
-#'   does not yield inclusion probabilities equal to `pik`. (The same
-#'   draw \emph{with} replacement does honor expected hits, so a
-#'   multinomial-style `type = "wr"` method can declare `TRUE`.)
-#'   For a `FALSE` method the design weights `1/pik` are
-#'   systematically biased, not merely noisy, so downstream packages
-#'   that weight estimation by `1/pik` may refuse to draw with the
-#'   method rather than record chances the design never had; sampling
-#'   through sondage itself is unaffected, as the declaration
-#'   describes the method but never disables it. `NULL` (the default)
-#'   means undeclared. Like `variance_family`, the declaration is an
-#'   assertion by the method author that sondage cannot verify; the
-#'   package vignette shows how to check a first-order contract by
-#'   simulation.
+#' @param probabilities Where the method sits in the first-order
+#'   probability taxonomy, for downstream packages that weight or
+#'   record per-unit selection probabilities:
+#'   - `"exact"`: the realized first-order inclusion probabilities
+#'     (types `"wor"` and `"balanced"`) or expected hits (type
+#'     `"wr"`) equal the `pik` vector passed to `sample_fn`, as for
+#'     Sampford or the cube method.
+#'   - `"approximate"`: `pik` is the method's first-order target,
+#'     achieved up to a documented approximation, as for Pareto or
+#'     sequential Poisson order sampling. Design weights `1/pik`
+#'     remain standard practice.
+#'   - `"unknown"` (the default): `pik` is an input weight or
+#'     preference only, so the realized first-order probabilities are
+#'     not known. The toy sampler in the examples is such a method:
+#'     successive sampling with `prob = pik` does not yield inclusion
+#'     probabilities equal to `pik`, so its design weights `1/pik`
+#'     would be systematically biased, not merely noisy. (The same
+#'     draw \emph{with} replacement does honor expected hits, so a
+#'     multinomial-style `type = "wr"` method declares `"exact"`.)
+#'
+#'   The default is deliberately strict: if you have not established
+#'   which tier your method is in, its selection probabilities are
+#'   unknown, and downstream packages that weight estimation by
+#'   `1/pik` may refuse to draw with it rather than produce biased
+#'   weights. Sampling through sondage itself is unaffected: the
+#'   declaration describes the method, it never disables it. Like
+#'   `variance_family`, the declaration is an assertion by the method
+#'   author that sondage cannot verify; the package vignette shows
+#'   how to check a first-order contract by simulation.
 #' @param supports_prn Does this method support permanent random
 #'   numbers for sample coordination? Only `"wor"` and `"wr"` methods;
 #'   [balanced_wor()] has no `prn` argument.
@@ -177,15 +182,14 @@
 #' @examples
 #' # Register a toy random sampler. Successive sampling with
 #' # prob = pik does not give first-order inclusion probabilities
-#' # equal to pik, so it declares exact_chance = FALSE.
+#' # equal to pik, so its probabilities stay "unknown" (the default).
 #' my_sampler <- function(pik, n = NULL, prn = NULL, ...) {
 #'   sample.int(length(pik), size = n, prob = pik)
 #' }
 #' register_method(
 #'   "toy",
 #'   type = "wor",
-#'   sample_fn = my_sampler,
-#'   exact_chance = FALSE
+#'   sample_fn = my_sampler
 #' )
 #' s <- unequal_prob_wor(c(0.3, 0.3, 0.4), method = "toy")
 #' s$method
@@ -210,7 +214,7 @@ register_method <- function(
   joint_fn = NULL,
   fixed_size = TRUE,
   variance_family = NULL,
-  exact_chance = NULL,
+  probabilities = c("unknown", "exact", "approximate"),
   supports_prn = FALSE,
   supports_aux = TRUE,
   supports_strata = FALSE,
@@ -290,13 +294,7 @@ register_method <- function(
       )
     }
   }
-  if (
-    !is.null(exact_chance) &&
-      !isTRUE(exact_chance) &&
-      !isFALSE(exact_chance)
-  ) {
-    stop("'exact_chance' must be NULL, TRUE, or FALSE", call. = FALSE)
-  }
+  probabilities <- match.arg(probabilities)
   if (type == "wr" && !fixed_size) {
     stop(
       "type = \"wr\" methods require fixed_size = TRUE",
@@ -362,7 +360,7 @@ register_method <- function(
     joint_fn = joint_fn,
     fixed_size = fixed_size,
     variance_family = variance_family,
-    exact_chance = exact_chance,
+    probabilities = probabilities,
     supports_prn = supports_prn,
     # aux is only meaningful for balanced methods; normalise so
     # method_spec() reports FALSE for wor/wr registrations

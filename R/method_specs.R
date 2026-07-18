@@ -21,8 +21,20 @@
     variance_family = "pps_brewer"
   ),
   poisson = list(fixed_size = FALSE, prn = TRUE, variance_family = "poisson"),
-  sps = list(fixed_size = TRUE, prn = TRUE, variance_family = "pps_brewer"),
-  pareto = list(fixed_size = TRUE, prn = TRUE, variance_family = "pps_brewer")
+  # The order-sampling pair honors pik to Rosen's documented
+  # approximation rather than exactly; every other built-in is exact.
+  sps = list(
+    fixed_size = TRUE,
+    prn = TRUE,
+    variance_family = "pps_brewer",
+    probabilities = "approximate"
+  ),
+  pareto = list(
+    fixed_size = TRUE,
+    prn = TRUE,
+    variance_family = "pps_brewer",
+    probabilities = "approximate"
+  )
 )
 
 .wr_specs <- list(
@@ -106,10 +118,12 @@
 #'   `"balanced"`), `fixed_size` (logical), `variance_family` (one of
 #'   `"srs"`, `"pps_brewer"`, `"poisson"`, `"wr"`, `"unsupported"`, or
 #'   `NULL` for a registered method that did not declare one; see
-#'   [register_method()]), `exact_chance` (does the method honor `pik`
-#'   as its first-order chance target? `TRUE` for every built-in;
-#'   for a registered method the declared value, or `NULL` when
-#'   undeclared), `supports_prn` (logical), `supports_aux`
+#'   [register_method()]), `probabilities` (where the method sits in the
+#'   first-order probability taxonomy: `"exact"` for every built-in
+#'   except `"sps"` and `"pareto"`, which honor `pik` to a documented
+#'   approximation and report `"approximate"`; for a registered
+#'   method the declared tier, `"unknown"` when the author did not
+#'   establish one), `supports_prn` (logical), `supports_aux`
 #'   (logical), `supports_strata` (logical), and `supports_spread`
 #'   (logical), or `NULL` if the method is unknown. The
 #'   aux/strata/spread capabilities are only `TRUE` for balanced
@@ -139,7 +153,7 @@ method_spec <- function(name) {
       # NULL when undeclared: list(x = NULL) keeps the element, so the
       # field is always present in the returned spec
       variance_family = reg$variance_family,
-      exact_chance = reg$exact_chance,
+      probabilities = reg$probabilities,
       supports_prn = reg$supports_prn,
       supports_aux = isTRUE(reg$supports_aux),
       supports_strata = isTRUE(reg$supports_strata),
@@ -169,11 +183,13 @@ method_spec <- function(name) {
         type = type,
         fixed_size = isTRUE(spec$fixed_size),
         variance_family = spec$variance_family,
-        # Every built-in honors pik as its first-order chance target
-        # (exactly, or up to a documented approximation such as
-        # Pareto's), so the flag is uniformly TRUE rather than carried
-        # per-entry in the spec tables.
-        exact_chance = TRUE,
+        # Exact is the built-in norm; only the order-sampling pair
+        # (sps, pareto) carries "approximate" in its spec entry.
+        probabilities = if (is.null(spec$probabilities)) {
+          "exact"
+        } else {
+          spec$probabilities
+        },
         supports_prn = isTRUE(spec$prn),
         supports_aux = isTRUE(spec$aux),
         supports_strata = isTRUE(spec$strata),
