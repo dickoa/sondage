@@ -340,7 +340,7 @@ test_that("hajek_jip formula is correct analytically", {
 })
 
 
-# ---- both: eps passthrough via ... ----
+## both: eps passthrough via ...
 
 test_that("eps passes through registered joint_fn dispatch", {
   simple_pps <- function(pik, n = NULL, prn = NULL, ...) {

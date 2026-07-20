@@ -9,7 +9,7 @@
 #   - size conversion is scale invariant,
 #   - cube auxiliary conditioning detects rank.
 
-# ---- Audit #2: eps must not silently change the design ----------------------
+## Audit #2: eps must not silently change the design
 
 test_that("eps is rejected by fixed-size unequal probability methods", {
   p <- rep(0.1, 10)
@@ -58,7 +58,7 @@ test_that("fixed-size validation accepts floating-point-level sum error", {
   expect_identical(length(s$sample), 500L)
 })
 
-# ---- Audit #1 + #2: fixed-size methods return exactly n ---------------------
+## Audit #1 + #2: fixed-size methods return exactly n
 
 test_that("fixed-size WOR methods return exactly n with exact 0/1 units", {
   set.seed(101)
@@ -102,10 +102,16 @@ test_that("balanced batch size mismatches fail before writing past a column", {
     "lpm2 batch draw 2 produced size 6, expected 5"
   )
 
+  # With this deliberately extreme eps, Windows can hit SCPS's defensive
+  # feasibility check before extraction; other platforms reach the bounded
+  # extractor and report the intended size mismatch. Both paths fail safely.
   set.seed(1)
   expect_error(
     balanced_wor(pik, spread = spread, method = "scps", nrep = 3, eps = 0.45),
-    "SCPS batch draw 1 produced size 4, expected 5"
+    paste0(
+      "SCPS (batch draw 1 produced size 4, expected 5|",
+      "maximal weights are numerically infeasible in draw 1)"
+    )
   )
 
   set.seed(1)
@@ -148,7 +154,7 @@ test_that("near-boundary interior pik are sampled, not snapped", {
   expect_true(2L %in% s$sample)
 })
 
-# ---- Audit #3: CPS unbiased for large ordinary designs ----------------------
+## Audit #3: CPS unbiased for large ordinary designs
 
 test_that("CPS equal-probability large design has no positional bias", {
   # audit repro: N = 2000, pik = 0.5 gave first half 0.235, second half 0.765
@@ -194,7 +200,7 @@ test_that("CPS single draws also avoid positional bias at large N", {
   )
 })
 
-# ---- Audit #4: CPS joint inclusion probabilities ----------------------------
+## Audit #4: CPS joint inclusion probabilities
 
 test_that("CPS joint probabilities are stable for repeated groups (N = 200)", {
   N <- 200L
@@ -255,7 +261,7 @@ test_that("CPS full and sampled_only joint probabilities agree", {
                ignore_attr = TRUE)
 })
 
-# ---- Audit #5: scale-invariant size conversion ------------------------------
+## Audit #5: scale-invariant size conversion
 
 test_that("inclusion_prob is invariant to positive rescaling", {
   x <- c(1, 2, 3, 4, 10)
@@ -284,7 +290,7 @@ test_that("expected_hits is invariant to positive rescaling", {
   expect_equal(expected_hits(x, 1), c(0.5, 0.5))
 })
 
-# ---- Audit #6: cube auxiliary conditioning rank detection -------------------
+## Audit #6: cube auxiliary conditioning rank detection
 
 test_that("cube conditioning removes exactly dependent columns", {
   x <- as.double(1:10)
@@ -320,7 +326,7 @@ test_that("cube conditioning respects qr_tol for near-dependence", {
   expect_identical(ncol(z_strict), 2L)
 })
 
-# ---- Audit #7: systematic joint probabilities (reference check) -------------
+## Audit #7: systematic joint probabilities (reference check)
 
 test_that("systematic JIP matches direct interval reference", {
   # R reference: pi_ij = length of overlap of the two circular arcs
@@ -484,7 +490,7 @@ test_that("cube option validation agrees between single and batch paths", {
   }
 })
 
-# ---- Audit #9: tied order-sampling keys stay correct ------------------------
+## Audit #9: tied order-sampling keys stay correct
 
 test_that("SPS and Pareto select exactly n with fully tied keys", {
   N <- 5000L

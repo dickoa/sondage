@@ -733,7 +733,7 @@ test_that("sampled_only sampling_cov end-to-end for all methods", {
 })
 
 
-# ---- CPS JIP equal/near-equal weight regression ----
+## CPS JIP equal/near-equal weight regression
 
 test_that("cps jip is exact for equal-pik case", {
   N <- 20

@@ -480,7 +480,7 @@ test_that("stratified cube handles sparse stratum labels", {
 })
 
 
-# --- condition_aux tests ---
+## condition_aux tests
 
 test_that("cube handles collinear aux with condition_aux = TRUE", {
   set.seed(42)
