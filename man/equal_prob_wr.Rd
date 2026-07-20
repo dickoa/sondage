@@ -16,10 +16,11 @@ equal_prob_wr(N, n, method = "srs", nrep = 1L, prn = NULL, ...)
 \item{nrep}{Number of replicate samples (default 1).}
 
 \item{prn}{Optional vector of permanent random numbers for sample
-coordination. Not currently used by any equal-probability WR method;
-a warning is issued if provided.}
+coordination. No equal-probability WR method currently supports \code{prn};
+supplying it is an error.}
 
-\item{...}{Additional arguments passed to methods.}
+\item{...}{Reserved for extensions. Built-in methods currently take no
+additional arguments.}
 }
 \value{
 An object of class \code{c("equal_prob", "wr", "sondage_sample")}.

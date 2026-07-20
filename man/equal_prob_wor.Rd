@@ -43,7 +43,8 @@ values in the open interval (0, 1)) for sample coordination.
 Only supported by \code{"bernoulli"} method. Cannot be used with
 \code{nrep > 1} (identical PRN would produce identical replicates).}
 
-\item{...}{Additional arguments passed to methods.}
+\item{...}{Reserved for extensions. Built-in methods currently take no
+additional arguments.}
 }
 \value{
 An object of class \code{c("equal_prob", "wor", "sondage_sample")}.

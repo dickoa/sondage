@@ -3,6 +3,13 @@ test_that("inclusion_prob returns correct length", {
   expect_length(pik, 4)
 })
 
+test_that("inclusion_prob preserves unit names", {
+  size <- c(north = 10, south = 20, east = 30, west = 40)
+  pik <- inclusion_prob(size, n = 2)
+
+  expect_identical(names(pik), names(size))
+})
+
 test_that("inclusion_prob sums to n", {
   pik <- inclusion_prob(c(10, 20, 30, 40), n = 2)
   expect_equal(sum(pik), 2)
@@ -62,7 +69,7 @@ test_that("inclusion_prob warns about negative values", {
 test_that("inclusion_prob rejects invalid input", {
   expect_error(inclusion_prob(1:10, n = 15), "cannot exceed")
   expect_error(inclusion_prob(1:10, n = -1), "non-negative")
-  expect_error(inclusion_prob(1:10, n = NA), "single numeric")
+  expect_error(inclusion_prob(1:10, n = NA), "not be NA")
   expect_error(inclusion_prob(1:10, n = NA_real_), "not be NA")
 })
 

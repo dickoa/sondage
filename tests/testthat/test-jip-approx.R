@@ -60,7 +60,7 @@ test_that("he_jip sample_idx returns submatrix matching full[s,s]", {
   sub <- he_jip(pik, sample_idx = idx)
 
   expect_equal(dim(sub), c(3, 3))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), full[idx, idx, drop = FALSE])
 })
 
 test_that("he_jip handles certainty units", {
@@ -129,7 +129,7 @@ test_that("he_jip works as joint_fn in register_method", {
   # sampled_only also works
   sub <- joint_inclusion_prob(s, sampled_only = TRUE)
   idx <- s$sample
-  expect_equal(sub, pikl[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), pikl[idx, idx, drop = FALSE])
 
   # sampling_cov chain works
   cov_mat <- sampling_cov(s)
@@ -157,7 +157,7 @@ test_that("he_jip with sample_idx and certainty units", {
   sub <- he_jip(pik, sample_idx = idx)
 
   expect_equal(dim(sub), c(4, 4))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), full[idx, idx, drop = FALSE])
 })
 
 test_that(".he_jip_sampled handles sample with no valid units", {
@@ -235,7 +235,7 @@ test_that("hajek_jip sample_idx returns submatrix matching full[s,s]", {
   sub <- hajek_jip(pik, sample_idx = idx)
 
   expect_equal(dim(sub), c(3, 3))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), full[idx, idx, drop = FALSE])
 })
 
 test_that("hajek_jip handles certainty units", {
@@ -293,7 +293,7 @@ test_that("hajek_jip works as joint_fn in register_method", {
   # sampled_only also works
   sub <- joint_inclusion_prob(s, sampled_only = TRUE)
   idx <- s$sample
-  expect_equal(sub, pikl[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), pikl[idx, idx, drop = FALSE])
 
   # Full chain: sampling_cov
   cov_mat <- sampling_cov(s)
@@ -321,7 +321,7 @@ test_that("hajek_jip with sample_idx and certainty units", {
   sub <- hajek_jip(pik, sample_idx = idx)
 
   expect_equal(dim(sub), c(4, 4))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), full[idx, idx, drop = FALSE])
 })
 
 test_that("hajek_jip formula is correct analytically", {

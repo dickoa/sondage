@@ -19,10 +19,11 @@ inclusion_prob(x, ...)
 \item{x}{A numeric vector of positive size measures, or a
 without-replacement design object (class \code{"wor"}).}
 
-\item{...}{Additional arguments (currently unused).}
+\item{...}{Reserved for methods. The methods provided by sondage currently
+take no additional arguments.}
 
-\item{n}{The desired sample size. Required when \code{x} is a numeric vector,
-ignored when \code{x} is a design object.}
+\item{n}{The desired sample size. Required when \code{x} is a numeric vector;
+it must not be supplied when \code{x} is a design object.}
 }
 \value{
 A numeric vector of inclusion probabilities. When applied to a
@@ -30,7 +31,7 @@ design object, returns the stored \code{pik} vector. For most methods
 this equals the true first-order inclusion probabilities. For
 order-sampling methods (\code{sps}, \code{pareto}), it is the target used
 to define the design; the true probabilities are approximately
-equal and converge as N grows.
+equal and converge as N grows. Names on a numeric \code{x} are preserved.
 }
 \description{
 Compute inclusion probabilities from a size measure, or extract them

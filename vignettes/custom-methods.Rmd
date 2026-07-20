@@ -31,28 +31,34 @@ library(sondage)
 register_method(
   name,                     # unique method name (character)
   type = "wor",             # "wor", "wr", or "balanced"
-  sample_fn,                # function(pik, n, prn, ...) -> integer indices
-  joint_fn = NULL,          # function(pik, sample_idx, ...) -> matrix (optional)
+  sample_fn,                # function(pik/hits, n, ...) -> integer indices
+  joint_fn = NULL,          # function(pik/hits, sample_idx, ...) -> matrix
   fixed_size = TRUE,        # required for with-replacement methods
   variance_family = NULL,   # declared variance-estimation family (optional)
-  probabilities = "unknown", # exact, approximate, or unknown (the default)
-  supports_prn = FALSE,     # does the method support permanent random numbers?
-  supports_aux = TRUE,      # balanced only: does it use balancing variables?
-  supports_strata = FALSE,  # balanced only: does it handle stratification?
-  supports_spread = FALSE   # balanced only: does it handle spatial spreading?
+  supports_prn = NULL,      # WOR/WR only: permanent random-number support?
+  supports_aux = NULL,      # balanced only: balancing-variable support?
+  supports_strata = NULL,   # balanced only: stratification support?
+  supports_spread = NULL,   # balanced only: spatial-spreading support?
+  probabilities = "unknown" # exact, approximate, or unknown (the default)
 )
 ```
 
-Two contracts must be respected:
+The callback contracts are:
 
-- **`sample_fn(pik, n = NULL, prn = NULL, ...)`** receives the inclusion probability vector and returns an integer vector of selected unit indices (1-based). Balanced methods use the signature `sample_fn(pik, n = NULL, aux = NULL, ...)` instead, where `aux` is the auxiliary balancing matrix passed to `balanced_wor()` (or `NULL`). The dispatcher validates that returned indices are finite integers in range, distinct for WOR, and of length `n` for fixed-size methods.
-- **`joint_fn(pik, sample_idx = NULL, ...)`** (optional) returns an $N \times N$ joint inclusion probability matrix when `sample_idx` is `NULL`, or a submatrix for the given indices when it is not. The dispatcher checks that it is a finite numeric matrix with the expected dimensions and is symmetric; statistical properties remain the method author's responsibility.
+- A WOR method uses **`sample_fn(pik, n = NULL, prn = NULL, ...)`**, where `pik` contains inclusion probabilities. It returns distinct selected unit indices (1-based).
+- A WR method uses **`sample_fn(hits, n = NULL, prn = NULL, ...)`**, where `hits` contains expected hit counts. It returns `n` selected unit indices, with possible repeats.
+- A balanced method uses **`sample_fn(pik, n = NULL, aux = NULL, ...)`**, where `aux` is the auxiliary balancing matrix passed to `balanced_wor()` (or `NULL`).
+- The optional joint callback follows the same naming distinction: **`joint_fn(pik, sample_idx = NULL, ...)`** returns joint inclusion probabilities for WOR and balanced methods, while **`joint_fn(hits, sample_idx = NULL, ...)`** returns joint expected hits for WR methods. It returns an $N \times N$ matrix when `sample_idx` is `NULL`, or the corresponding submatrix otherwise.
 
-Capability flags describe what the method can do, and the dispatchers enforce them. A `"wor"` or `"wr"` method that sets `supports_prn = TRUE` receives a validated `prn` vector for sample coordination. Otherwise the dispatcher warns that `prn` is ignored and passes `NULL` to the method. A `"balanced"` method only receives a `strata` argument when registered with `supports_strata = TRUE`, and a `spread` argument (spatial coordinates) when registered with `supports_spread = TRUE`. Spread-only methods that never look at balancing variables should declare `supports_aux = FALSE`. In every case, passing a design input to a method without the matching capability is an error rather than a warning, because silently dropping `aux`, `strata`, or `spread` would change the design. The simplest balanced registration therefore needs nothing beyond `aux`.
+The dispatcher validates that sample indices are finite integers in range and obey the replacement and sample-size rules. It also checks that joint results are finite numeric matrices with the expected dimensions and symmetry; statistical properties remain the method author's responsibility.
+
+Capability flags describe what the method can do, and the dispatchers enforce them. `NULL` means unspecified: it resolves to `FALSE`, except that `supports_aux` resolves to `TRUE` for a balanced method. WOR and WR methods may explicitly set only `supports_prn`; balanced methods may explicitly set only `supports_aux`, `supports_strata`, and `supports_spread`. Supplying a capability for another method type is an error, even when its value is `FALSE`.
+
+A `"wor"` or `"wr"` method that sets `supports_prn = TRUE` receives a validated `prn` vector for sample coordination. Otherwise supplying `prn` is an error. A `"balanced"` method only receives a `strata` argument when registered with `supports_strata = TRUE`, and a `spread` argument (spatial coordinates) when registered with `supports_spread = TRUE`. Spread-only methods that never look at balancing variables should declare `supports_aux = FALSE`. In every case, passing a design input to a method without the matching capability is an error, because silently dropping `prn`, `aux`, `strata`, or `spread` would change the requested design. The simplest balanced registration therefore needs nothing beyond `aux`.
 
 `variance_family` declares how design-based variance should be estimated for samples drawn with the method: `"srs"`, `"pps_brewer"`, `"poisson"`, `"wr"`, or `"unsupported"`. `sondage` does not use it itself, but packages that export samples for variance estimation do. Without a declaration they must infer a treatment from `type` and `fixed_size`, and for a random-size WOR method no safe inference exists because a Poisson-type method (independent selections) and a correlated random-size scheme need different estimators. The declaration is an assertion the author is responsible for; `?register_method` lists the constraints between `variance_family`, `type`, and `fixed_size`, and Example 1 shows how to check a declaration by simulation. When in doubt, declare `"unsupported"` rather than guess.
 
-`probabilities` places the method in the first-order probability taxonomy. Use `"exact"` when the true first-order inclusion probabilities, or expected hits for `"wr"`, equal the `pik` passed to `sample_fn`, as they do for Sampford and the cube method. Use `"approximate"` when the method honors `pik` to a documented approximation, as Pareto and sequential Poisson order sampling do. Use `"unknown"`, the default, when `pik` only steers the selection. Successive sampling with `sample.int(prob = pik)` belongs to this last tier because its true inclusion probabilities differ from `pik`. The same draw with replacement does honor expected hits, so a multinomial-style `"wr"` method declares `"exact"`.
+`probabilities` places the method in the first-order probability taxonomy. Use `"exact"` when the true first-order inclusion probabilities equal the `pik` passed to a WOR callback, or the expected hits equal the `hits` passed to a WR callback, as they do for Sampford and the cube method. Use `"approximate"` when the method honors its input to a documented approximation, as Pareto and sequential Poisson order sampling do. Use `"unknown"`, the default, when the input only steers the selection. Successive sampling with `sample.int(prob = pik)` belongs to this last tier because its true inclusion probabilities differ from `pik`. The same draw with replacement does honor expected hits, so a multinomial-style `"wr"` method declares `"exact"`.
 
 The tier matters to packages that use `1/pik` as design weights. For an `"unknown"` method, those weights are systematically biased rather than merely noisy. A downstream package may therefore read the tier through `method_spec()` and refuse the method for weighted estimation instead of asserting probabilities the design never had. The default is deliberately strict. If you have not established which tier your method is in, its selection probabilities are unknown. Sampling through sondage itself is unaffected because the declaration describes the method and never disables it. As with `variance_family`, the method author is responsible for the declaration. The simulation below shows how to check it.
 
@@ -191,10 +197,12 @@ tille_joint <- function(pik, sample_idx = NULL, ...) {
 
 register_method(
   "tille",
-  type       = "wor",
-  sample_fn  = tille_sample,
-  joint_fn   = tille_joint,
-  fixed_size = TRUE
+  type            = "wor",
+  sample_fn       = tille_sample,
+  joint_fn        = tille_joint,
+  fixed_size      = TRUE,
+  variance_family = "pps_brewer",
+  probabilities   = "exact"
 )
 
 pik <- inclusion_prob(c(2, 3, 4, 5, 6, 7, 8, 9), n = 4)
@@ -237,9 +245,11 @@ cube_lp_sample <- function(pik, n = NULL, aux = NULL, ...) {
 
 register_method(
   "cube_lp",
-  type      = "balanced",
-  sample_fn = cube_lp_sample,
-  joint_fn  = he_jip
+  type            = "balanced",
+  sample_fn       = cube_lp_sample,
+  joint_fn        = he_jip,
+  variance_family = "pps_brewer",
+  probabilities   = "exact"
 )
 
 pik <- inclusion_prob(c(2, 3, 4, 5, 6, 7, 8, 9), n = 4)
@@ -272,7 +282,9 @@ register_method(
   type            = "balanced",
   sample_fn       = cube_lp_stratified,
   joint_fn        = he_jip,
-  supports_strata = TRUE
+  variance_family = "pps_brewer",
+  supports_strata = TRUE,
+  probabilities   = "exact"
 )
 
 pik <- rep(0.5, 8)
@@ -355,10 +367,12 @@ lpm1_sample <- function(pik, n = NULL, aux = NULL, spread = NULL, ...) {
 
 register_method(
   "lpm1",
-  type            = "balanced",
-  sample_fn       = lpm1_sample,
-  supports_aux    = FALSE,
-  supports_spread = TRUE
+  type             = "balanced",
+  sample_fn        = lpm1_sample,
+  variance_family  = "unsupported",
+  supports_aux     = FALSE,
+  supports_spread  = TRUE,
+  probabilities    = "exact"
 )
 ```
 
@@ -411,7 +425,7 @@ unregister_method("lpm1")
 ## Writing a `joint_fn`
 
 A `joint_fn` is optional but enables `joint_inclusion_prob()`,
-`joint_expected_hits()`, and `sampling_cov()`. Four common
+`joint_expected_hits()`, and `sampling_cov()`. Five common
 strategies:
 
 1. **Exact formula.** When the design has a known closed form

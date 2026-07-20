@@ -47,7 +47,7 @@ test_that("balanced_wor is reproducible with set.seed", {
 test_that("print works for balanced_wor objects", {
   pik <- c(0.2, 0.4, 0.6, 0.8)
   s <- balanced_wor(pik, aux = matrix(c(10, 20, 30, 40)))
-  expect_output(print(s), "Unequal prob WOR \\[cube\\]")
+  expect_output(print(s), "Balanced WOR \\[cube\\]")
   expect_output(print(s), "n=2, N=4")
 })
 

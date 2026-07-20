@@ -66,7 +66,8 @@
 #'       numerical stability with ill-conditioned or collinear auxiliary
 #'       variables (default `FALSE`).}
 #'     \item{`qr_tol`}{Tolerance for QR rank detection when
-#'       `condition_aux = TRUE` (default `sqrt(.Machine$double.eps)`).}
+#'       `condition_aux = TRUE`; must be one finite, non-negative number
+#'       (default `sqrt(.Machine$double.eps)`).}
 #'   }
 #'
 #' @details
@@ -187,10 +188,6 @@
 #'   fixed-size designs, or a list of integer vectors when `fixed_size`
 #'   is `FALSE` (e.g., stratified with non-integer per-stratum sizes).
 #'
-#'   Under stratified sampling (`strata` supplied), `$sample` is a list
-#'   even when `nrep = 1` if any per-stratum `sum(pik)` is not close to
-#'   an integer; `$fixed_size` is set to `FALSE` and a warning is issued.
-#'
 #' @references
 #' Deville, J.C. and \enc{Tillé}{Tille}, Y. (1998). Unequal probability
 #'   sampling without replacement through a splitting method.
@@ -285,7 +282,7 @@ balanced_wor <- function(
   ...
 ) {
   if (
-    is.character(method) && length(method) == 1L && is_registered_method(method)
+    .is_method_name(method) && is_registered_method(method)
   ) {
     if (!is.null(bounds)) {
       stop(
@@ -297,11 +294,17 @@ balanced_wor <- function(
       .dispatch_registered_balanced(pik, aux, strata, spread, method, nrep, ...)
     )
   }
-  method <- match.arg(method)
-  nrep <- check_integer(nrep, "nrep")
-  if (nrep < 1L) {
-    stop("'nrep' must be at least 1", call. = FALSE)
+  method <- .match_choice(method, c("cube", "lpm2", "scps"), "method")
+  if (...length()) {
+    allowed_dots <- switch(
+      method,
+      cube = c("eps", "condition_aux", "qr_tol"),
+      lpm2 = ,
+      scps = "eps"
+    )
+    .check_dots(...length(), ...names(), allowed = allowed_dots)
   }
+  nrep <- .check_nrep_prn(nrep)
 
   if (method %in% c("lpm2", "scps")) {
     if (!is.null(aux)) {
@@ -331,13 +334,7 @@ balanced_wor <- function(
       )
     }
     check_pik(pik, fixed_size = TRUE)
-    return(
-      switch(
-        method,
-        lpm2 = .lpm2_wor(pik, spread, nrep = nrep, ...),
-        scps = .scps_wor(pik, spread, nrep = nrep, ...)
-      )
-    )
+    return(.spatial_wor(pik, spread, method, nrep = nrep, ...))
   }
 
   if (!is.null(spread)) {
@@ -366,51 +363,37 @@ balanced_wor <- function(
   }
 }
 
-#' Local pivotal method 2: validate inputs, draw, wrap the design object.
-#'
-#' `eps` plays the same role as in the cube method: it decides when a
-#' *working* probability has numerically reached 0 or 1 during the
-#' pivotal steps, and must not reclassify the input pik.
+#' Draw a spatial fixed-size WOR sample and wrap the design object.
 #'
 #' @noRd
-.lpm2_wor <- function(pik, spread, nrep = 1L, eps = 1e-10, ...) {
-  N <- length(pik)
-  eps <- check_eps(eps)
-  .check_cube_eps_classification(pik, eps)
-  spread <- .check_cube_aux(spread, N, what = "spread")
-  if (ncol(spread) == 0L) {
-    stop("'spread' must have at least one column", call. = FALSE)
-  }
-  n <- as.integer(round(sum(pik)))
-
-  sample_data <- if (nrep == 1L) {
-    .Call(C_lpm2, as.double(pik), spread, as.double(eps))
-  } else {
-    .Call(
-      C_lpm2_batch,
-      as.double(pik),
-      spread,
-      as.double(eps),
-      as.integer(nrep)
-    )
-  }
-
-  .new_wor_sample(
-    sample = sample_data,
-    pik = pik,
-    n = n,
-    N = N,
-    method = "lpm2",
-    fixed_size = TRUE,
-    prob_class = "unequal_prob",
-    extra_class = "balanced"
+.spatial_draw_fns <- list(
+  lpm2 = list(
+    single = function(pik, spread, eps, nrep) {
+      .Call(C_lpm2, pik, spread, eps)
+    },
+    batch = function(pik, spread, eps, nrep) {
+      .Call(C_lpm2_batch, pik, spread, eps, nrep)
+    }
+  ),
+  scps = list(
+    single = function(pik, spread, eps, nrep) {
+      .Call(C_scps, pik, spread, eps)
+    },
+    batch = function(pik, spread, eps, nrep) {
+      .Call(C_scps_batch, pik, spread, eps, nrep)
+    }
   )
-}
+)
 
-#' Spatially correlated Poisson sampling: validate, draw, wrap.
-#'
 #' @noRd
-.scps_wor <- function(pik, spread, nrep = 1L, eps = 1e-10, ...) {
+.spatial_wor <- function(
+  pik,
+  spread,
+  method,
+  nrep = 1L,
+  eps = 1e-10,
+  ...
+) {
   N <- length(pik)
   eps <- check_eps(eps)
   .check_cube_eps_classification(pik, eps)
@@ -419,25 +402,19 @@ balanced_wor <- function(
     stop("'spread' must have at least one column", call. = FALSE)
   }
   n <- as.integer(round(sum(pik)))
-
-  sample_data <- if (nrep == 1L) {
-    .Call(C_scps, as.double(pik), spread, as.double(eps))
-  } else {
-    .Call(
-      C_scps_batch,
-      as.double(pik),
-      spread,
-      as.double(eps),
-      as.integer(nrep)
-    )
-  }
+  draw <- .spatial_draw_fns[[method]][[
+    if (nrep == 1L) "single" else "batch"
+  ]]
+  sample_data <- draw(
+    as.double(pik), spread, as.double(eps), as.integer(nrep)
+  )
 
   .new_wor_sample(
     sample = sample_data,
     pik = pik,
     n = n,
     N = N,
-    method = "scps",
+    method = method,
     fixed_size = TRUE,
     prob_class = "unequal_prob",
     extra_class = "balanced"
@@ -455,13 +432,12 @@ balanced_wor <- function(
 ) {
   N <- length(pik)
   dots <- list(...)
-  condition_aux <- isTRUE(dots[["condition_aux"]])
-  qr_tol <- dots[["qr_tol"]]
-  if (is.null(qr_tol)) {
-    qr_tol <- sqrt(.Machine$double.eps)
-  }
-  eps <- check_eps(eps)
-  .check_cube_eps_classification(pik, eps)
+  options <- .check_cube_options(
+    pik, eps, dots[["condition_aux"]], dots[["qr_tol"]]
+  )
+  eps <- options$eps
+  condition_aux <- options$condition_aux
+  qr_tol <- options$qr_tol
 
   strata_fixed <- TRUE
   if (is.null(strata)) {
@@ -548,6 +524,34 @@ balanced_wor <- function(
   invisible(TRUE)
 }
 
+#' Validate options shared by single and batch cube draws.
+#'
+#' @noRd
+.check_cube_options <- function(
+  pik,
+  eps = NULL,
+  condition_aux = NULL,
+  qr_tol = NULL
+) {
+  if (is.null(eps)) eps <- 1e-10
+  eps <- check_eps(eps)
+  .check_cube_eps_classification(pik, eps)
+  condition_aux <- if (is.null(condition_aux)) {
+    FALSE
+  } else {
+    .check_flag(condition_aux, "condition_aux")
+  }
+  if (is.null(qr_tol)) {
+    qr_tol <- sqrt(.Machine$double.eps)
+  } else {
+    qr_tol <- .check_number(qr_tol, "qr_tol")
+    if (qr_tol < 0) {
+      stop("'qr_tol' must be non-negative", call. = FALSE)
+    }
+  }
+  list(eps = eps, condition_aux = condition_aux, qr_tol = qr_tol)
+}
+
 #' Build the balancing matrix for the cube C code.
 #'
 #' For non-stratified: prepends pik as column 1 (sample size constraint).
@@ -595,6 +599,12 @@ balanced_wor <- function(
 .check_cube_aux <- function(aux, N, what = "aux") {
   if (!is.matrix(aux)) {
     aux <- as.matrix(aux)
+  }
+  if (!is.numeric(aux)) {
+    stop(
+      sprintf("'%s' must be a numeric vector or matrix", what),
+      call. = FALSE
+    )
   }
   if (anyNA(aux) || any(!is.finite(aux))) {
     stop(
@@ -665,7 +675,7 @@ balanced_wor <- function(
   upper <- bounds$upper
   for (side in c("lower", "upper")) {
     v <- if (side == "lower") lower else upper
-    if (!is.numeric(v) || length(v) != q) {
+    if (!is.numeric(v) || !is.null(dim(v)) || length(v) != q) {
       stop(
         sprintf(
           "'bounds$%s' must be a numeric vector of length ncol(bounds$B) = %d",
@@ -790,19 +800,27 @@ balanced_wor <- function(
 
 #' @noRd
 .check_strata <- function(strata, N) {
+  if (!is.numeric(strata) || !is.null(dim(strata))) {
+    stop("'strata' must be a numeric vector of positive integers", call. = FALSE)
+  }
   if (length(strata) != N) {
     stop(
       sprintf("length(strata) = %d does not match N = %d", length(strata), N),
       call. = FALSE
     )
   }
-  strata <- as.integer(strata)
   if (anyNA(strata)) {
     stop("there are missing values in 'strata'", call. = FALSE)
   }
-  if (any(strata < 1L)) {
+  if (
+    any(!is.finite(strata)) ||
+      any(strata < 1) ||
+      any(strata != floor(strata)) ||
+      any(strata > .Machine$integer.max)
+  ) {
     stop("'strata' values must be positive integers", call. = FALSE)
   }
+  strata <- as.integer(strata)
   # Remap to dense 1:H so the C code doesn't over-allocate for sparse labels
   as.integer(factor(strata))
 }
@@ -831,17 +849,12 @@ balanced_wor <- function(
   N <- length(pik)
   n <- sum(pik)
   dots <- list(...)
-  eps <- dots[["eps"]]
-  if (is.null(eps)) {
-    eps <- 1e-10
-  }
-  eps <- check_eps(eps)
-  .check_cube_eps_classification(pik, eps)
-  condition_aux <- isTRUE(dots[["condition_aux"]])
-  qr_tol <- dots[["qr_tol"]]
-  if (is.null(qr_tol)) {
-    qr_tol <- sqrt(.Machine$double.eps)
-  }
+  options <- .check_cube_options(
+    pik, dots[["eps"]], dots[["condition_aux"]], dots[["qr_tol"]]
+  )
+  eps <- options$eps
+  condition_aux <- options$condition_aux
+  qr_tol <- options$qr_tol
   pik_d <- as.double(pik)
 
   if (is.null(strata)) {

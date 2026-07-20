@@ -242,7 +242,7 @@ test_that("print works for lpm2 objects", {
   pik <- rep(0.5, 10)
   z <- matrix(runif(20), ncol = 2)
   s <- balanced_wor(pik, spread = z, method = "lpm2")
-  expect_output(print(s), "Unequal prob WOR \\[lpm2\\]")
+  expect_output(print(s), "Balanced WOR \\[lpm2\\]")
   expect_output(print(s), "n=5, N=10")
 })
 

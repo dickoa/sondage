@@ -33,7 +33,10 @@ Default \code{FALSE}.}
 A symmetric N x N matrix (or n_s x n_s if
 \code{sampled_only = TRUE}, where n_s is the number of distinct
 selected units). Diagonal entries are \eqn{E(n_i^2)} and
-off-diagonal entries are \eqn{E(n_i n_j)}.
+off-diagonal entries are \eqn{E(n_i n_j)}. When the stored probability
+vector is named, those names are used as row and column names. An
+otherwise unnamed sampled-only matrix is labelled with the selected
+population indices.
 }
 \description{
 Computes the matrix of pairwise expectations \eqn{E(n_i n_j)} for a

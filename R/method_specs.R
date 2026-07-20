@@ -12,28 +12,43 @@
 .variance_families <- c("srs", "pps_brewer", "poisson", "wr", "unsupported")
 
 .wor_specs <- list(
-  cps = list(fixed_size = TRUE, prn = FALSE, variance_family = "pps_brewer"),
-  sampford = list(fixed_size = TRUE, prn = FALSE, variance_family = "pps_brewer"),
-  brewer = list(fixed_size = TRUE, prn = FALSE, variance_family = "pps_brewer"),
+  cps = list(
+    fixed_size = TRUE, prn = FALSE, variance_family = "pps_brewer",
+    draw = function(pik, prn = NULL) .Call(C_cps_single, pik)
+  ),
+  sampford = list(
+    fixed_size = TRUE, prn = FALSE, variance_family = "pps_brewer",
+    draw = function(pik, prn = NULL) .Call(C_up_sampford, pik)
+  ),
+  brewer = list(
+    fixed_size = TRUE, prn = FALSE, variance_family = "pps_brewer",
+    draw = function(pik, prn = NULL) .Call(C_up_brewer, pik)
+  ),
   systematic = list(
     fixed_size = TRUE,
     prn = FALSE,
-    variance_family = "pps_brewer"
+    variance_family = "pps_brewer",
+    draw = function(pik, prn = NULL) .Call(C_up_systematic, pik)
   ),
-  poisson = list(fixed_size = FALSE, prn = TRUE, variance_family = "poisson"),
+  poisson = list(
+    fixed_size = FALSE, prn = TRUE, variance_family = "poisson",
+    draw = function(pik, prn = NULL) .Call(C_up_poisson, pik, prn)
+  ),
   # The order-sampling pair honors pik to Rosen's documented
   # approximation rather than exactly; every other built-in is exact.
   sps = list(
     fixed_size = TRUE,
     prn = TRUE,
     variance_family = "pps_brewer",
-    probabilities = "approximate"
+    probabilities = "approximate",
+    draw = function(pik, prn = NULL) .Call(C_up_sps, pik, prn)
   ),
   pareto = list(
     fixed_size = TRUE,
     prn = TRUE,
     variance_family = "pps_brewer",
-    probabilities = "approximate"
+    probabilities = "approximate",
+    draw = function(pik, prn = NULL) .Call(C_up_pareto, pik, prn)
   )
 )
 
@@ -79,6 +94,38 @@
   )
 )
 
+.dispatcher_specs <- list(
+  equal_prob_wor = .ep_wor_specs,
+  equal_prob_wr = .ep_wr_specs,
+  unequal_prob_wor = .wor_specs,
+  unequal_prob_wr = .wr_specs,
+  balanced_wor = .balanced_specs
+)
+
+.dispatcher_types <- c(
+  equal_prob_wor = "wor",
+  equal_prob_wr = "wr",
+  unequal_prob_wor = "wor",
+  unequal_prob_wr = "wr",
+  balanced_wor = "balanced"
+)
+
+#' @noRd
+.format_dispatcher_choices <- function(dispatchers) {
+  quoted <- paste0('"', dispatchers, '"')
+  if (length(quoted) == 1L) {
+    return(quoted)
+  }
+  if (length(quoted) == 2L) {
+    return(paste(quoted, collapse = " or "))
+  }
+  paste0(
+    paste(quoted[-length(quoted)], collapse = ", "),
+    ", or ",
+    quoted[[length(quoted)]]
+  )
+}
+
 # Methods using the high-entropy JIP approximation (Brewer & Donadio, 2003).
 # Spans wor + balanced; used in joint_inclusion_prob.wor marginal defect check.
 .he_jip_methods <- c("brewer", "sps", "pareto", "cube")
@@ -113,9 +160,15 @@
 #'
 #' @param name Method name (character string), as used by the sondage
 #'   dispatchers (e.g. `"brewer"`, `"cube"`, `"srs"`).
+#' @param dispatcher Optional sampling entry point. One of
+#'   `"equal_prob_wor"`, `"equal_prob_wr"`, `"unequal_prob_wor"`,
+#'   `"unequal_prob_wr"`, or `"balanced_wor"`. Required when `name`
+#'   is available through more than one entry point, as with `"srs"`
+#'   and `"systematic"`. Values must match exactly.
 #'
-#' @return A list with elements `type` (`"wor"`, `"wr"`, or
-#'   `"balanced"`), `fixed_size` (logical), `variance_family` (one of
+#' @return A list with elements `dispatcher` (the sampling entry point),
+#'   `type` (`"wor"`, `"wr"`, or `"balanced"`), `fixed_size` (logical),
+#'   `variance_family` (one of
 #'   `"srs"`, `"pps_brewer"`, `"poisson"`, `"wr"`, `"unsupported"`, or
 #'   `NULL` for a registered method that did not declare one; see
 #'   [register_method()]), `supports_prn` (logical), `supports_aux`
@@ -130,27 +183,58 @@
 #'   built-ins, whose implementations are internal dispatch paths).
 #'   Returns `NULL` if the method is unknown. The
 #'   aux/strata/spread capabilities are only `TRUE` for balanced
-#'   methods. For the two names shared by an equal- and an
-#'   unequal-probability built-in, the lookup resolves as it does for
-#'   `type`: `"systematic"` reports the unequal-probability variant
-#'   and `"srs"` the without-replacement variant.
+#'   methods. An ambiguous built-in name without `dispatcher` is an
+#'   error rather than silently selecting one variant.
 #'
 #' @seealso [register_method()], [registered_methods()]
 #'
 #' @examples
 #' method_spec("brewer")
 #' method_spec("cube")
+#' method_spec("srs", dispatcher = "equal_prob_wr")
+#' method_spec("systematic", dispatcher = "equal_prob_wor")
 #' method_spec("nonexistent")
 #'
 #' @export
-method_spec <- function(name) {
-  if (!is.character(name) || length(name) != 1L) {
-    stop("'name' must be a single character string", call. = FALSE)
+method_spec <- function(name, dispatcher = NULL) {
+  name <- .check_method_name(name)
+  dispatchers <- names(.dispatcher_specs)
+  if (
+    !is.null(dispatcher) &&
+      (!is.character(dispatcher) ||
+        length(dispatcher) != 1L ||
+        !is.null(dim(dispatcher)) ||
+        is.na(dispatcher) ||
+        !(dispatcher %in% dispatchers))
+  ) {
+    stop(
+      "'dispatcher' must be NULL or exactly one of ",
+      .format_dispatcher_choices(dispatchers),
+      call. = FALSE
+    )
   }
 
   if (is_registered_method(name)) {
     reg <- .method_registry[[name]]
+    registered_dispatcher <- switch(
+      reg$type,
+      wor = "unequal_prob_wor",
+      wr = "unequal_prob_wr",
+      balanced = "balanced_wor"
+    )
+    if (!is.null(dispatcher) && dispatcher != registered_dispatcher) {
+      stop(
+        sprintf(
+          "registered method '%s' uses dispatcher \"%s\", not \"%s\"",
+          name,
+          registered_dispatcher,
+          dispatcher
+        ),
+        call. = FALSE
+      )
+    }
     return(list(
+      dispatcher = registered_dispatcher,
       type = reg$type,
       fixed_size = reg$fixed_size,
       # NULL when undeclared: list(x = NULL) keeps the element, so the
@@ -166,48 +250,61 @@ method_spec <- function(name) {
     ))
   }
 
-  all_specs <- list(
-    wor = .wor_specs,
-    wr = .wr_specs,
-    ep_wor = .ep_wor_specs,
-    ep_wr = .ep_wr_specs,
-    balanced = .balanced_specs
-  )
-
-  for (ctx in names(all_specs)) {
-    spec <- all_specs[[ctx]][[name]]
-    if (!is.null(spec)) {
-      type <- switch(
-        ctx,
-        wr = ,
-        ep_wr = "wr",
-        balanced = "balanced",
-        "wor"
-      )
-      return(list(
-        type = type,
-        fixed_size = isTRUE(spec$fixed_size),
-        variance_family = spec$variance_family,
-        supports_prn = isTRUE(spec$prn),
-        supports_aux = isTRUE(spec$aux),
-        supports_strata = isTRUE(spec$strata),
-        supports_spread = isTRUE(spec$spread),
-        # Exact is the built-in norm; only the order-sampling pair
-        # (sps, pareto) carries "approximate" in its spec entry.
-        probabilities = if (is.null(spec$probabilities)) {
-          "exact"
-        } else {
-          spec$probabilities
-        },
-        # Built-in implementations are internal dispatch paths, not
-        # registry entries; only registered methods expose functions.
-        sample_fn = NULL,
-        joint_fn = NULL
-      ))
-    }
+  available <- dispatchers[vapply(
+    .dispatcher_specs,
+    function(specs) !is.null(specs[[name]]),
+    logical(1)
+  )]
+  if (length(available) == 0L) {
+    return(NULL)
+  }
+  if (is.null(dispatcher) && length(available) > 1L) {
+    stop(
+      sprintf(
+        "method '%s' is ambiguous; supply 'dispatcher' as %s",
+        name,
+        .format_dispatcher_choices(available)
+      ),
+      call. = FALSE
+    )
+  }
+  if (!is.null(dispatcher) && !(dispatcher %in% available)) {
+    stop(
+      sprintf(
+        "method '%s' is not available through dispatcher \"%s\"; use %s",
+        name,
+        dispatcher,
+        .format_dispatcher_choices(available)
+      ),
+      call. = FALSE
+    )
+  }
+  if (is.null(dispatcher)) {
+    dispatcher <- available[[1L]]
   }
 
-  NULL
+  spec <- .dispatcher_specs[[dispatcher]][[name]]
+  list(
+    dispatcher = dispatcher,
+    type = unname(.dispatcher_types[[dispatcher]]),
+    fixed_size = isTRUE(spec$fixed_size),
+    variance_family = spec$variance_family,
+    supports_prn = isTRUE(spec$prn),
+    supports_aux = isTRUE(spec$aux),
+    supports_strata = isTRUE(spec$strata),
+    supports_spread = isTRUE(spec$spread),
+    # Exact is the built-in norm; only the order-sampling pair
+    # (sps, pareto) carries "approximate" in its spec entry.
+    probabilities = if (is.null(spec$probabilities)) {
+      "exact"
+    } else {
+      spec$probabilities
+    },
+    # Built-in implementations are internal dispatch paths, not
+    # registry entries; only registered methods expose functions.
+    sample_fn = NULL,
+    joint_fn = NULL
+  )
 }
 
 #' @noRd

@@ -87,8 +87,12 @@ test_that("sampford sampled-only joints equal the full submatrix", {
   full <- joint_inclusion_prob(s)
   sub <- joint_inclusion_prob(s, sampled_only = TRUE)
 
-  expect_equal(sub, full[s$sample, s$sample, drop = FALSE], tolerance = 1e-12)
-  expect_equal(diag(sub), pik[s$sample])
+  expect_equal(
+    unname(sub),
+    full[s$sample, s$sample, drop = FALSE],
+    tolerance = 1e-12
+  )
+  expect_equal(unname(diag(sub)), pik[s$sample])
 })
 
 test_that("sampford batch mode returns valid samples", {
@@ -120,4 +124,3 @@ test_that("sampford method metadata is available", {
   expect_false(spec$supports_prn)
   expect_identical(spec$variance_family, "pps_brewer")
 })
-

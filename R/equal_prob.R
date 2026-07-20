@@ -26,7 +26,8 @@
 #'   values in the open interval (0, 1)) for sample coordination.
 #'   Only supported by `"bernoulli"` method. Cannot be used with
 #'   `nrep > 1` (identical PRN would produce identical replicates).
-#' @param ... Additional arguments passed to methods.
+#' @param ... Reserved for extensions. Built-in methods currently take no
+#'   additional arguments.
 #'
 #' @return An object of class `c("equal_prob", "wor", "sondage_sample")`.
 #'   When `nrep = 1`, `$sample` is an integer vector. When `nrep > 1`,
@@ -60,27 +61,16 @@ equal_prob_wor <- function(
   prn = NULL,
   ...
 ) {
-  method <- match.arg(method)
-  nrep <- check_integer(nrep, "nrep")
-  if (nrep < 1L) {
-    stop("'nrep' must be at least 1", call. = FALSE)
-  }
-
-  if (!is.null(prn) && !.method_supports_prn(method, "ep_wor")) {
-    warning(
-      sprintf("prn is not used by method '%s' and will be ignored", method),
-      call. = FALSE
-    )
-  }
-
-  if (!is.null(prn) && nrep > 1L) {
-    stop(
-      "prn and nrep > 1 cannot be used together. ",
-      "Permanent random numbers produce identical samples across replicates. ",
-      "Use a loop with different prn vectors for coordinated repeated sampling.",
-      call. = FALSE
-    )
-  }
+  method <- .match_choice(
+    method,
+    c("srs", "systematic", "bernoulli"),
+    "method"
+  )
+  nrep <- .check_nrep_prn(
+    nrep, prn, method,
+    supports_prn = .method_supports_prn(method, "ep_wor"),
+    supported = "bernoulli"
+  )
 
   if (nrep == 1L) {
     switch(
@@ -104,9 +94,10 @@ equal_prob_wor <- function(
 #' @param method The sampling method. Currently only `"srs"`.
 #' @param nrep Number of replicate samples (default 1).
 #' @param prn Optional vector of permanent random numbers for sample
-#'   coordination. Not currently used by any equal-probability WR method;
-#'   a warning is issued if provided.
-#' @param ... Additional arguments passed to methods.
+#'   coordination. No equal-probability WR method currently supports `prn`;
+#'   supplying it is an error.
+#' @param ... Reserved for extensions. Built-in methods currently take no
+#'   additional arguments.
 #'
 #' @return An object of class `c("equal_prob", "wr", "sondage_sample")`.
 #'   When `nrep = 1`, `$sample` is an integer vector and `$hits` is an
@@ -124,18 +115,8 @@ equal_prob_wor <- function(
 #'
 #' @export
 equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
-  method <- match.arg(method)
-  nrep <- check_integer(nrep, "nrep")
-  if (nrep < 1L) {
-    stop("'nrep' must be at least 1", call. = FALSE)
-  }
-
-  if (!is.null(prn)) {
-    warning(
-      sprintf("prn is not used by method '%s' and will be ignored", method),
-      call. = FALSE
-    )
-  }
+  method <- .match_choice(method, "srs", "method")
+  nrep <- .check_nrep_prn(nrep, prn, method, supports_prn = FALSE)
 
   if (nrep == 1L) {
     .srs_wr_sample(N, n, ...)
@@ -145,18 +126,12 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 }
 
 #' @noRd
-.srs_wor_sample <- function(N, n, ...) {
+.srs_wor_sample <- function(N, n) {
   N <- .check_ep_args(N, n, replace = FALSE)
   n <- check_integer(n, "n")
 
-  if (n == 0L) {
-    idx <- integer(0)
-  } else {
-    idx <- sample.int(N, n)
-  }
-
   .new_wor_sample(
-    sample = idx,
+    sample = .srs_wor_draw(N, n),
     pik = rep(n / N, N),
     n = n,
     N = N,
@@ -167,23 +142,12 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 }
 
 #' @noRd
-.systematic_ep_sample <- function(N, n, ...) {
+.systematic_ep_sample <- function(N, n) {
   N <- .check_ep_args(N, n, replace = FALSE)
   n <- check_integer(n, "n")
 
-  if (n == 0L) {
-    idx <- integer(0)
-  } else {
-    k <- N / n
-    u <- runif(1, 0, k)
-    # u is conceptually in (0, k]; runif can return exactly 0 with
-    # vanishing probability, which would give ceiling(0) = 0. Clamp
-    # to guarantee valid 1-based indices.
-    idx <- pmax(1L, as.integer(ceiling(u + k * (0:(n - 1)))))
-  }
-
   .new_wor_sample(
-    sample = idx,
+    sample = .systematic_ep_draw(N, n),
     pik = rep(n / N, N),
     n = n,
     N = N,
@@ -194,7 +158,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 }
 
 #' @noRd
-.bernoulli_sample <- function(N, n, prn = NULL, ...) {
+.bernoulli_sample <- function(N, n, prn = NULL) {
   N <- .check_ep_args(N, n, replace = FALSE)
 
   p <- n / N
@@ -217,18 +181,30 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
   )
 }
 
+#' Raw equal-probability WOR draws for validated inputs.
+#'
 #' @noRd
-.srs_wr_sample <- function(N, n, ...) {
+.srs_wor_draw <- function(N, n) {
+  if (n == 0L) integer(0) else sample.int(N, n)
+}
+
+#' @noRd
+.systematic_ep_draw <- function(N, n) {
+  if (n == 0L) return(integer(0))
+  k <- N / n
+  u <- runif(1, 0, k)
+  # Clamp the vanishingly unlikely rounded U == 0 to a valid index.
+  pmax(1L, as.integer(ceiling(u + k * (0:(n - 1)))))
+}
+
+#' @noRd
+.srs_wr_sample <- function(N, n) {
   N <- .check_ep_args(N, n, replace = TRUE)
   n <- check_integer(n, "n")
 
   prob <- rep(1 / N, N)
 
-  if (n == 0L) {
-    idx <- integer(0)
-  } else {
-    idx <- sample.int(N, n, replace = TRUE)
-  }
+  idx <- .srs_wr_draw(N, n)
   realized_hits <- tabulate(idx, nbins = N)
 
   .new_wr_sample(
@@ -244,13 +220,19 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 }
 
 #' @noRd
+.srs_wr_draw <- function(N, n) {
+  if (n == 0L) integer(0) else sample.int(N, n, replace = TRUE)
+}
+
+#' @noRd
 .check_ep_args <- function(N, n, replace = FALSE) {
   N <- check_integer(N, "N")
   if (N < 1L) {
     stop("'N' must be a positive integer", call. = FALSE)
   }
-  if (!is.numeric(n) || length(n) != 1 || is.na(n) || n < 0) {
-    stop("'n' must be a non-negative number", call. = FALSE)
+  n <- .check_number(n, "n")
+  if (n < 0) {
+    stop("'n' must be non-negative", call. = FALSE)
   }
   if (!replace && n > N) {
     stop(
@@ -262,29 +244,30 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 }
 
 #' @noRd
-.batch_ep_wor <- function(N, n, method, nrep, ...) {
+.batch_ep_wor <- function(N, n, method, nrep) {
   # prn is rejected upstream in equal_prob_wor when nrep > 1; no prn
   # forwarding here.
-  N_int <- check_integer(N, "N")
+  N_int <- .check_ep_args(N, n, replace = FALSE)
   fixed_size <- .method_is_fixed_size(method, "ep_wor")
 
   if (!fixed_size) {
     p <- n / N_int
     sample_data <- lapply(seq_len(nrep), function(i) {
-      .bernoulli_sample(N, n, ...)$sample
+      which(as.logical(rbinom(N_int, 1, p)))
     })
     pik <- rep(p, N_int)
   } else {
     n_int <- check_integer(n, "n")
+    n <- n_int
     mat <- matrix(0L, n_int, nrep)
     draw_fn <- switch(
       method,
-      srs = .srs_wor_sample,
-      systematic = .systematic_ep_sample,
+      srs = .srs_wor_draw,
+      systematic = .systematic_ep_draw,
       .stop_unknown_method(method) # nocov
     )
     for (i in seq_len(nrep)) {
-      mat[, i] <- draw_fn(N, n, ...)$sample
+      mat[, i] <- draw_fn(N_int, n_int)
     }
     sample_data <- mat
     pik <- rep(n_int / N_int, N_int)
@@ -302,19 +285,19 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 }
 
 #' @noRd
-.batch_ep_wr <- function(N, n, method, nrep, ...) {
+.batch_ep_wr <- function(N, n, method, nrep) {
   # prn is rejected upstream in equal_prob_wr (srs-WR does not support
   # PRN); no prn forwarding here.
-  N_int <- check_integer(N, "N")
+  N_int <- .check_ep_args(N, n, replace = TRUE)
   n_int <- check_integer(n, "n")
   prob <- rep(1 / N_int, N_int)
 
   sample_mat <- matrix(0L, n_int, nrep)
   hits_mat <- matrix(0L, N_int, nrep)
   for (i in seq_len(nrep)) {
-    d <- .srs_wr_sample(N, n, ...)
-    sample_mat[, i] <- d$sample
-    hits_mat[, i] <- d$hits
+    idx <- .srs_wr_draw(N_int, n_int)
+    sample_mat[, i] <- idx
+    hits_mat[, i] <- tabulate(idx, nbins = N_int)
   }
 
   .new_wr_sample(

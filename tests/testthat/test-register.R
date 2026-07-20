@@ -25,7 +25,7 @@ test_that("register_method validates inputs", {
   )
   expect_error(
     register_method("x", "badtype", sample_fn = identity),
-    "should be one of"
+    "'type' must be one of"
   )
 })
 
@@ -44,6 +44,26 @@ test_that("register_method rejects built-in names", {
     register_method("systematic", "wor", sample_fn = identity),
     "built-in"
   )
+})
+
+test_that("register_method rejects an existing custom name", {
+  on.exit(unregister_method("existing_method"), add = TRUE)
+
+  first_sample <- function(pik, n = NULL, prn = NULL, ...) seq_len(n)
+  replacement <- function(pik, n = NULL, prn = NULL, ...) {
+    rev(seq_along(pik))[seq_len(n)]
+  }
+  register_method("existing_method", "wor", sample_fn = first_sample)
+
+  expect_error(
+    register_method("existing_method", "wor", sample_fn = replacement),
+    "already registered.*unregister_method"
+  )
+  expect_identical(method_spec("existing_method")$sample_fn, first_sample)
+
+  expect_true(unregister_method("existing_method"))
+  register_method("existing_method", "wor", sample_fn = replacement)
+  expect_identical(method_spec("existing_method")$sample_fn, replacement)
 })
 
 test_that("register/unregister lifecycle works", {
@@ -140,6 +160,46 @@ test_that("registered method with joint_fn works", {
   expect_equal(nrow(pikl_s), 2L)
 })
 
+test_that("registered WOR joint_fn receives an explicitly declared eps", {
+  on.exit(unregister_method("toy_eps"), add = TRUE)
+  seen <- new.env(parent = emptyenv())
+  joint_fn <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
+    seen$eps <- eps
+    if (!is.null(sample_idx)) pik <- pik[sample_idx]
+    J <- outer(pik, pik)
+    diag(J) <- pik
+    J
+  }
+  register_method(
+    "toy_eps", "wor", sample_fn = toy_wor_sample, joint_fn = joint_fn
+  )
+
+  s <- unequal_prob_wor(
+    c(0.2, 0.3, 0.15, 0.35, 0.5, 0.5), method = "toy_eps"
+  )
+  joint_inclusion_prob(s, eps = 0.4)
+  expect_identical(seen$eps, 0.4)
+  joint_inclusion_prob(s, sampled_only = TRUE, eps = 0.3)
+  expect_identical(seen$eps, 0.3)
+})
+
+test_that("generic-owned arguments are not sent to undeclared formals", {
+  on.exit(unregister_method("toy_no_eps"), add = TRUE)
+  joint_fn <- function(pik, sample_idx = NULL) {
+    if (!is.null(sample_idx)) pik <- pik[sample_idx]
+    J <- outer(pik, pik)
+    diag(J) <- pik
+    J
+  }
+  register_method(
+    "toy_no_eps", "wor", sample_fn = toy_wor_sample, joint_fn = joint_fn
+  )
+  s <- unequal_prob_wor(
+    c(0.2, 0.3, 0.15, 0.35, 0.5, 0.5), method = "toy_no_eps"
+  )
+  expect_no_error(joint_inclusion_prob(s, eps = 0.4))
+})
+
 test_that("sampling_cov works for registered WOR method with joint_fn", {
   on.exit(unregister_method("toy_wor"), add = TRUE)
 
@@ -166,7 +226,7 @@ test_that("sampling_cov works for registered WOR method with joint_fn", {
   expect_equal(nrow(delta), 6L)
 })
 
-test_that("PRN warning for registered method without PRN support", {
+test_that("registered method without PRN support rejects PRN", {
   on.exit(unregister_method("toy_wor"), add = TRUE)
   register_method(
     "toy_wor",
@@ -176,9 +236,9 @@ test_that("PRN warning for registered method without PRN support", {
   )
 
   pik <- c(0.5, 0.5)
-  expect_warning(
+  expect_error(
     unequal_prob_wor(pik, method = "toy_wor", prn = c(0.3, 0.7)),
-    "prn is not used"
+    "does not support 'prn'"
   )
 })
 
@@ -195,6 +255,17 @@ test_that("print works for registered method", {
 # Dispatch with a toy WR method
 toy_wr_sample <- function(hits, n = NULL, prn = NULL, ...) {
   sample.int(length(hits), size = n, replace = TRUE, prob = hits)
+}
+
+toy_wr_joint <- function(hits, sample_idx = NULL, ...) {
+  n <- sum(hits)
+  prob <- hits / n
+  joint <- n * (n - 1) * outer(prob, prob)
+  diag(joint) <- diag(joint) + hits
+  if (!is.null(sample_idx)) {
+    joint <- joint[sample_idx, sample_idx, drop = FALSE]
+  }
+  joint
 }
 
 test_that("registered WR method dispatches through unequal_prob_wr", {
@@ -220,6 +291,109 @@ test_that("registered WR method works in batch mode", {
 
   expect_equal(dim(s$sample), c(2L, 10L))
   expect_equal(dim(s$hits), c(3L, 10L))
+})
+
+test_that("registered WR joint_fn receives expected hits", {
+  on.exit(unregister_method("toy_wr"), add = TRUE)
+  sample_fn <- function(hits, n = NULL, prn = NULL, ...) c(1L, 3L)
+  register_method(
+    "toy_wr",
+    "wr",
+    sample_fn = sample_fn,
+    joint_fn = toy_wr_joint
+  )
+
+  hits <- c(0.5, 1, 0.5)
+  s <- unequal_prob_wr(hits, method = "toy_wr")
+  expected <- toy_wr_joint(hits)
+
+  expect_equal(unname(joint_expected_hits(s)), expected)
+  expect_equal(
+    unname(joint_expected_hits(s, sampled_only = TRUE)),
+    expected[c(1L, 3L), c(1L, 3L), drop = FALSE]
+  )
+  expected_cov <- expected - outer(hits, hits)
+  expect_equal(unname(sampling_cov(s)), expected_cov)
+  expect_equal(
+    unname(sampling_cov(s, sampled_only = TRUE)),
+    expected_cov[c(1L, 3L), c(1L, 3L), drop = FALSE]
+  )
+})
+
+test_that("registered WR joint_fn receives normalized hits and nsim", {
+  on.exit(unregister_method("toy_wr_nsim"), add = TRUE)
+  seen <- new.env(parent = emptyenv())
+  sample_fn <- function(hits, n = NULL, prn = NULL, ...) c(1L, 3L)
+  joint_fn <- function(hits, sample_idx = NULL, nsim = 10000L, ...) {
+    seen$hits <- hits
+    seen$nsim <- nsim
+    if (!is.null(sample_idx)) hits <- hits[sample_idx]
+    J <- outer(hits, hits)
+    diag(J) <- hits
+    J
+  }
+  register_method(
+    "toy_wr_nsim", "wr", sample_fn = sample_fn, joint_fn = joint_fn
+  )
+
+  raw_hits <- c(0.5, 1, 0.50005)
+  s <- unequal_prob_wr(raw_hits, method = "toy_wr_nsim")
+  joint_expected_hits(s, nsim = 37)
+
+  expect_equal(seen$hits, 2 * raw_hits / sum(raw_hits))
+  expect_identical(sum(seen$hits), 2)
+  expect_identical(seen$nsim, 37)
+  joint_expected_hits(s, sampled_only = TRUE, nsim = 41)
+  expect_identical(seen$nsim, 41)
+})
+
+test_that("registered WR joint_fn errors use expected-hit terminology", {
+  hits <- c(0.5, 1, 0.5)
+  sample_fn <- function(hits, n = NULL, prn = NULL, ...) c(1L, 3L)
+  bad_joint <- list(
+    vector = list(
+      value = rep(0.25, 9),
+      error = "joint-expected-hits result.*not a numeric matrix"
+    ),
+    wrong_size = list(
+      value = matrix(0.25, 2, 2),
+      error = "2 x 2 joint-expected-hits matrix; expected 3 x 3"
+    ),
+    non_finite = list(
+      value = {
+        result <- matrix(0.25, 3, 3)
+        result[1, 2] <- result[2, 1] <- NA_real_
+        result
+      },
+      error = "joint expected hits containing non-finite values"
+    ),
+    asymmetric = list(
+      value = {
+        result <- matrix(0.25, 3, 3)
+        result[1, 2] <- 0.4
+        result
+      },
+      error = "non-symmetric joint-expected-hits matrix"
+    )
+  )
+
+  for (case in names(bad_joint)) {
+    method <- paste0("bad_wr_joint_", case)
+    on.exit(unregister_method(method), add = TRUE)
+    value <- bad_joint[[case]]$value
+    register_method(
+      method,
+      "wr",
+      sample_fn = sample_fn,
+      joint_fn = function(...) value
+    )
+    s <- unequal_prob_wr(hits, method = method)
+    expect_error(
+      joint_expected_hits(s),
+      bad_joint[[case]]$error,
+      info = case
+    )
+  }
 })
 
 # Integration with sampling::UPtille
@@ -266,7 +440,7 @@ test_that("UPtille from sampling package works end-to-end", {
   # sampled_only submatrix
   pikl_s <- joint_inclusion_prob(s, sampled_only = TRUE)
   expect_equal(dim(pikl_s), c(2L, 2L))
-  expect_equal(pikl_s, pikl[s$sample, s$sample])
+  expect_equal(unname(pikl_s), pikl[s$sample, s$sample])
 
   # Sampling covariance
   delta <- sampling_cov(s)
@@ -570,33 +744,52 @@ test_that("method_spec returns correct metadata for random-size PRN method", {
 # Registration validation for balanced methods
 test_that("register_method validates balanced-specific flags", {
   expect_error(
-    register_method("x", "wor", sample_fn = identity, supports_strata = NA),
+    register_method(
+      "x", "balanced", sample_fn = identity, supports_strata = NA
+    ),
     "TRUE or FALSE"
   )
   expect_error(
-    register_method("x", "wor", sample_fn = identity, supports_strata = TRUE),
-    "only applies to type"
-  )
-  expect_error(
-    register_method("x", "wor", sample_fn = identity, supports_spread = NA),
+    register_method(
+      "x", "balanced", sample_fn = identity, supports_spread = NA
+    ),
     "TRUE or FALSE"
   )
   expect_error(
-    register_method("x", "wor", sample_fn = identity, supports_spread = TRUE),
-    "only applies to type"
-  )
-  expect_error(
-    register_method("x", "wor", sample_fn = identity, supports_aux = NA),
+    register_method("x", "balanced", sample_fn = identity, supports_aux = NA),
     "TRUE or FALSE"
   )
   expect_error(
-    register_method("x", "wor", sample_fn = identity, supports_aux = FALSE),
-    "only applies to type"
+    register_method("x", "wor", sample_fn = identity, supports_prn = NA),
+    "TRUE or FALSE"
   )
-  expect_error(
-    register_method("x", "balanced", sample_fn = identity, supports_prn = TRUE),
-    "cannot use prn"
-  )
+
+  for (value in c(FALSE, TRUE)) {
+    expect_error(
+      register_method("x", "wor", sample_fn = identity, supports_aux = value),
+      "only applies to type",
+      info = paste("supports_aux =", value)
+    )
+    expect_error(
+      register_method(
+        "x", "wor", sample_fn = identity, supports_strata = value
+      ),
+      "only applies to type",
+      info = paste("supports_strata =", value)
+    )
+    expect_error(
+      register_method("x", "wr", sample_fn = identity, supports_spread = value),
+      "only applies to type",
+      info = paste("supports_spread =", value)
+    )
+    expect_error(
+      register_method(
+        "x", "balanced", sample_fn = identity, supports_prn = value
+      ),
+      "only applies to type",
+      info = paste("supports_prn =", value)
+    )
+  }
   expect_error(
     register_method("cube", "balanced", sample_fn = identity),
     "built-in"
@@ -1199,7 +1392,7 @@ test_that("register_method validates probabilities values", {
       sample_fn = toy_wor_sample,
       probabilities = "sometimes"
     ),
-    "'arg' should be one of"
+    "'probabilities' must be one of"
   )
   expect_false(is_registered_method("prob_bad"))
 })
@@ -1250,30 +1443,35 @@ test_that("method_spec exposes registered implementations, NULL for built-ins", 
   expect_null(builtin$joint_fn)
 })
 
-test_that("probabilities sits last: pre-0.8.8 positional calls still bind", {
-  on.exit(unregister_method("prob_positional"), add = TRUE)
-  # Positional order through supports_spread predates the probabilities
-  # argument; it must keep binding the capability flags, not probabilities.
-  register_method(
-    "prob_positional", "wor", toy_wor_sample, NULL, TRUE, "pps_brewer",
-    TRUE, TRUE, FALSE, FALSE
+test_that("irrelevant positional capability values are rejected", {
+  expect_error(
+    register_method(
+      "irrelevant_positional", "wor", toy_wor_sample, NULL, TRUE,
+      "pps_brewer", TRUE, TRUE, FALSE, FALSE
+    ),
+    "'supports_aux' only applies to type = \"balanced\""
   )
-
-  spec <- method_spec("prob_positional")
-  expect_true(spec$supports_prn)
-  expect_identical(spec$variance_family, "pps_brewer")
-  expect_identical(spec$probabilities, "unknown")
+  expect_false(is_registered_method("irrelevant_positional"))
 })
 
 test_that("built-in methods report their probabilities tier", {
-  exact <- c(
-    "srs", "systematic", "bernoulli",
-    "cps", "sampford", "brewer", "poisson",
-    "chromy", "multinomial",
-    "cube", "lpm2", "scps"
+  exact <- list(
+    equal_prob_wor = c("srs", "systematic", "bernoulli"),
+    equal_prob_wr = "srs",
+    unequal_prob_wor = c(
+      "cps", "sampford", "brewer", "systematic", "poisson"
+    ),
+    unequal_prob_wr = c("chromy", "multinomial"),
+    balanced_wor = c("cube", "lpm2", "scps")
   )
-  for (m in exact) {
-    expect_identical(method_spec(m)$probabilities, "exact", info = m)
+  for (dispatcher in names(exact)) {
+    for (method in exact[[dispatcher]]) {
+      expect_identical(
+        method_spec(method, dispatcher)$probabilities,
+        "exact",
+        info = paste(dispatcher, method)
+      )
+    }
   }
   # The order-sampling pair honors pik to a documented approximation.
   for (m in c("sps", "pareto")) {
@@ -1360,7 +1558,7 @@ test_that("registered balanced methods must return valid WOR indices", {
   )
 })
 
-test_that("unsupported PRN is not forwarded to registered methods", {
+test_that("unsupported PRN stops before calling registered methods", {
   on.exit(unregister_method("no_prn"), add = TRUE)
   received_prn <- "not called"
   sampler <- function(pik, n = NULL, prn = NULL, ...) {
@@ -1369,11 +1567,11 @@ test_that("unsupported PRN is not forwarded to registered methods", {
   }
   register_method("no_prn", "wor", sample_fn = sampler)
 
-  expect_warning(
+  expect_error(
     unequal_prob_wor(rep(0.5, 4), method = "no_prn", prn = rep(0.5, 4)),
-    "will be ignored"
+    "does not support 'prn'"
   )
-  expect_null(received_prn)
+  expect_identical(received_prn, "not called")
 })
 
 test_that("supported PRN is validated for registered methods", {

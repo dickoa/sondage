@@ -10,6 +10,7 @@ extern SEXP C_cps_single(SEXP pik);
 extern SEXP C_cps_design(SEXP pik);
 extern SEXP C_cps_draw_batch(SEXP design, SEXP n_samples);
 extern SEXP C_up_chromy(SEXP x, SEXP n);
+extern SEXP C_up_chromy_batch(SEXP x, SEXP n, SEXP nrep);
 extern SEXP C_chromy_joint_exp(SEXP x, SEXP n, SEXP nsim);
 extern SEXP C_chromy_joint_exp_sub(SEXP x, SEXP n, SEXP nsim, SEXP idx);
 extern SEXP C_cps_jip(SEXP pik);
@@ -40,6 +41,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"C_cps_design",              (DL_FUNC) &C_cps_design,              1},
     {"C_cps_draw_batch",          (DL_FUNC) &C_cps_draw_batch,          2},
     {"C_up_chromy",               (DL_FUNC) &C_up_chromy,               2},
+    {"C_up_chromy_batch",         (DL_FUNC) &C_up_chromy_batch,         3},
     {"C_chromy_joint_exp",        (DL_FUNC) &C_chromy_joint_exp,        3},
     {"C_chromy_joint_exp_sub",    (DL_FUNC) &C_chromy_joint_exp_sub,    4},
     {"C_cps_jip",                 (DL_FUNC) &C_cps_jip,                 1},

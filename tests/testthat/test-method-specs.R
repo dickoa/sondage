@@ -98,6 +98,7 @@ test_that(".stop_unknown_method produces informative error", {
 
 test_that("method_spec returns correct metadata for WOR methods", {
   spec <- method_spec("brewer")
+  expect_equal(spec$dispatcher, "unequal_prob_wor")
   expect_equal(spec$type, "wor")
   expect_true(spec$fixed_size)
   expect_false(spec$supports_prn)
@@ -115,6 +116,7 @@ test_that("method_spec returns correct metadata for WOR methods", {
 
 test_that("method_spec returns correct metadata for WR methods", {
   spec <- method_spec("chromy")
+  expect_equal(spec$dispatcher, "unequal_prob_wr")
   expect_equal(spec$type, "wr")
   expect_true(spec$fixed_size)
   expect_false(spec$supports_prn)
@@ -126,12 +128,20 @@ test_that("method_spec returns correct metadata for WR methods", {
 })
 
 test_that("method_spec returns correct metadata for EP methods", {
-  spec <- method_spec("srs")
-  expect_equal(spec$type, "wor")
-  expect_true(spec$fixed_size)
-  expect_false(spec$supports_prn)
+  wor <- method_spec("srs", dispatcher = "equal_prob_wor")
+  expect_equal(wor$dispatcher, "equal_prob_wor")
+  expect_equal(wor$type, "wor")
+  expect_true(wor$fixed_size)
+  expect_equal(wor$variance_family, "srs")
+
+  wr <- method_spec("srs", dispatcher = "equal_prob_wr")
+  expect_equal(wr$dispatcher, "equal_prob_wr")
+  expect_equal(wr$type, "wr")
+  expect_true(wr$fixed_size)
+  expect_equal(wr$variance_family, "wr")
 
   spec <- method_spec("bernoulli")
+  expect_equal(spec$dispatcher, "equal_prob_wor")
   expect_equal(spec$type, "wor")
   expect_false(spec$fixed_size)
   expect_true(spec$supports_prn)
@@ -139,6 +149,7 @@ test_that("method_spec returns correct metadata for EP methods", {
 
 test_that("method_spec returns correct metadata for balanced methods", {
   spec <- method_spec("cube")
+  expect_equal(spec$dispatcher, "balanced_wor")
   expect_equal(spec$type, "balanced")
   expect_true(spec$fixed_size)
   expect_false(spec$supports_prn)
@@ -150,11 +161,57 @@ test_that("method_spec returns correct metadata for balanced methods", {
 test_that("method_spec returns NULL for unknown methods", {
   expect_null(method_spec("nonexistent"))
   expect_null(method_spec("lpm"))
+  expect_null(method_spec("nonexistent", dispatcher = "equal_prob_wor"))
 })
 
 test_that("method_spec validates input", {
-  expect_error(method_spec(42), "single character string")
-  expect_error(method_spec(c("a", "b")), "single character string")
+  expect_error(method_spec(42), "non-empty character string")
+  expect_error(method_spec(c("a", "b")), "non-empty character string")
+  expect_error(method_spec("brewer", dispatcher = "unequal"), "exactly one of")
+  expect_error(
+    method_spec("brewer", dispatcher = c("unequal_prob_wor", "equal_prob_wor")),
+    "exactly one of"
+  )
+  expect_error(
+    method_spec("brewer", dispatcher = NA_character_),
+    "exactly one of"
+  )
+  expect_error(
+    method_spec("brewer", dispatcher = matrix("unequal_prob_wor")),
+    "exactly one of"
+  )
+})
+
+test_that("method_spec requires a dispatcher for ambiguous names", {
+  expect_error(
+    method_spec("srs"),
+    'ambiguous.*"equal_prob_wor" or "equal_prob_wr"'
+  )
+  expect_error(
+    method_spec("systematic"),
+    'ambiguous.*"equal_prob_wor" or "unequal_prob_wor"'
+  )
+})
+
+test_that("method_spec rejects incompatible dispatchers", {
+  expect_error(
+    method_spec("brewer", dispatcher = "equal_prob_wor"),
+    'not available.*use "unequal_prob_wor"'
+  )
+  expect_error(
+    method_spec("srs", dispatcher = "balanced_wor"),
+    'not available.*"equal_prob_wor" or "equal_prob_wr"'
+  )
+})
+
+test_that("method_spec distinguishes systematic variants", {
+  equal <- method_spec("systematic", dispatcher = "equal_prob_wor")
+  unequal <- method_spec("systematic", dispatcher = "unequal_prob_wor")
+
+  expect_equal(equal$type, "wor")
+  expect_equal(unequal$type, "wor")
+  expect_equal(equal$variance_family, "srs")
+  expect_equal(unequal$variance_family, "pps_brewer")
 })
 
 test_that("method_spec returns correct metadata for registered methods", {
@@ -168,9 +225,17 @@ test_that("method_spec returns correct metadata for registered methods", {
   )
 
   spec <- method_spec("test_ms")
+  expect_equal(spec$dispatcher, "unequal_prob_wor")
   expect_equal(spec$type, "wor")
   expect_false(spec$fixed_size)
   expect_true(spec$supports_prn)
+
+  scoped <- method_spec("test_ms", dispatcher = "unequal_prob_wor")
+  expect_identical(scoped, spec)
+  expect_error(
+    method_spec("test_ms", dispatcher = "balanced_wor"),
+    'uses dispatcher "unequal_prob_wor", not "balanced_wor"'
+  )
 })
 
 test_that("method_spec picks up registered WR methods", {
@@ -178,6 +243,7 @@ test_that("method_spec picks up registered WR methods", {
   register_method("test_wr", "wr", sample_fn = identity)
 
   spec <- method_spec("test_wr")
+  expect_equal(spec$dispatcher, "unequal_prob_wr")
   expect_equal(spec$type, "wr")
   expect_true(spec$fixed_size)
   expect_false(spec$supports_prn)
@@ -299,8 +365,14 @@ test_that("method_spec reports variance_family for built-ins", {
   expect_identical(method_spec("chromy")$variance_family, "wr")
   expect_identical(method_spec("multinomial")$variance_family, "wr")
   expect_identical(method_spec("cube")$variance_family, "pps_brewer")
-  # Shared names resolve as they do for $type: "systematic" reports
-  # the unequal-probability variant, "srs" the without-replacement one
-  expect_identical(method_spec("systematic")$variance_family, "pps_brewer")
-  expect_identical(method_spec("srs")$variance_family, "srs")
+  expect_identical(
+    method_spec("systematic", "equal_prob_wor")$variance_family,
+    "srs"
+  )
+  expect_identical(
+    method_spec("systematic", "unequal_prob_wor")$variance_family,
+    "pps_brewer"
+  )
+  expect_identical(method_spec("srs", "equal_prob_wor")$variance_family, "srs")
+  expect_identical(method_spec("srs", "equal_prob_wr")$variance_family, "wr")
 })

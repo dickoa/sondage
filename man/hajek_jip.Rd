@@ -10,10 +10,10 @@ hajek_jip(pik, sample_idx = NULL, eps = 1e-06, ...)
 \item{pik}{Numeric vector of inclusion probabilities
 (\eqn{0 \le \pi_k \le 1}).}
 
-\item{sample_idx}{Integer vector of 1-based indices for the
-sampled units, or \code{NULL} (default) for the full population
-matrix. When non-\code{NULL}, returns the submatrix for those units
-only, without allocating the full N x N matrix.}
+\item{sample_idx}{Unique integer vector of 1-based indices for the
+sampled units, or \code{NULL} (default) for the full population matrix.
+When non-\code{NULL}, returns the submatrix for those units only, without
+allocating the full N x N matrix.}
 
 \item{eps}{Boundary tolerance (default 1e-6). Units with
 \eqn{\pi_k \ge 1 - \varepsilon} are treated as certainty

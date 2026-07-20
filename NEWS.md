@@ -2,6 +2,12 @@
 
 Initial CRAN release.
 
+Built-in samplers and design-query methods now reject unused arguments in
+`...`, so misspelled argument names fail instead of being silently ignored.
+Supplying `prn` to a method that does not support permanent random numbers is
+now an error. Registered methods continue to receive their extension arguments
+through `...`.
+
 ## Sampling
 
 Five dispatchers, 16 built-in methods:
@@ -33,6 +39,9 @@ All sampling functions return S3 design objects with class
 `c(prob_class, wor_or_wr, "sondage_sample")` (balanced designs
 additionally carry `"balanced"`).
 
+Print methods now identify balanced designs explicitly and distinguish the
+expected and realized sizes of random-size samples.
+
 ## Design queries
 
 * `inclusion_prob()`: first-order inclusion probabilities (from size
@@ -51,6 +60,10 @@ additionally carry `"balanced"`).
 
 The matrix-valued generics accept `sampled_only = TRUE` to return only the
 sampled-units submatrix (useful for large populations).
+`inclusion_prob()` now preserves input unit names. Joint-probability,
+joint-expectation, and covariance matrices use those names consistently across
+R and C implementations; sampled-only matrices fall back to population indices
+when the probability vector is unnamed.
 
 ## Extensibility
 
@@ -67,6 +80,9 @@ sampled-units submatrix (useful for large populations).
   `supports_prn`. Spread-only methods can declare
   `supports_aux = FALSE` so that passing `aux` errors instead of
   being silently ignored.
+* `register_method()` now rejects an already registered custom name instead
+  of silently replacing its implementation. Deliberate replacements require
+  an explicit call to `unregister_method()` first.
 * Registered methods can declare a `variance_family` (`"srs"`,
   `"pps_brewer"`, `"poisson"`, `"wr"`, `"unsupported"`) describing
   the design-based variance treatment downstream packages should
@@ -75,7 +91,7 @@ sampled-units submatrix (useful for large populations).
 * Registered methods declare where they sit in the first-order
   probability taxonomy with `probabilities`: `"exact"` (realized
   inclusion probabilities, or expected hits for `"wr"`, equal the
-  `pik` handed to the method), `"approximate"` (honored to a
+  `pik` or `hits` handed to the method), `"approximate"` (honored to a
   documented approximation, as Pareto and sequential Poisson order
   sampling do), or `"unknown"` (the default: `pik` is a selection
   weight only, so design weights `1/pik` would be biased). The
@@ -84,10 +100,22 @@ sampled-units submatrix (useful for large populations).
   itself is never affected. `method_spec()` reports the tier for
   every method: built-ins are `"exact"` except `"sps"` and
   `"pareto"`, which report `"approximate"`.
+* Custom WR callback contracts are documented with `hits`, consistently
+  with the values actually passed to `sample_fn` and `joint_fn`. Validation
+  errors now distinguish joint expected hits from joint inclusion
+  probabilities.
+* Capability arguments in `register_method()` now default to `NULL`, meaning
+  unspecified. Explicit capabilities are type-specific: WOR/WR methods may
+  declare `supports_prn`, while balanced methods may declare `supports_aux`,
+  `supports_strata`, and `supports_spread`. Supplying an irrelevant capability
+  now errors instead of being silently normalized.
 * `method_spec()` also returns `sample_fn` and `joint_fn`, the
   implementation functions of a registered method (`NULL` for
   built-ins). Downstream packages use them to fingerprint the
   implementation a saved design was executed with.
+* `method_spec()` now identifies the public `dispatcher` for every method.
+  Shared built-in names such as `"srs"` and `"systematic"` require an explicit
+  dispatcher instead of silently selecting one variant.
 * `he_jip()` (Brewer & Donadio 2003 high-entropy approximation) and
   `hajek_jip()` (Hajek 1964) are exported and can be passed directly
   as `joint_fn` to `register_method()`.

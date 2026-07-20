@@ -243,7 +243,7 @@ test_that("sampled_only chromy matches full[s,s] with same seed", {
   sub <- joint_expected_hits(s, sampled_only = TRUE, nsim = 5000)
 
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), unname(full[idx, idx, drop = FALSE]))
 })
 
 test_that("sampled_only returns correct dims and values for multinomial", {
@@ -255,7 +255,7 @@ test_that("sampled_only returns correct dims and values for multinomial", {
 
   idx <- which(s$hits > 0)
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), unname(full[idx, idx, drop = FALSE]))
 })
 
 test_that("sampled_only returns correct dims and values for SRS WR", {
@@ -265,7 +265,7 @@ test_that("sampled_only returns correct dims and values for SRS WR", {
 
   idx <- which(s$hits > 0)
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), unname(full[idx, idx, drop = FALSE]))
 })
 
 test_that("sampled_only errors for batch WR designs", {
@@ -307,7 +307,45 @@ test_that("sampled_only sampling_cov.wr end-to-end for chromy", {
 
   idx <- which(s$hits > 0)
   expect_equal(dim(sub_cov), c(length(idx), length(idx)))
-  expect_equal(sub_cov, full_cov[idx, idx, drop = FALSE])
+  expect_equal(unname(sub_cov), unname(full_cov[idx, idx, drop = FALSE]))
+})
+
+test_that("joint queries consistently preserve named population units", {
+  pik <- c(north = 0.2, south = 0.4, east = 0.6, west = 0.8)
+  s_wor <- unequal_prob_wor(pik, method = "cps")
+  full_wor <- joint_inclusion_prob(s_wor)
+  sub_wor <- joint_inclusion_prob(s_wor, sampled_only = TRUE)
+  selected_wor <- names(pik)[s_wor$sample]
+
+  expect_identical(dimnames(full_wor), list(names(pik), names(pik)))
+  expect_identical(dimnames(sub_wor), list(selected_wor, selected_wor))
+  expect_identical(
+    dimnames(sampling_cov(s_wor, sampled_only = TRUE)),
+    list(selected_wor, selected_wor)
+  )
+
+  hits <- c(north = 0.2, south = 0.6, east = 1.2, west = 1)
+  s_wr <- unequal_prob_wr(hits, method = "chromy")
+  selected_wr <- names(hits)[which(s_wr$hits > 0)]
+
+  expect_identical(
+    dimnames(joint_expected_hits(s_wr, nsim = 20)),
+    list(names(hits), names(hits))
+  )
+  expect_identical(
+    dimnames(joint_expected_hits(s_wr, sampled_only = TRUE, nsim = 20)),
+    list(selected_wr, selected_wr)
+  )
+})
+
+test_that("sampled-only queries label unnamed units with population indices", {
+  s <- unequal_prob_wor(c(0.2, 0.4, 0.6, 0.8), method = "cps")
+  full <- joint_inclusion_prob(s)
+  sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+  selected <- as.character(s$sample)
+
+  expect_null(dimnames(full))
+  expect_identical(dimnames(sub), list(selected, selected))
 })
 
 test_that("sampled_only supports N > 10K for Chromy", {
@@ -342,7 +380,7 @@ test_that("sampling_cov.wor with sampled_only matches subset", {
 
   idx <- s$sample
   expect_equal(dim(sub_cov), c(length(idx), length(idx)))
-  expect_equal(sub_cov, full_cov[idx, idx, drop = FALSE])
+  expect_equal(unname(sub_cov), full_cov[idx, idx, drop = FALSE])
 })
 
 test_that("sampling_cov.wr with sampled_only matches subset", {
@@ -354,7 +392,7 @@ test_that("sampling_cov.wr with sampled_only matches subset", {
 
   idx <- which(s$hits > 0)
   expect_equal(dim(sub_cov), c(length(idx), length(idx)))
-  expect_equal(sub_cov, full_cov[idx, idx, drop = FALSE])
+  expect_equal(unname(sub_cov), full_cov[idx, idx, drop = FALSE])
 })
 
 test_that("sampling_cov.wor weighted with sampled_only matches subset", {
@@ -365,5 +403,5 @@ test_that("sampling_cov.wor weighted with sampled_only matches subset", {
 
   idx <- s$sample
   expect_equal(dim(sub_cov), c(length(idx), length(idx)))
-  expect_equal(sub_cov, full_cov[idx, idx, drop = FALSE])
+  expect_equal(unname(sub_cov), full_cov[idx, idx, drop = FALSE])
 })

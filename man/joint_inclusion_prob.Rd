@@ -34,7 +34,10 @@ excluded/certainty units.}
 \value{
 A symmetric N x N matrix (or n x n if \code{sampled_only = TRUE})
 of joint inclusion probabilities. Diagonal entries are the
-first-order inclusion probabilities \eqn{\pi_i}.
+first-order inclusion probabilities \eqn{\pi_i}. When the stored
+probability vector is named, those names are used as row and column
+names. An otherwise unnamed sampled-only matrix is labelled with the
+sampled population indices.
 }
 \description{
 Computes the matrix of joint inclusion probabilities

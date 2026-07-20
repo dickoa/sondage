@@ -180,7 +180,7 @@ test_that("scps metadata and unsupported joint probabilities are explicit", {
   )
   expect_error(sampling_cov(s))
   expect_equal(inclusion_prob(s), rep(0.5, 10))
-  expect_output(print(s), "Unequal prob WOR \\[scps\\]")
+  expect_output(print(s), "Balanced WOR \\[scps\\]")
 })
 
 test_that("scps is a reserved built-in method name", {

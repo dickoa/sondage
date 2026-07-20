@@ -34,13 +34,6 @@ static int sampford_categorical(const double *cum, int N, double total) {
     return lo;
 }
 
-static int sampford_has_duplicate(const int *x, int len, int value) {
-    for (int i = 0; i < len; i++) {
-        if (x[i] == value) return 1;
-    }
-    return 0;
-}
-
 /* Partial Fisher--Yates draw for the equal-probability fast path. */
 static void sampford_srs(int N, int m, int *out) {
     int *pool = (int *) R_alloc(N, sizeof(int));
@@ -123,7 +116,8 @@ static void sampford_nonrejective(const double *p, const double *odds,
 }
 
 /* Draw a work-design sample, using rejection first and exact fallback. */
-static void sampford_draw_work(const double *p, int N, int m, int *out) {
+static void sampford_draw_work(const double *p, int N, int m, int *out,
+                               unsigned char *marked) {
     if (m <= 0) return;
 
     int all_equal = 1;
@@ -160,18 +154,24 @@ static void sampford_draw_work(const double *p, int N, int m, int *out) {
         return;
     }
 
+    memset(marked, 0, (size_t)N * sizeof(unsigned char));
     for (int attempt = 0; attempt < SAMPFORD_REJECTION_TRIES; attempt++) {
         out[0] = sampford_categorical(cum_p, N, p_total);
+        marked[out[0]] = 1;
+        int marked_count = 1;
         int accepted = 1;
         for (int j = 1; j < m; j++) {
             const int unit = sampford_categorical(cum_odds, N, odds_total);
-            if (sampford_has_duplicate(out, j, unit)) {
+            if (marked[unit]) {
                 accepted = 0;
                 break;
             }
             out[j] = unit;
+            marked[unit] = 1;
+            marked_count++;
         }
         if (accepted) return;
+        for (int j = 0; j < marked_count; j++) marked[out[j]] = 0;
     }
 
     sampford_nonrejective(p, odds, N, m, out);
@@ -232,12 +232,12 @@ SEXP C_up_sampford(SEXP pik_sexp) {
         p_work[i] = use_complement ? 1.0 - p_orig[i] : p_orig[i];
     }
     int *work_sample = (int *) R_alloc((m > 0 ? m : 1), sizeof(int));
+    unsigned char *marked = (unsigned char *) R_alloc(N, sizeof(unsigned char));
 
     GetRNGstate();
-    sampford_draw_work(p_work, N, m, work_sample);
+    sampford_draw_work(p_work, N, m, work_sample, marked);
     PutRNGstate();
 
-    unsigned char *marked = (unsigned char *) R_alloc(N, sizeof(unsigned char));
     memset(marked, 0, (size_t)N * sizeof(unsigned char));
     for (int i = 0; i < m; i++) marked[work_sample[i]] = 1;
 

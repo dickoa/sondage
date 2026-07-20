@@ -30,6 +30,7 @@
  *   variables (still relaxed from the last).
  */
 
+#include "sampling_core.h"
 #include <R.h>
 #include <Rinternals.h>
 #include <Rmath.h>
@@ -834,17 +835,6 @@ static void build_amat_global_xpi(CubeWorkspace *ws, const double *Xpi,
 
 /* --- Shared utilities --------------------------------------------------- */
 
-static int cube_extract_selected(const double *prob, int N, double eps,
-                                 int *out_idx) {
-    int k = 0;
-    for (int i = 0; i < N; i++) {
-        if (PROB_IS_ONE(prob[i], eps)) {
-            out_idx[k++] = i + 1;
-        }
-    }
-    return k;
-}
-
 static int cube_strata_nlevels(const int *strata, int N) {
     int n_strata = 0;
     for (int i = 0; i < N; i++) {
@@ -902,7 +892,9 @@ static int cube_draw_unstratified(const double *prob, const double *X,
     cube_flight(ws);
     cube_landing(ws);
     *n_dropped = ws->n_dropped;
-    return cube_extract_selected(ws->prob, N, eps, out_idx);
+    return sampling_extract_selected(
+        ws->prob, N, 1.0 - eps, out_idx, N
+    );
 }
 
 static int cube_draw_stratified(const double *prob, const double *X,
@@ -1054,7 +1046,9 @@ static int cube_draw_stratified(const double *prob, const double *X,
         cube_landing(ws);
     }
 
-    return cube_extract_selected(ws->prob, N, eps, out_idx);
+    return sampling_extract_selected(
+        ws->prob, N, 1.0 - eps, out_idx, N
+    );
 }
 
 /* --- R-callable entry points -------------------------------------------- */
@@ -1083,7 +1077,9 @@ SEXP C_cube(SEXP prob_sexp, SEXP X_sexp, SEXP B_sexp, SEXP r_sexp,
     SEXP result = PROTECT(allocVector(INTSXP, n_selected));
     memcpy(INTEGER(result), selected, (size_t)n_selected * sizeof(int));
     if (n_dropped > 0) {
-        setAttrib(result, install("relaxed"), ScalarInteger(n_dropped));
+        SEXP relaxed = PROTECT(ScalarInteger(n_dropped));
+        setAttrib(result, install("relaxed"), relaxed);
+        UNPROTECT(1);
     }
     UNPROTECT(1);
     return result;
@@ -1133,8 +1129,10 @@ SEXP C_cube_batch(SEXP prob_sexp, SEXP X_sexp, SEXP B_sexp, SEXP r_sexp,
         cube_landing(ws);
         if (ws->n_dropped > 0) relaxed_reps++;
 
-        int *col = res + s * n_target;
-        int n_selected = cube_extract_selected(ws->prob, N, eps, col);
+        int *col = res + (R_xlen_t)s * n_target;
+        int n_selected = sampling_extract_selected(
+            ws->prob, N, 1.0 - eps, col, n_target
+        );
         if (n_selected != n_target) {
             PutRNGstate();
             UNPROTECT(1);
@@ -1149,7 +1147,9 @@ SEXP C_cube_batch(SEXP prob_sexp, SEXP X_sexp, SEXP B_sexp, SEXP r_sexp,
     PutRNGstate();
 
     if (relaxed_reps > 0) {
-        setAttrib(result, install("relaxed_reps"), ScalarInteger(relaxed_reps));
+        SEXP relaxed_reps_sexp = PROTECT(ScalarInteger(relaxed_reps));
+        setAttrib(result, install("relaxed_reps"), relaxed_reps_sexp);
+        UNPROTECT(1);
     }
     UNPROTECT(1);
     return result;
@@ -1382,8 +1382,10 @@ SEXP C_cube_stratified_batch(SEXP prob_sexp, SEXP X_sexp, SEXP strata_sexp,
             cube_landing(ws);
         }
 
-        int *col = res + s * n_target;
-        int n_selected = cube_extract_selected(ws->prob, N, eps, col);
+        int *col = res + (R_xlen_t)s * n_target;
+        int n_selected = sampling_extract_selected(
+            ws->prob, N, 1.0 - eps, col, n_target
+        );
         if (n_selected != n_target) {
             PutRNGstate();
             UNPROTECT(1);

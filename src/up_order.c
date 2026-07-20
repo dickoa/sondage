@@ -179,7 +179,8 @@ SEXP C_up_systematic(SEXP pik) {
     error("systematic sampling produced %d selections, expected %d", j, total);
   }
 
-  /* Result is already sorted (sequential scan) */
+  R_isort(res, total);
+
   UNPROTECT(1);
   return result;
 }

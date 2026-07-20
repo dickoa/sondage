@@ -796,15 +796,19 @@ SEXP C_sampford_jip_sub(SEXP pik_sexp, SEXP idx_sexp) {
 }
 
 /*
- * Total overlap length of the circular arcs [a1, a1+l1) and [a2, a2+l2)
- * on the unit circle (0 <= a < 1, 0 <= l < 1): sum the linear overlaps
- * over integer shifts of the second arc.
+ * Total overlap length of the raw cumulative intervals [a1, b1) and
+ * [a2, b2) on the unit circle. Translate the second interval next to the
+ * first, then sum the linear overlaps over the three relevant integer shifts.
+ * Shared cumulative endpoints remain bit-identical, so exactly abutting arcs
+ * have exactly zero overlap.
  */
-static double circ_overlap(double a1, double l1, double a2, double l2) {
+static double circ_overlap(double a1, double b1, double a2, double b2) {
     double tot = 0.0;
+    const double base_shift = nearbyint(a1 - a2);
     for (int k = -1; k <= 1; k++) {
-        double lo = fmax(a1, a2 + (double)k);
-        double hi = fmin(a1 + l1, a2 + (double)k + l2);
+        const double shift = base_shift + (double)k;
+        double lo = fmax(a1, a2 + shift);
+        double hi = fmin(b1, b2 + shift);
         if (hi > lo) tot += hi - lo;
     }
     return tot;
@@ -813,11 +817,11 @@ static double circ_overlap(double a1, double l1, double a2, double l2) {
 /*
  * Exact systematic PPS joint probabilities.
  *
- * Unit k (in the order supplied) occupies the circular arc
- * [V_{k-1} mod 1, V_{k-1} mod 1 + pik_k) where V is the cumulative sum
- * of the valid pik; the unit is selected when the random start falls in
- * its arc. Two units are jointly selected exactly when the start falls
- * in both arcs, so pi_ij is the overlap length of the two arcs -- an
+ * Unit k (in the order supplied) occupies the circular projection of the
+ * raw cumulative interval [V_{k-1}, V_k), where V is the cumulative sum
+ * of the valid pik. The unit is selected when the random start falls in
+ * its projection. Two units are jointly selected exactly when the start
+ * falls in both projections, so pi_ij is their overlap length -- an
  * O(1) computation per pair. Total complexity O(N^2) with O(N) extra
  * memory (the previous implementation built an N x N interval indicator
  * matrix and was O(N^3)).
@@ -851,17 +855,17 @@ SEXP C_up_systematic_jip(SEXP pik_sexp) {
     }
 
     int *valid_idx = (int *) R_alloc(N, sizeof(int));
-    double *len = (double *) R_alloc(N, sizeof(double));
     double *start = (double *) R_alloc(N, sizeof(double));
+    double *end = (double *) R_alloc(N, sizeof(double));
 
     int j = 0;
     double cumsum = 0.0;
     for (int k = 0; k < N_full; k++) {
         if (pik_full[k] > 0.0 && pik_full[k] < 1.0) {
             valid_idx[j] = k;
-            len[j] = pik_full[k];
-            start[j] = fmod(cumsum, 1.0);
+            start[j] = cumsum;
             cumsum += pik_full[k];
+            end[j] = cumsum;
             j++;
         }
     }
@@ -869,8 +873,8 @@ SEXP C_up_systematic_jip(SEXP pik_sexp) {
     for (int i = 0; i < N; i++) {
         R_CheckUserInterrupt();
         for (int jj = i + 1; jj < N; jj++) {
-            double pi_ij = circ_overlap(start[i], len[i],
-                                        start[jj], len[jj]);
+            double pi_ij = circ_overlap(start[i], end[i],
+                                        start[jj], end[jj]);
 
             int k = valid_idx[i];
             int l = valid_idx[jj];
@@ -924,13 +928,16 @@ SEXP C_up_systematic_jip_sub(SEXP pik_sexp, SEXP idx_sexp) {
     }
 
     double *start_pop = (double *) R_alloc(N_full, sizeof(double));
+    double *end_pop = (double *) R_alloc(N_full, sizeof(double));
     double cumsum = 0.0;
     for (int k = 0; k < N_full; k++) {
         if (pik_full[k] > 0.0 && pik_full[k] < 1.0) {
-            start_pop[k] = fmod(cumsum, 1.0);
+            start_pop[k] = cumsum;
             cumsum += pik_full[k];
+            end_pop[k] = cumsum;
         } else {
             start_pop[k] = -1.0; /* not a valid unit */
+            end_pop[k] = -1.0;
         }
     }
 
@@ -943,8 +950,8 @@ SEXP C_up_systematic_jip_sub(SEXP pik_sexp, SEXP idx_sexp) {
             int kj = idx_r[jj] - 1;
             if (start_pop[kj] < 0.0) continue;
 
-            double pi_ij = circ_overlap(start_pop[ki], pik_full[ki],
-                                        start_pop[kj], pik_full[kj]);
+            double pi_ij = circ_overlap(start_pop[ki], end_pop[ki],
+                                        start_pop[kj], end_pop[kj]);
 
             pikl[(size_t)jj * n_s + i] = pi_ij;
             pikl[(size_t)i * n_s + jj] = pi_ij;
@@ -966,17 +973,17 @@ SEXP C_high_entropy_jip(SEXP pik_sexp, SEXP eps_sexp) {
 
     /* Diagonal = first-order inclusion probabilities */
     for (int k = 0; k < N_full; k++) {
-        pikl[k * N_full + k] = pik_full[k];
+        pikl[(size_t)k * N_full + k] = pik_full[k];
     }
 
     /* Handle certainty units: pi_ij = pik[other] */
     for (int k = 0; k < N_full; k++) {
         if (pik_full[k] >= 1.0 - eps) {
             for (int l = 0; l < N_full; l++) {
-                pikl[k * N_full + l] = pik_full[l];
-                pikl[l * N_full + k] = pik_full[l];
+                pikl[(size_t)k * N_full + l] = pik_full[l];
+                pikl[(size_t)l * N_full + k] = pik_full[l];
             }
-            pikl[k * N_full + k] = pik_full[k];
+            pikl[(size_t)k * N_full + k] = pik_full[k];
         }
     }
 
@@ -1040,8 +1047,8 @@ SEXP C_high_entropy_jip(SEXP pik_sexp, SEXP eps_sexp) {
 
             int k = valid_idx[i];
             int l = valid_idx[jj];
-            pikl[l * N_full + k] = pi_ij;
-            pikl[k * N_full + l] = pi_ij;
+            pikl[(size_t)l * N_full + k] = pi_ij;
+            pikl[(size_t)k * N_full + l] = pi_ij;
         }
     }
 

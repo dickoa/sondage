@@ -32,10 +32,11 @@ Complexity: O(n).}
 \item{nrep}{Number of replicate samples (default 1).}
 
 \item{prn}{Optional vector of permanent random numbers for sample
-coordination. Not currently used by any WR method; a warning is
-issued if provided.}
+coordination. No built-in WR method currently supports \code{prn};
+supplying it is an error. Registered methods can opt into PRN support.}
 
-\item{...}{Additional arguments passed to methods.}
+\item{...}{Additional arguments passed to methods registered via
+\code{\link[=register_method]{register_method()}}. Built-in methods take no additional arguments.}
 }
 \value{
 An object of class \code{c("unequal_prob", "wr", "sondage_sample")}.

@@ -8,10 +8,10 @@
 #'
 #' @param pik Numeric vector of inclusion probabilities
 #'   (\eqn{0 \le \pi_k \le 1}).
-#' @param sample_idx Integer vector of 1-based indices for the
-#'   sampled units, or `NULL` (default) for the full population
-#'   matrix. When non-`NULL`, returns the submatrix for those units
-#'   only, without allocating the full N x N matrix.
+#' @param sample_idx Unique integer vector of 1-based indices for the
+#'   sampled units, or `NULL` (default) for the full population matrix.
+#'   When non-`NULL`, returns the submatrix for those units only, without
+#'   allocating the full N x N matrix.
 #' @param eps Boundary tolerance (default 1e-6). Units with
 #'   \eqn{\pi_k \ge 1 - \varepsilon} are treated as certainty
 #'   selections; units with \eqn{\pi_k \le \varepsilon} are
@@ -84,7 +84,8 @@ he_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
   if (is.null(sample_idx)) {
     .Call(C_high_entropy_jip, as.double(pik), as.double(eps))
   } else {
-    .he_jip_sampled(pik, as.integer(sample_idx), eps)
+    sample_idx <- .check_sample_idx(sample_idx, length(pik))
+    .he_jip_sampled(pik, sample_idx, eps)
   }
 }
 
@@ -168,7 +169,7 @@ hajek_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
   valid <- which(pik > eps & pik < 1 - eps)
 
   if (!is.null(sample_idx)) {
-    sample_idx <- as.integer(sample_idx)
+    sample_idx <- .check_sample_idx(sample_idx, N)
     ns <- length(sample_idx)
     pik_out <- pik[sample_idx]
   } else {

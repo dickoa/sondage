@@ -20,6 +20,8 @@
  * expected O(N^2 * d) time and O(N) workspace, and stores no distance matrix.
  */
 
+#include "sampling_core.h"
+#include "spatial_core.h"
 #include <R.h>
 #include <Rinternals.h>
 #include <R_ext/Utils.h>
@@ -35,51 +37,14 @@ typedef struct {
     double weight;
 } ScpsCandidate;
 
-/* Undecided units, with O(1) removal by id. */
 typedef struct {
-    int *list;
-    int *reverse;
-    int len;
-    int capacity;
-} ScpsPool;
-
-typedef struct {
-    ScpsPool pool;
+    SpatialPool pool;
     ScpsCandidate *candidate;
 } ScpsWorkspace;
 
 static void scps_workspace_init(ScpsWorkspace *work, int N) {
-    work->pool.list = (int *)R_alloc(N, sizeof(int));
-    work->pool.reverse = (int *)R_alloc(N, sizeof(int));
-    work->pool.len = 0;
-    work->pool.capacity = N;
+    spatial_pool_init(&work->pool, N);
     work->candidate = (ScpsCandidate *)R_alloc(N, sizeof(ScpsCandidate));
-}
-
-static void scps_pool_fill(ScpsPool *pool, const double *prob, int N) {
-    pool->len = 0;
-    for (int i = 0; i < N; i++) {
-        if (prob[i] > 0.0 && prob[i] < 1.0) {
-            pool->list[pool->len] = i;
-            pool->reverse[i] = pool->len;
-            pool->len++;
-        } else {
-            pool->reverse[i] = pool->capacity;
-        }
-    }
-}
-
-static void scps_pool_remove(ScpsPool *pool, int id) {
-    int position = pool->reverse[id];
-    if (position >= pool->len) return;
-
-    pool->len--;
-    pool->reverse[id] = pool->capacity;
-    if (position < pool->len) {
-        int last = pool->list[pool->len];
-        pool->list[position] = last;
-        pool->reverse[last] = position;
-    }
 }
 
 static void scps_swap(ScpsCandidate *left, ScpsCandidate *right) {
@@ -209,13 +174,13 @@ static void scps_assign_weights(ScpsCandidate *candidate, int n,
     }
 }
 
-static void scps_settle(ScpsPool *pool, double *prob, int id, double eps) {
+static void scps_settle(SpatialPool *pool, double *prob, int id, double eps) {
     if (prob[id] <= eps) {
         prob[id] = 0.0;
-        scps_pool_remove(pool, id);
+        spatial_pool_remove(pool, id);
     } else if (prob[id] >= 1.0 - eps) {
         prob[id] = 1.0;
-        scps_pool_remove(pool, id);
+        spatial_pool_remove(pool, id);
     }
 }
 
@@ -224,7 +189,7 @@ static void scps_settle(ScpsPool *pool, double *prob, int id, double eps) {
  * step-unit displacement and the weighted neighbour displacements cancel.
  * Keeping that invariant numerically prevents tiny errors from accumulating
  * until a later maximal-weight system appears infeasible. */
-static int scps_correct_mass(ScpsPool *pool, double *prob, double correction,
+static int scps_correct_mass(SpatialPool *pool, double *prob, double correction,
                              double eps) {
     double tolerance = 4.0 * DBL_EPSILON * (1.0 + fabs(correction));
 
@@ -285,7 +250,7 @@ static int scps_build_candidates(ScpsWorkspace *work, const double *prob,
 
 static int scps_run(double *prob, const double *spread, int N, int d,
                     double eps, ScpsWorkspace *work) {
-    scps_pool_fill(&work->pool, prob, N);
+    spatial_pool_fill(&work->pool, prob, N);
 
     int steps = 0;
     while (work->pool.len > 1) {
@@ -323,7 +288,7 @@ static int scps_run(double *prob, const double *spread, int N, int d,
         double displacement = outcome - step_prob;
         double mass_change = displacement;
         prob[step_id] = outcome;
-        scps_pool_remove(&work->pool, step_id);
+        spatial_pool_remove(&work->pool, step_id);
 
         for (int k = 0; k < n_candidates; k++) {
             double weight = work->candidate[k].weight;
@@ -348,35 +313,14 @@ static int scps_run(double *prob, const double *spread, int N, int d,
     if (work->pool.len == 1) {
         int id = work->pool.list[0];
         prob[id] = (prob[id] >= 0.5) ? 1.0 : 0.0;
-        scps_pool_remove(&work->pool, id);
+        spatial_pool_remove(&work->pool, id);
     }
     return 1;
 }
 
-static void scps_check_spread(SEXP spread_sexp, int N, int *d_out) {
-    if (!isMatrix(spread_sexp) || !isReal(spread_sexp)) {
-        error("'spread' must be a numeric matrix");
-    }
-    if (nrows(spread_sexp) != N) {
-        error("nrow(spread) = %d does not match length(pik) = %d",
-              nrows(spread_sexp), N);
-    }
-    *d_out = ncols(spread_sexp);
-    if (*d_out < 1) error("'spread' must have at least one column");
-}
-
-static int scps_extract_selected(const double *prob, int N, int *out) {
-    int n = 0;
-    for (int i = 0; i < N; i++) {
-        if (prob[i] > 0.5) out[n++] = i + 1;
-    }
-    return n;
-}
-
 SEXP C_scps(SEXP pik_sexp, SEXP spread_sexp, SEXP eps_sexp) {
     const int N = length(pik_sexp);
-    int d = 0;
-    scps_check_spread(spread_sexp, N, &d);
+    const int d = spatial_check_spread(spread_sexp, N);
 
     const double eps = asReal(eps_sexp);
     double *prob = (double *)R_alloc(N, sizeof(double));
@@ -391,7 +335,7 @@ SEXP C_scps(SEXP pik_sexp, SEXP spread_sexp, SEXP eps_sexp) {
     PutRNGstate();
     if (!feasible) error("SCPS maximal weights are numerically infeasible");
 
-    int n_selected = scps_extract_selected(prob, N, selected);
+    int n_selected = sampling_extract_selected(prob, N, 0.5, selected, N);
     SEXP result = PROTECT(allocVector(INTSXP, n_selected));
     memcpy(INTEGER(result), selected, (size_t)n_selected * sizeof(int));
     UNPROTECT(1);
@@ -401,8 +345,7 @@ SEXP C_scps(SEXP pik_sexp, SEXP spread_sexp, SEXP eps_sexp) {
 SEXP C_scps_batch(SEXP pik_sexp, SEXP spread_sexp, SEXP eps_sexp,
                   SEXP nrep_sexp) {
     const int N = length(pik_sexp);
-    int d = 0;
-    scps_check_spread(spread_sexp, N, &d);
+    const int d = spatial_check_spread(spread_sexp, N);
 
     const int nrep = INTEGER(nrep_sexp)[0];
     const double eps = asReal(eps_sexp);
@@ -431,8 +374,10 @@ SEXP C_scps_batch(SEXP pik_sexp, SEXP spread_sexp, SEXP eps_sexp,
                   draw + 1);
         }
 
-        int *column = out + draw * n_target;
-        int n_selected = scps_extract_selected(prob, N, column);
+        int *column = out + (R_xlen_t)draw * n_target;
+        int n_selected = sampling_extract_selected(
+            prob, N, 0.5, column, n_target
+        );
         if (n_selected != n_target) {
             PutRNGstate();
             UNPROTECT(1);

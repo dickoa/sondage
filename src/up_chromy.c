@@ -165,6 +165,67 @@ SEXP C_up_chromy(SEXP r_x, SEXP r_n) {
     return result;
 }
 
+/* Batch draws reuse the deterministic Chromy decomposition and workspace. */
+SEXP C_up_chromy_batch(SEXP r_x, SEXP r_n, SEXP r_nrep) {
+    const int N = LENGTH(r_x);
+    const double *x = REAL(r_x);
+    const int n = asInteger(r_n);
+    const int nrep = asInteger(r_nrep);
+
+    double sum_x = 0.0;
+    for (int k = 0; k < N; k++) sum_x += x[k];
+
+    double *frac_pik = (double *)R_alloc(N, sizeof(double));
+    int *floor_hits = (int *)R_alloc(N, sizeof(int));
+    int *active = (int *)R_alloc(N, sizeof(int));
+    int n_active;
+    double sum_frac;
+    int total_certain = chromy_precompute(
+        x, N, n, sum_x, frac_pik, floor_hits, active,
+        &n_active, &sum_frac
+    );
+    const int n_frac = n - total_certain;
+
+    int *active_ord = (int *)R_alloc(n_active > 0 ? n_active : 1,
+                                     sizeof(int));
+    int *frac_sel = (int *)R_alloc(n_frac > 0 ? n_frac : 1, sizeof(int));
+    int *sel = (int *)R_alloc(n > 0 ? n : 1, sizeof(int));
+
+    SEXP samples = PROTECT(allocMatrix(INTSXP, n, nrep));
+    SEXP hits = PROTECT(allocMatrix(INTSXP, N, nrep));
+    memset(INTEGER(hits), 0, (size_t)N * nrep * sizeof(int));
+
+    GetRNGstate();
+    for (int draw = 0; draw < nrep; draw++) {
+        if ((draw & 127) == 0) R_CheckUserInterrupt();
+        int nsel = chromy_sample_once(
+            N, frac_pik, floor_hits, active, n_active, sum_frac, n_frac,
+            active_ord, frac_sel, sel
+        );
+        if (nsel != n) {
+            PutRNGstate();
+            UNPROTECT(2);
+            error("Chromy batch draw %d produced size %d, expected %d",
+                  draw + 1, nsel, n);
+        }
+
+        int *sample_col = INTEGER(samples) + (R_xlen_t)draw * n;
+        int *hits_col = INTEGER(hits) + (R_xlen_t)draw * N;
+        for (int i = 0; i < n; i++) {
+            sample_col[i] = sel[i] + 1;
+            hits_col[sel[i]]++;
+        }
+        R_isort(sample_col, n);
+    }
+    PutRNGstate();
+
+    SEXP result = PROTECT(allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(result, 0, samples);
+    SET_VECTOR_ELT(result, 1, hits);
+    UNPROTECT(3);
+    return result;
+}
+
 /*
  * Chromy joint expected hits submatrix for sampled units only.
  * r_idx: 1-based integer vector of target population indices.

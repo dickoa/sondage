@@ -19,10 +19,11 @@ expected_hits(x, ...)
 \item{x}{A numeric vector of positive size measures, or a
 with-replacement design object (class \code{"wr"}).}
 
-\item{...}{Additional arguments (currently unused).}
+\item{...}{Reserved for methods. The methods provided by sondage currently
+take no additional arguments.}
 
-\item{n}{The desired sample size. Required when \code{x} is a numeric vector,
-ignored when \code{x} is a design object.}
+\item{n}{The desired sample size. Required when \code{x} is a numeric vector;
+it must not be supplied when \code{x} is a design object.}
 }
 \value{
 A numeric vector of expected hits. Values can exceed 1 for

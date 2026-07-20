@@ -25,58 +25,17 @@
  * take this to O(N log N) if ever needed.
  */
 
+#include "sampling_core.h"
+#include "spatial_core.h"
 #include <R.h>
 #include <Rinternals.h>
 #include <R_ext/Utils.h>
 #include <string.h>
 
-/* Undecided units, O(1) removal by id (swap-with-last + reverse map). */
-typedef struct {
-    int *list;      /* Active ids: list[0..len-1] */
-    int *reverse;   /* reverse[id] = position in list, or capacity if out */
-    int len;
-    int capacity;
-} LpmPool;
-
-static LpmPool *lpm_pool_alloc(int capacity) {
-    LpmPool *pool = (LpmPool *)R_alloc(1, sizeof(LpmPool));
-    pool->list = (int *)R_alloc(capacity, sizeof(int));
-    pool->reverse = (int *)R_alloc(capacity, sizeof(int));
-    pool->len = 0;
-    pool->capacity = capacity;
-    return pool;
-}
-
-static void lpm_pool_fill(LpmPool *pool, const double *prob, int N) {
-    pool->len = 0;
-    for (int i = 0; i < N; i++) {
-        if (prob[i] > 0.0 && prob[i] < 1.0) {
-            pool->list[pool->len] = i;
-            pool->reverse[i] = pool->len;
-            pool->len++;
-        } else {
-            pool->reverse[i] = pool->capacity;
-        }
-    }
-}
-
-static void lpm_pool_remove(LpmPool *pool, int id) {
-    int k = pool->reverse[id];
-    if (k >= pool->len) return;
-
-    pool->len--;
-    pool->reverse[id] = pool->capacity;
-    if (k < pool->len) {
-        int last_id = pool->list[pool->len];
-        pool->list[k] = last_id;
-        pool->reverse[last_id] = k;
-    }
-}
-
 /* Nearest undecided neighbour of id1 in the spreading space; exact
  * distance ties are broken uniformly at random. `z` is column-major
  * N x d. Requires pool->len >= 2. */
-static int lpm_nearest(const LpmPool *pool, const double *z, int N, int d,
+static int lpm_nearest(const SpatialPool *pool, const double *z, int N, int d,
                        int id1) {
     int best = -1;
     int n_ties = 0;
@@ -109,21 +68,21 @@ static int lpm_nearest(const LpmPool *pool, const double *z, int N, int d,
 
 /* Move prob[id] out of the pool once it has numerically reached a
  * boundary; snaps to exactly 0 or 1 so extraction is unambiguous. */
-static void lpm_settle(LpmPool *pool, double *prob, int id, double eps) {
+static void lpm_settle(SpatialPool *pool, double *prob, int id, double eps) {
     if (prob[id] <= eps) {
         prob[id] = 0.0;
-        lpm_pool_remove(pool, id);
+        spatial_pool_remove(pool, id);
     } else if (prob[id] >= 1.0 - eps) {
         prob[id] = 1.0;
-        lpm_pool_remove(pool, id);
+        spatial_pool_remove(pool, id);
     }
 }
 
 /* One LPM2 draw over the working probabilities in `prob`. On return
  * every prob[i] is exactly 0 or 1. */
 static void lpm2_run(double *prob, const double *z, int N, int d,
-                     double eps, LpmPool *pool) {
-    lpm_pool_fill(pool, prob, N);
+                     double eps, SpatialPool *pool) {
+    spatial_pool_fill(pool, prob, N);
 
     int steps = 0;
     while (pool->len > 1) {
@@ -170,40 +129,15 @@ static void lpm2_run(double *prob, const double *z, int N, int d,
     if (pool->len == 1) {
         int id = pool->list[0];
         prob[id] = (unif_rand() < prob[id]) ? 1.0 : 0.0;
-        lpm_pool_remove(pool, id);
+        spatial_pool_remove(pool, id);
     }
-}
-
-static void lpm_check_spread(SEXP z_sexp, int N, int *d_out) {
-    if (!isMatrix(z_sexp) || !isReal(z_sexp)) {
-        error("'spread' must be a numeric matrix");
-    }
-    if (nrows(z_sexp) != N) {
-        error("nrow(spread) = %d does not match length(pik) = %d",
-              nrows(z_sexp), N);
-    }
-    *d_out = ncols(z_sexp);
-    if (*d_out < 1) {
-        error("'spread' must have at least one column");
-    }
-}
-
-static int lpm_extract_selected(const double *prob, int N, int *out_idx) {
-    int k = 0;
-    for (int i = 0; i < N; i++) {
-        if (prob[i] > 0.5) {
-            out_idx[k++] = i + 1;
-        }
-    }
-    return k;
 }
 
 /* --- R-callable entry points -------------------------------------------- */
 
 SEXP C_lpm2(SEXP pik_sexp, SEXP z_sexp, SEXP eps_sexp) {
     const int N = length(pik_sexp);
-    int d = 0;
-    lpm_check_spread(z_sexp, N, &d);
+    const int d = spatial_check_spread(z_sexp, N);
 
     const double eps = asReal(eps_sexp);
     const double *z = REAL(z_sexp);
@@ -211,13 +145,13 @@ SEXP C_lpm2(SEXP pik_sexp, SEXP z_sexp, SEXP eps_sexp) {
     int *selected = (int *)R_alloc(N, sizeof(int));
     memcpy(prob, REAL(pik_sexp), (size_t)N * sizeof(double));
 
-    LpmPool *pool = lpm_pool_alloc(N);
+    SpatialPool *pool = spatial_pool_alloc(N);
 
     GetRNGstate();
     lpm2_run(prob, z, N, d, eps, pool);
     PutRNGstate();
 
-    int n_selected = lpm_extract_selected(prob, N, selected);
+    int n_selected = sampling_extract_selected(prob, N, 0.5, selected, N);
 
     SEXP result = PROTECT(allocVector(INTSXP, n_selected));
     memcpy(INTEGER(result), selected, (size_t)n_selected * sizeof(int));
@@ -228,8 +162,7 @@ SEXP C_lpm2(SEXP pik_sexp, SEXP z_sexp, SEXP eps_sexp) {
 SEXP C_lpm2_batch(SEXP pik_sexp, SEXP z_sexp, SEXP eps_sexp,
                   SEXP nrep_sexp) {
     const int N = length(pik_sexp);
-    int d = 0;
-    lpm_check_spread(z_sexp, N, &d);
+    const int d = spatial_check_spread(z_sexp, N);
 
     const int nrep = INTEGER(nrep_sexp)[0];
     const double eps = asReal(eps_sexp);
@@ -249,7 +182,7 @@ SEXP C_lpm2_batch(SEXP pik_sexp, SEXP z_sexp, SEXP eps_sexp,
     }
 
     double *prob = (double *)R_alloc(N, sizeof(double));
-    LpmPool *pool = lpm_pool_alloc(N);
+    SpatialPool *pool = spatial_pool_alloc(N);
 
     GetRNGstate();
     for (int s = 0; s < nrep; s++) {
@@ -258,8 +191,10 @@ SEXP C_lpm2_batch(SEXP pik_sexp, SEXP z_sexp, SEXP eps_sexp,
         memcpy(prob, pik, (size_t)N * sizeof(double));
         lpm2_run(prob, z, N, d, eps, pool);
 
-        int *col = res + s * n_target;
-        int n_selected = lpm_extract_selected(prob, N, col);
+        int *col = res + (R_xlen_t)s * n_target;
+        int n_selected = sampling_extract_selected(
+            prob, N, 0.5, col, n_target
+        );
         if (n_selected != n_target) {
             PutRNGstate();
             UNPROTECT(1);

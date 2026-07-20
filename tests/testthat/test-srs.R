@@ -218,47 +218,53 @@ test_that("bernoulli accepts non-integer n as expected sample size", {
 })
 
 test_that("srs rejects Inf inputs", {
-  expect_error(equal_prob_wor(10, Inf), "cannot exceed")
+  expect_error(equal_prob_wor(10, Inf), "finite")
   expect_error(equal_prob_wor(Inf, 3), "finite")
-  expect_error(equal_prob_wor(10, -Inf), "non-negative")
+  expect_error(equal_prob_wor(10, -Inf), "finite")
 })
 
 test_that("systematic rejects Inf inputs", {
-  expect_error(equal_prob_wor(10, Inf, method = "systematic"), "cannot exceed")
+  expect_error(equal_prob_wor(10, Inf, method = "systematic"), "finite")
   expect_error(equal_prob_wor(Inf, 3, method = "systematic"), "finite")
 })
 
 test_that("srs rejects NA inputs", {
-  expect_error(equal_prob_wor(10, NA_real_), "non-negative")
-  expect_error(equal_prob_wor(10, NA), "non-negative")
+  expect_error(equal_prob_wor(10, NA_real_), "must not be NA")
+  expect_error(equal_prob_wor(10, NA), "must not be NA")
   expect_error(equal_prob_wor(NA_real_, 3), "must not be NA")
-  expect_error(equal_prob_wor(NA, 3), "single number")
+  expect_error(equal_prob_wor(NA, 3), "must not be NA")
 })
 
 test_that("systematic rejects NA inputs", {
   expect_error(
     equal_prob_wor(10, NA_real_, method = "systematic"),
-    "non-negative"
+    "must not be NA"
   )
-  expect_error(equal_prob_wor(10, NA, method = "systematic"), "non-negative")
+  expect_error(
+    equal_prob_wor(10, NA, method = "systematic"),
+    "must not be NA"
+  )
   expect_error(
     equal_prob_wor(NA_real_, 3, method = "systematic"),
     "must not be NA"
   )
-  expect_error(equal_prob_wor(NA, 3, method = "systematic"), "single number")
+  expect_error(equal_prob_wor(NA, 3, method = "systematic"), "must not be NA")
 })
 
 test_that("bernoulli rejects NA inputs", {
   expect_error(
     equal_prob_wor(100, NA_real_, method = "bernoulli"),
-    "non-negative"
+    "must not be NA"
   )
-  expect_error(equal_prob_wor(100, NA, method = "bernoulli"), "non-negative")
+  expect_error(
+    equal_prob_wor(100, NA, method = "bernoulli"),
+    "must not be NA"
+  )
   expect_error(
     equal_prob_wor(NA_real_, 50, method = "bernoulli"),
     "must not be NA"
   )
-  expect_error(equal_prob_wor(NA, 50, method = "bernoulli"), "single number")
+  expect_error(equal_prob_wor(NA, 50, method = "bernoulli"), "must not be NA")
 })
 
 test_that("srs rejects non-integer n", {
@@ -308,10 +314,10 @@ test_that("equal_prob_wr with nrep > 1 returns batch sample", {
   expect_equal(s$method, "srs")
 })
 
-test_that("equal_prob_wr warns on prn (not supported)", {
-  expect_warning(
+test_that("equal_prob_wr rejects prn (not supported)", {
+  expect_error(
     equal_prob_wr(10, 3, prn = runif(10)),
-    "prn is not used"
+    "does not support 'prn'"
   )
 })
 

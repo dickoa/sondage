@@ -5,16 +5,17 @@
 #'
 #' @param x A numeric vector of positive size measures, or a
 #'   without-replacement design object (class `"wor"`).
-#' @param n The desired sample size. Required when `x` is a numeric vector,
-#'   ignored when `x` is a design object.
-#' @param ... Additional arguments (currently unused).
+#' @param n The desired sample size. Required when `x` is a numeric vector;
+#'   it must not be supplied when `x` is a design object.
+#' @param ... Reserved for methods. The methods provided by sondage currently
+#'   take no additional arguments.
 #'
 #' @return A numeric vector of inclusion probabilities. When applied to a
 #'   design object, returns the stored `pik` vector. For most methods
 #'   this equals the true first-order inclusion probabilities. For
 #'   order-sampling methods (`sps`, `pareto`), it is the target used
 #'   to define the design; the true probabilities are approximately
-#'   equal and converge as N grows.
+#'   equal and converge as N grows. Names on a numeric `x` are preserved.
 #'
 #' @seealso [expected_hits()] for the with-replacement analogue,
 #'   [unequal_prob_wor()] for sampling with these probabilities.
@@ -37,6 +38,9 @@ inclusion_prob <- function(x, ...) {
 #' @rdname inclusion_prob
 #' @export
 inclusion_prob.wor <- function(x, ...) {
+  if (nargs() > 1L) {
+    .check_dots(...length(), ...names())
+  }
   x$pik
 }
 
@@ -76,24 +80,38 @@ inclusion_prob.wr <- function(x, ...) {
 #'
 #' @export
 inclusion_prob.default <- function(x, n, ...) {
+  if (nargs() > 1L + !missing(n)) {
+    .check_dots(...length(), ...names())
+  }
   if (missing(n)) {
     stop("'n' is required when 'x' is not a design object", call. = FALSE)
   }
-  if (!is.numeric(n) || length(n) != 1) {
+  if (length(n) != 1L || !is.null(dim(n))) {
     stop("'n' must be a single numeric value", call. = FALSE)
   }
   if (is.na(n)) {
     stop("'n' must not be NA", call. = FALSE)
   }
+  if (!is.numeric(n)) {
+    stop("'n' must be a single numeric value", call. = FALSE)
+  }
   if (!is.finite(n)) {
     stop("'n' must be finite", call. = FALSE)
   }
+  n <- as.double(n)
   if (n < 0) {
     stop("'n' must be non-negative", call. = FALSE)
   }
-  n <- check_integer(n, "n")
+  rounded_n <- round(n)
+  if (abs(n - rounded_n) > 1e-4) {
+    stop(
+      sprintf("n (%.4g) is not close to an integer", n),
+      call. = FALSE
+    )
+  }
+  n <- as.integer(rounded_n)
 
-  if (!is.numeric(x)) {
+  if (!is.numeric(x) || !is.null(dim(x))) {
     stop("'x' must be a numeric vector", call. = FALSE)
   }
 
@@ -118,7 +136,9 @@ inclusion_prob.default <- function(x, n, ...) {
       call. = FALSE
     )
   }
-  .Call(C_inclusion_prob, x, as.double(n))
+  pik <- .Call(C_inclusion_prob, x, as.double(n))
+  names(pik) <- names(x)
+  pik
 }
 
 #' Expected Hits
@@ -128,9 +148,10 @@ inclusion_prob.default <- function(x, n, ...) {
 #'
 #' @param x A numeric vector of positive size measures, or a
 #'   with-replacement design object (class `"wr"`).
-#' @param n The desired sample size. Required when `x` is a numeric vector,
-#'   ignored when `x` is a design object.
-#' @param ... Additional arguments (currently unused).
+#' @param n The desired sample size. Required when `x` is a numeric vector;
+#'   it must not be supplied when `x` is a design object.
+#' @param ... Reserved for methods. The methods provided by sondage currently
+#'   take no additional arguments.
 #'
 #' @return A numeric vector of expected hits. Values can exceed 1 for
 #'   with-replacement designs.
@@ -156,22 +177,29 @@ expected_hits <- function(x, ...) {
 #' @rdname expected_hits
 #' @export
 expected_hits.default <- function(x, n, ...) {
+  if (nargs() > 1L + !missing(n)) {
+    .check_dots(...length(), ...names())
+  }
   if (missing(n)) {
     stop("'n' is required when 'x' is not a design object", call. = FALSE)
   }
-  if (!is.numeric(n) || length(n) != 1) {
+  if (length(n) != 1L || !is.null(dim(n))) {
     stop("'n' must be a single numeric value", call. = FALSE)
   }
   if (is.na(n)) {
     stop("'n' must not be NA", call. = FALSE)
   }
+  if (!is.numeric(n)) {
+    stop("'n' must be a single numeric value", call. = FALSE)
+  }
   if (!is.finite(n)) {
     stop("'n' must be finite", call. = FALSE)
   }
+  n <- as.double(n)
   if (n < 0) {
     stop("'n' must be non-negative", call. = FALSE)
   }
-  if (!is.numeric(x)) {
+  if (!is.numeric(x) || !is.null(dim(x))) {
     stop("'x' must be a numeric vector", call. = FALSE)
   }
   if (anyNA(x)) {
@@ -195,6 +223,9 @@ expected_hits.default <- function(x, n, ...) {
 #' @rdname expected_hits
 #' @export
 expected_hits.wr <- function(x, ...) {
+  if (nargs() > 1L) {
+    .check_dots(...length(), ...names())
+  }
   x$n * x$prob
 }
 
@@ -262,7 +293,10 @@ expected_hits.wor <- function(x, ...) {
 #'
 #' @return A symmetric N x N matrix (or n x n if `sampled_only = TRUE`)
 #'   of joint inclusion probabilities. Diagonal entries are the
-#'   first-order inclusion probabilities \eqn{\pi_i}.
+#'   first-order inclusion probabilities \eqn{\pi_i}. When the stored
+#'   probability vector is named, those names are used as row and column
+#'   names. An otherwise unnamed sampled-only matrix is labelled with the
+#'   sampled population indices.
 #'
 #' @seealso [joint_expected_hits()] for the with-replacement analogue,
 #'   [sampling_cov()] for the covariance matrix.
@@ -288,6 +322,17 @@ joint_inclusion_prob <- function(x, ...) {
 #'   excluded/certainty units.
 #' @export
 joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
+  sampled_only <- .check_flag(sampled_only, "sampled_only")
+  if (...length()) {
+    builtin <- x$method %in% c(
+      names(.wor_specs),
+      names(.ep_wor_specs),
+      names(.balanced_specs)
+    )
+    if (builtin) {
+      .check_dots(...length(), ...names())
+    }
+  }
   pik <- x$pik
   N <- x$N
   n <- x$n
@@ -370,7 +415,8 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
         J
       },
       .registered_joint_or_stop(
-        x$method, pik, sample_idx, "joint_inclusion_prob", ...
+        x$method, pik, sample_idx, "joint_inclusion_prob",
+        list(eps = eps), ...
       )
     )
   } else {
@@ -396,7 +442,7 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
         J
       },
       .registered_joint_or_stop(
-        x$method, pik, NULL, "joint_inclusion_prob", ...
+        x$method, pik, NULL, "joint_inclusion_prob", list(eps = eps), ...
       )
     )
 
@@ -422,7 +468,12 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
     }
   }
 
-  pikl
+  labels <- if (sampled_only) {
+    .joint_labels(pik, sample_idx)
+  } else {
+    .joint_labels(pik)
+  }
+  .set_joint_dimnames(pikl, labels)
 }
 
 #' @rdname joint_inclusion_prob
@@ -482,7 +533,10 @@ joint_inclusion_prob.default <- function(x, ...) {
 #' @return A symmetric N x N matrix (or n_s x n_s if
 #'   `sampled_only = TRUE`, where n_s is the number of distinct
 #'   selected units). Diagonal entries are \eqn{E(n_i^2)} and
-#'   off-diagonal entries are \eqn{E(n_i n_j)}.
+#'   off-diagonal entries are \eqn{E(n_i n_j)}. When the stored probability
+#'   vector is named, those names are used as row and column names. An
+#'   otherwise unnamed sampled-only matrix is labelled with the selected
+#'   population indices.
 #'
 #' @seealso [joint_inclusion_prob()] for the without-replacement analogue,
 #'   [sampling_cov()] for the covariance matrix.
@@ -511,6 +565,13 @@ joint_expected_hits.wr <- function(
   nsim = 10000L,
   ...
 ) {
+  sampled_only <- .check_flag(sampled_only, "sampled_only")
+  if (...length()) {
+    builtin <- x$method %in% c(names(.wr_specs), names(.ep_wr_specs))
+    if (builtin) {
+      .check_dots(...length(), ...names())
+    }
+  }
   prob <- x$prob
   n <- x$n
   N <- x$N
@@ -552,17 +613,15 @@ joint_expected_hits.wr <- function(
     }
   }
 
-  if (sampled_only) {
+  pikl <- if (sampled_only) {
     prob_s <- prob[sample_idx]
     switch(
       x$method,
       chromy = {
-        if (
-          !is.numeric(nsim) || length(nsim) != 1L || is.na(nsim) || nsim < 1
-        ) {
+        nsim <- check_integer(nsim, "nsim")
+        if (nsim < 1L) {
           stop("'nsim' must be a positive integer", call. = FALSE)
         }
-        nsim <- check_integer(nsim, "nsim")
         .Call(
           C_chromy_joint_exp_sub,
           as.double(prob),
@@ -584,19 +643,18 @@ joint_expected_hits.wr <- function(
         pikl
       },
       .registered_joint_or_stop(
-        x$method, n * prob, sample_idx, "joint_expected_hits", ...
+        x$method, n * prob, sample_idx, "joint_expected_hits",
+        list(nsim = nsim), ...
       )
     )
   } else {
     switch(
       x$method,
       chromy = {
-        if (
-          !is.numeric(nsim) || length(nsim) != 1L || is.na(nsim) || nsim < 1
-        ) {
+        nsim <- check_integer(nsim, "nsim")
+        if (nsim < 1L) {
           stop("'nsim' must be a positive integer", call. = FALSE)
         }
-        nsim <- check_integer(nsim, "nsim")
         .Call(C_chromy_joint_exp, as.double(prob), as.integer(n), nsim)
       },
       multinomial = {
@@ -611,10 +669,18 @@ joint_expected_hits.wr <- function(
         pikl
       },
       .registered_joint_or_stop(
-        x$method, n * prob, NULL, "joint_expected_hits", ...
+        x$method, n * prob, NULL, "joint_expected_hits",
+        list(nsim = nsim), ...
       )
     )
   }
+
+  labels <- if (sampled_only) {
+    .joint_labels(prob, sample_idx)
+  } else {
+    .joint_labels(prob)
+  }
+  .set_joint_dimnames(pikl, labels)
 }
 
 #' @rdname joint_expected_hits
@@ -680,7 +746,8 @@ joint_expected_hits.default <- function(x, ...) {
 #'   For WOR designs with `weighted = FALSE`, off-diagonal entries are
 #'   typically negative for well-behaved designs. With `weighted = TRUE`,
 #'   off-diagonal entries are typically non-positive (entries where
-#'   \eqn{\pi_{ij} = 0} are set to `NA`).
+#'   \eqn{\pi_{ij} = 0} are set to `NA`). Unit labels are inherited from
+#'   the underlying joint matrix.
 #'
 #' @references
 #' Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson
@@ -710,6 +777,8 @@ sampling_cov <- function(x, ...) {
 #' @rdname sampling_cov
 #' @export
 sampling_cov.wor <- function(x, weighted = FALSE, sampled_only = FALSE, ...) {
+  weighted <- .check_flag(weighted, "weighted")
+  sampled_only <- .check_flag(sampled_only, "sampled_only")
   pikl <- joint_inclusion_prob(x, sampled_only = sampled_only, ...)
   if (sampled_only) {
     pik <- x$pik[x$sample]
@@ -744,6 +813,8 @@ sampling_cov.wor <- function(x, weighted = FALSE, sampled_only = FALSE, ...) {
 #' @rdname sampling_cov
 #' @export
 sampling_cov.wr <- function(x, weighted = FALSE, sampled_only = FALSE, ...) {
+  weighted <- .check_flag(weighted, "weighted")
+  sampled_only <- .check_flag(sampled_only, "sampled_only")
   pikl <- joint_expected_hits(x, sampled_only = sampled_only, ...)
   if (sampled_only) {
     sample_idx <- which(x$hits > 0)
@@ -846,4 +917,27 @@ sampling_cov.default <- function(x, ...) {
   pikl[valid_s, valid_s] <- J
 
   pikl
+}
+
+#' Canonical unit labels for a joint matrix.
+#' @noRd
+.joint_labels <- function(prob, index) {
+  labels <- names(prob)
+  if (missing(index)) {
+    return(labels)
+  }
+  if (is.null(labels)) {
+    as.character(index)
+  } else {
+    labels[index]
+  }
+}
+
+#' Apply the same unit labels to both dimensions of a joint matrix.
+#' @noRd
+.set_joint_dimnames <- function(x, labels) {
+  if (!is.null(labels)) {
+    dimnames(x) <- list(labels, labels)
+  }
+  x
 }

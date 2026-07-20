@@ -10,6 +10,10 @@
 #' [unequal_prob_wor()], [unequal_prob_wr()], or [balanced_wor()] and
 #' their associated generics.
 #'
+#' Registrations last for the current R session. Registering an existing
+#' custom method name is an error; call [unregister_method()] first when
+#' deliberately replacing a method.
+#'
 #' @param name A unique method name (character string). Must not
 #'   collide with a built-in method name.
 #' @param type `"wor"` (without replacement), `"wr"` (with
@@ -31,37 +35,43 @@
 #'   default) means undeclared: consumers fall back on inferring a
 #'   treatment from `type` and `fixed_size`.
 #' @param supports_prn Does this method support permanent random
-#'   numbers for sample coordination? Only `"wor"` and `"wr"` methods;
-#'   [balanced_wor()] has no `prn` argument.
+#'   numbers for sample coordination? Set to `TRUE` or `FALSE` for
+#'   `"wor"` and `"wr"` methods. `NULL` (the default) resolves to
+#'   `FALSE`. Leave `NULL` for `"balanced"` methods; [balanced_wor()]
+#'   has no `prn` argument.
 #' @param supports_aux Does this method use auxiliary balancing
-#'   variables? Only meaningful for `type = "balanced"`. Set it to
-#'   `FALSE` for spread-only (spatially balanced) methods such as the
-#'   local pivotal method, so that passing `aux` to [balanced_wor()]
-#'   is an error instead of being silently ignored.
+#'   variables? Set to `TRUE` or `FALSE` for `type = "balanced"`.
+#'   `NULL` (the default) resolves to `TRUE` for balanced methods and
+#'   `FALSE` otherwise. Set it to `FALSE` for spread-only (spatially
+#'   balanced) methods such as the local pivotal method, so that passing
+#'   `aux` to [balanced_wor()] is an error instead of being silently
+#'   ignored. Leave `NULL` for `"wor"` and `"wr"` methods.
 #' @param supports_strata Does this method support stratified balanced
-#'   sampling? Only meaningful for `type = "balanced"`. When `FALSE`
-#'   (the default), passing `strata` to [balanced_wor()] with this
-#'   method is an error, and `sample_fn` does not need a `strata`
-#'   argument.
+#'   sampling? Set to `TRUE` or `FALSE` for `type = "balanced"`.
+#'   `NULL` (the default) resolves to `FALSE`. When `FALSE`, passing
+#'   `strata` to [balanced_wor()] with this method is an error, and
+#'   `sample_fn` does not need a `strata` argument. Leave `NULL` for
+#'   `"wor"` and `"wr"` methods.
 #' @param supports_spread Does this method support spatial spreading
-#'   (well-spread / spatially balanced sampling)? Only meaningful for
-#'   `type = "balanced"`. When `FALSE` (the default), passing `spread`
-#'   to [balanced_wor()] with this method is an error, and `sample_fn`
-#'   does not need a `spread` argument.
+#'   (well-spread / spatially balanced sampling)? Set to `TRUE` or
+#'   `FALSE` for `type = "balanced"`. `NULL` (the default) resolves to
+#'   `FALSE`. When `FALSE`, passing `spread` to [balanced_wor()] with
+#'   this method is an error, and `sample_fn` does not need a `spread`
+#'   argument. Leave `NULL` for `"wor"` and `"wr"` methods.
 #' @param probabilities Where the method sits in the first-order
 #'   probability taxonomy, for downstream packages that weight or
 #'   record per-unit selection probabilities:
 #'   - `"exact"`: the true first-order inclusion probabilities
 #'     (types `"wor"` and `"balanced"`) or expected hits (type
-#'     `"wr"`) equal the `pik` vector passed to `sample_fn`, as for
-#'     Sampford or the cube method.
-#'   - `"approximate"`: `pik` is the method's first-order target,
+#'     `"wr"`) equal the `pik` or `hits` vector passed to `sample_fn`,
+#'     as for Sampford or the cube method.
+#'   - `"approximate"`: `pik` or `hits` is the method's first-order target,
 #'     achieved up to a documented approximation, as for Pareto or
 #'     sequential Poisson order sampling. Design weights `1/pik`
 #'     remain standard practice.
-#'   - `"unknown"` (the default): `pik` is an input weight or
-#'     preference only, so the true first-order probabilities are
-#'     not known. The toy sampler in the examples is such a method:
+#'   - `"unknown"` (the default): `pik` or `hits` is an input weight or
+#'     preference only, so the corresponding first-order quantities
+#'     are not known. The toy WOR sampler in the examples is such a method:
 #'     successive sampling with `prob = pik` does not yield inclusion
 #'     probabilities equal to `pik`, so its design weights `1/pik`
 #'     would be systematically biased, not merely noisy. (The same
@@ -80,20 +90,32 @@
 #'
 #' @section Contracts:
 #'
-#' **`sample_fn(pik, n = NULL, prn = NULL, ...)`** (types `"wor"` and `"wr"`)
+#' **`sample_fn(pik, n = NULL, prn = NULL, ...)`** (type `"wor"`)
 #' \describe{
-#'   \item{`pik`}{Inclusion probabilities (WOR) or expected hits (WR),
-#'     numeric vector of length N.}
-#'   \item{`n`}{Target sample size (integer). For WOR this equals
-#'     `round(sum(pik))`; for WR `round(sum(hits))`.}
+#'   \item{`pik`}{Inclusion probabilities, numeric vector of length N.}
+#'   \item{`n`}{Target sample size, equal to `round(sum(pik))`.}
 #'   \item{`prn`}{Permanent random numbers (numeric vector length N,
-#'     values in (0,1)), or `NULL`. Always `NULL` when the method is
-#'     registered with `supports_prn = FALSE`.}
+#'     values in (0,1)), or `NULL`. Supplying `prn` is an error when the
+#'     method is registered with `supports_prn = FALSE`, and `sample_fn`
+#'     is not called.}
 #'   \item{Returns}{Integer vector of selected unit indices (1-based).
-#'     For WOR: distinct indices of length `n` (fixed-size) or varying
-#'     length (random-size). For WR: indices with possible repeats,
-#'     of length `n`. The dispatcher validates the type, range, size,
-#'     and replacement rules before constructing the sample object.}
+#'     Indices are distinct and have length `n` for fixed-size methods,
+#'     or varying length for random-size methods. The dispatcher validates
+#'     the type, range, size, and replacement rules before constructing
+#'     the sample object.}
+#' }
+#'
+#' **`sample_fn(hits, n = NULL, prn = NULL, ...)`** (type `"wr"`)
+#' \describe{
+#'   \item{`hits`}{Expected hits, numeric vector of length N.}
+#'   \item{`n`}{Target sample size, equal to `round(sum(hits))`.}
+#'   \item{`prn`}{Permanent random numbers (numeric vector length N,
+#'     values in (0,1)), or `NULL`. Supplying `prn` is an error when the
+#'     method is registered with `supports_prn = FALSE`, and `sample_fn`
+#'     is not called.}
+#'   \item{Returns}{Integer vector of `n` selected unit indices (1-based),
+#'     with possible repeats. The dispatcher validates the type, range,
+#'     size, and replacement rules before constructing the sample object.}
 #' }
 #'
 #' **`sample_fn(pik, n = NULL, aux = NULL, ...)`** (type `"balanced"`)
@@ -120,12 +142,30 @@
 #'     (1-based). The dispatcher validates the returned indices.}
 #' }
 #'
-#' **`joint_fn(pik, sample_idx = NULL, ...)`** (optional)
+#' **`joint_fn(pik, sample_idx = NULL, ...)`** (optional; types `"wor"`
+#' and `"balanced"`)
 #' \describe{
-#'   \item{`pik`}{Same as above.}
+#'   \item{`pik`}{Inclusion probabilities, numeric vector of length N.}
+#'   \item{`eps`}{If the function explicitly declares an `eps` formal,
+#'     it receives the value supplied to [joint_inclusion_prob()].}
 #'   \item{`sample_idx`}{When non-NULL, an integer vector of sampled
 #'     unit indices. Return only the submatrix for these units.}
 #'   \item{Returns}{Symmetric matrix of joint inclusion probabilities
+#'     (N x N when `sample_idx` is NULL, `length(sample_idx)` x
+#'     `length(sample_idx)` otherwise). The dispatcher validates that
+#'     the matrix has the required dimensions and contains finite,
+#'     symmetric numeric values.}
+#' }
+#'
+#' **`joint_fn(hits, sample_idx = NULL, ...)`** (optional; type `"wr"`)
+#' \describe{
+#'   \item{`hits`}{Expected hits, numeric vector of length N, renormalized
+#'     to sum exactly to the integer sample size `n`.}
+#'   \item{`nsim`}{If the function explicitly declares an `nsim` formal,
+#'     it receives the value supplied to [joint_expected_hits()].}
+#'   \item{`sample_idx`}{When non-NULL, an integer vector of distinct
+#'     sampled unit indices. Return only the submatrix for these units.}
+#'   \item{Returns}{Symmetric matrix of joint expected hits
 #'     (N x N when `sample_idx` is NULL, `length(sample_idx)` x
 #'     `length(sample_idx)` otherwise). The dispatcher validates that
 #'     the matrix has the required dimensions and contains finite,
@@ -214,16 +254,14 @@ register_method <- function(
   joint_fn = NULL,
   fixed_size = TRUE,
   variance_family = NULL,
-  supports_prn = FALSE,
-  supports_aux = TRUE,
-  supports_strata = FALSE,
-  supports_spread = FALSE,
+  supports_prn = NULL,
+  supports_aux = NULL,
+  supports_strata = NULL,
+  supports_spread = NULL,
   probabilities = c("unknown", "exact", "approximate")
 ) {
-  if (!is.character(name) || length(name) != 1L || nchar(name) == 0L) {
-    stop("'name' must be a non-empty character string", call. = FALSE)
-  }
-  type <- match.arg(type)
+  name <- .check_method_name(name)
+  type <- .match_choice(type, c("wor", "wr", "balanced"), "type")
   if (!is.function(sample_fn)) {
     stop("'sample_fn' must be a function", call. = FALSE)
   }
@@ -294,48 +332,70 @@ register_method <- function(
       )
     }
   }
-  probabilities <- match.arg(probabilities)
+  probabilities <- .match_choice(
+    probabilities,
+    c("unknown", "exact", "approximate"),
+    "probabilities"
+  )
   if (type == "wr" && !fixed_size) {
     stop(
       "type = \"wr\" methods require fixed_size = TRUE",
       call. = FALSE
     )
   }
-  if (!isTRUE(supports_prn) && !isFALSE(supports_prn)) {
-    stop("'supports_prn' must be TRUE or FALSE", call. = FALSE)
-  }
-  if (!isTRUE(supports_aux) && !isFALSE(supports_aux)) {
-    stop("'supports_aux' must be TRUE or FALSE", call. = FALSE)
-  }
-  if (!supports_aux && type != "balanced") {
+  if (type == "balanced" && !is.null(supports_prn)) {
     stop(
-      "'supports_aux' only applies to type = \"balanced\"",
+      "'supports_prn' only applies to type = \"wor\" or \"wr\"; ",
+      "balanced_wor() has no 'prn' argument",
       call. = FALSE
     )
   }
-  if (!isTRUE(supports_strata) && !isFALSE(supports_strata)) {
-    stop("'supports_strata' must be TRUE or FALSE", call. = FALSE)
+  if (type != "balanced") {
+    if (!is.null(supports_aux)) {
+      stop(
+        "'supports_aux' only applies to type = \"balanced\"",
+        call. = FALSE
+      )
+    }
+    if (!is.null(supports_strata)) {
+      stop(
+        "'supports_strata' only applies to type = \"balanced\"",
+        call. = FALSE
+      )
+    }
+    if (!is.null(supports_spread)) {
+      stop(
+        "'supports_spread' only applies to type = \"balanced\"",
+        call. = FALSE
+      )
+    }
   }
-  if (supports_strata && type != "balanced") {
-    stop(
-      "'supports_strata' only applies to type = \"balanced\"",
-      call. = FALSE
-    )
+  capability_flags <- list(
+    supports_prn = supports_prn,
+    supports_aux = supports_aux,
+    supports_strata = supports_strata,
+    supports_spread = supports_spread
+  )
+  for (flag in names(capability_flags)) {
+    value <- capability_flags[[flag]]
+    if (!is.null(value) && !isTRUE(value) && !isFALSE(value)) {
+      stop(
+        sprintf("'%s' must be TRUE or FALSE when supplied", flag),
+        call. = FALSE
+      )
+    }
   }
-  if (!isTRUE(supports_spread) && !isFALSE(supports_spread)) {
-    stop("'supports_spread' must be TRUE or FALSE", call. = FALSE)
+  if (is.null(supports_prn)) {
+    supports_prn <- FALSE
   }
-  if (supports_spread && type != "balanced") {
-    stop(
-      "'supports_spread' only applies to type = \"balanced\"",
-      call. = FALSE
-    )
+  if (is.null(supports_aux)) {
+    supports_aux <- type == "balanced"
   }
-  if (supports_prn && type == "balanced") {
-    stop(
-      "balanced methods cannot use prn: balanced_wor() has no 'prn' argument",
-      call. = FALSE
-    )
+  if (is.null(supports_strata)) {
+    supports_strata <- FALSE
+  }
+  if (is.null(supports_spread)) {
+    supports_spread <- FALSE
   }
 
   # Reject collisions with built-in methods
@@ -352,6 +412,17 @@ register_method <- function(
       call. = FALSE
     )
   }
+  if (is_registered_method(name)) {
+    stop(
+      sprintf(
+        "method '%s' is already registered; call unregister_method(\"%s\") ",
+        name,
+        name
+      ),
+      "before registering a replacement",
+      call. = FALSE
+    )
+  }
 
   .method_registry[[name]] <- list(
     name = name,
@@ -361,9 +432,7 @@ register_method <- function(
     fixed_size = fixed_size,
     variance_family = variance_family,
     supports_prn = supports_prn,
-    # aux is only meaningful for balanced methods; normalise so
-    # method_spec() reports FALSE for wor/wr registrations
-    supports_aux = supports_aux && type == "balanced",
+    supports_aux = supports_aux,
     supports_strata = supports_strata,
     supports_spread = supports_spread,
     probabilities = probabilities
@@ -399,6 +468,7 @@ registered_methods <- function() {
 #'
 #' @export
 is_registered_method <- function(name) {
+  name <- .check_method_name(name)
   exists(name, envir = .method_registry, inherits = FALSE)
 }
 
@@ -488,26 +558,9 @@ unregister_method <- function(name) {
 .dispatch_registered_wor <- function(pik, method, nrep, prn, ...) {
   reg <- .method_registry[[method]]
   .check_registered_type(reg, "wor")
-  nrep <- check_integer(nrep, "nrep")
-  if (nrep < 1L) {
-    stop("'nrep' must be at least 1", call. = FALSE)
-  }
-
-  if (!is.null(prn) && !reg$supports_prn) {
-    warning(
-      sprintf("prn is not used by method '%s' and will be ignored", method),
-      call. = FALSE
-    )
-    prn <- NULL
-  }
-  if (!is.null(prn) && nrep > 1L) {
-    stop(
-      "prn and nrep > 1 cannot be used together. ",
-      "Permanent random numbers produce identical samples across replicates. ",
-      "Use a loop with different prn vectors for coordinated repeated sampling.",
-      call. = FALSE
-    )
-  }
+  nrep <- .check_nrep_prn(
+    nrep, prn, method, supports_prn = reg$supports_prn
+  )
 
   check_pik(pik, fixed_size = reg$fixed_size)
   N <- length(pik)
@@ -547,26 +600,9 @@ unregister_method <- function(name) {
 .dispatch_registered_wr <- function(hits, method, nrep, prn, ...) {
   reg <- .method_registry[[method]]
   .check_registered_type(reg, "wr")
-  nrep <- check_integer(nrep, "nrep")
-  if (nrep < 1L) {
-    stop("'nrep' must be at least 1", call. = FALSE)
-  }
-
-  if (!is.null(prn) && !reg$supports_prn) {
-    warning(
-      sprintf("prn is not used by method '%s' and will be ignored", method),
-      call. = FALSE
-    )
-    prn <- NULL
-  }
-  if (!is.null(prn) && nrep > 1L) {
-    stop(
-      "prn and nrep > 1 cannot be used together. ",
-      "Permanent random numbers produce identical samples across replicates. ",
-      "Use a loop with different prn vectors for coordinated repeated sampling.",
-      call. = FALSE
-    )
-  }
+  nrep <- .check_nrep_prn(
+    nrep, prn, method, supports_prn = reg$supports_prn
+  )
 
   check_hits(hits)
   n <- check_integer(sum(hits), "sum(hits)")
@@ -633,10 +669,7 @@ unregister_method <- function(name) {
 ) {
   reg <- .method_registry[[method]]
   .check_registered_type(reg, "balanced")
-  nrep <- check_integer(nrep, "nrep")
-  if (nrep < 1L) {
-    stop("'nrep' must be at least 1", call. = FALSE)
-  }
+  nrep <- .check_nrep_prn(nrep)
 
   check_pik(pik, fixed_size = reg$fixed_size)
   N <- length(pik)
@@ -743,7 +776,14 @@ unregister_method <- function(name) {
 }
 
 #' @noRd
-.registered_joint_or_stop <- function(method, pik, sample_idx, quantity, ...) {
+.registered_joint_or_stop <- function(
+  method,
+  marginals,
+  sample_idx,
+  quantity,
+  generic_args,
+  ...
+) {
   if (!is_registered_method(method)) {
     .stop_no_joint(method, quantity)
   }
@@ -751,19 +791,44 @@ unregister_method <- function(name) {
   if (is.null(reg$joint_fn)) {
     .stop_no_joint(method, quantity)
   }
-  joint <- reg$joint_fn(pik, sample_idx = sample_idx, ...)
-  expected <- if (is.null(sample_idx)) length(pik) else length(sample_idx)
+  declared <- names(formals(reg$joint_fn))
+  generic_args <- generic_args[names(generic_args) %in% declared]
+  joint <- do.call(
+    reg$joint_fn,
+    c(list(marginals, sample_idx = sample_idx), list(...), generic_args)
+  )
+  expected <- if (is.null(sample_idx)) length(marginals) else length(sample_idx)
   prefix <- sprintf("registered method '%s' returned", method)
+  labels <- switch(
+    quantity,
+    joint_inclusion_prob = list(
+      result = "a joint-inclusion-probability result",
+      values = "joint inclusion probabilities",
+      matrix = "joint-inclusion-probability matrix"
+    ),
+    joint_expected_hits = list(
+      result = "a joint-expected-hits result",
+      values = "joint expected hits",
+      matrix = "joint-expected-hits matrix"
+    )
+  )
   if (!is.matrix(joint) || !is.numeric(joint) || is.complex(joint)) {
-    stop(prefix, " joint probabilities that are not a numeric matrix", call. = FALSE)
+    stop(
+      prefix,
+      " ",
+      labels$result,
+      " that is not a numeric matrix",
+      call. = FALSE
+    )
   }
   if (!identical(dim(joint), c(expected, expected))) {
     stop(
       prefix,
       sprintf(
-        " a %d x %d joint-probability matrix; expected %d x %d",
+        " a %d x %d %s; expected %d x %d",
         nrow(joint),
         ncol(joint),
+        labels$matrix,
         expected,
         expected
       ),
@@ -771,7 +836,13 @@ unregister_method <- function(name) {
     )
   }
   if (any(!is.finite(joint))) {
-    stop(prefix, " non-finite joint probabilities", call. = FALSE)
+    stop(
+      prefix,
+      " ",
+      labels$values,
+      " containing non-finite values",
+      call. = FALSE
+    )
   }
   if (!isTRUE(all.equal(
     joint,
@@ -779,7 +850,7 @@ unregister_method <- function(name) {
     tolerance = sqrt(.Machine$double.eps),
     check.attributes = FALSE
   ))) {
-    stop(prefix, " a non-symmetric joint-probability matrix", call. = FALSE)
+    stop(prefix, " a non-symmetric ", labels$matrix, call. = FALSE)
   }
   joint
 }

@@ -218,53 +218,53 @@ test_that("bernoulli batch with prn errors (identical replicates)", {
   )
 })
 
-test_that("warning when prn used with unsupported WOR methods", {
+test_that("unsupported WOR methods reject prn", {
   pik <- c(0.2, 0.4, 0.6, 0.8)
   prn <- c(0.3, 0.7, 0.1, 0.5)
-  expect_warning(
+  expect_error(
     unequal_prob_wor(pik, method = "cps", prn = prn),
-    "prn is not used by method 'cps'"
+    "method 'cps' does not support 'prn'"
   )
-  expect_warning(
+  expect_error(
     unequal_prob_wor(pik, method = "brewer", prn = prn),
-    "prn is not used by method 'brewer'"
+    "method 'brewer' does not support 'prn'"
   )
-  expect_warning(
+  expect_error(
     unequal_prob_wor(pik, method = "systematic", prn = prn),
-    "prn is not used by method 'systematic'"
+    "method 'systematic' does not support 'prn'"
   )
 })
 
-test_that("warning when prn used with WR methods", {
+test_that("built-in WR methods reject prn", {
   hits <- c(0.4, 0.8, 0.5, 0.6, 0.7)
   prn <- runif(5)
-  expect_warning(
+  expect_error(
     unequal_prob_wr(hits, method = "chromy", prn = prn),
-    "prn is not used by method 'chromy'"
+    "method 'chromy' does not support 'prn'"
   )
-  expect_warning(
+  expect_error(
     unequal_prob_wr(hits, method = "multinomial", prn = prn),
-    "prn is not used by method 'multinomial'"
+    "method 'multinomial' does not support 'prn'"
   )
 })
 
-test_that("warning when prn used with unsupported equal_prob_wor methods", {
+test_that("unsupported equal_prob_wor methods reject prn", {
   prn <- runif(10)
-  expect_warning(
+  expect_error(
     equal_prob_wor(10, 3, method = "srs", prn = prn),
-    "prn is not used by method 'srs'"
+    "method 'srs' does not support 'prn'"
   )
-  expect_warning(
+  expect_error(
     equal_prob_wor(10, 3, method = "systematic", prn = prn),
-    "prn is not used by method 'systematic'"
+    "method 'systematic' does not support 'prn'"
   )
 })
 
-test_that("warning when prn used with equal_prob_wr", {
+test_that("equal_prob_wr rejects prn", {
   prn <- runif(10)
-  expect_warning(
+  expect_error(
     equal_prob_wr(10, 3, prn = prn),
-    "prn is not used by method 'srs'"
+    "method 'srs' does not support 'prn'"
   )
 })
 

@@ -4,15 +4,22 @@
 \alias{method_spec}
 \title{Query Method Metadata}
 \usage{
-method_spec(name)
+method_spec(name, dispatcher = NULL)
 }
 \arguments{
 \item{name}{Method name (character string), as used by the sondage
 dispatchers (e.g. \code{"brewer"}, \code{"cube"}, \code{"srs"}).}
+
+\item{dispatcher}{Optional sampling entry point. One of
+\code{"equal_prob_wor"}, \code{"equal_prob_wr"}, \code{"unequal_prob_wor"},
+\code{"unequal_prob_wr"}, or \code{"balanced_wor"}. Required when \code{name}
+is available through more than one entry point, as with \code{"srs"}
+and \code{"systematic"}. Values must match exactly.}
 }
 \value{
-A list with elements \code{type} (\code{"wor"}, \code{"wr"}, or
-\code{"balanced"}), \code{fixed_size} (logical), \code{variance_family} (one of
+A list with elements \code{dispatcher} (the sampling entry point),
+\code{type} (\code{"wor"}, \code{"wr"}, or \code{"balanced"}), \code{fixed_size} (logical),
+\code{variance_family} (one of
 \code{"srs"}, \code{"pps_brewer"}, \code{"poisson"}, \code{"wr"}, \code{"unsupported"}, or
 \code{NULL} for a registered method that did not declare one; see
 \code{\link[=register_method]{register_method()}}), \code{supports_prn} (logical), \code{supports_aux}
@@ -27,10 +34,8 @@ implementation functions for a registered method, \code{NULL} for
 built-ins, whose implementations are internal dispatch paths).
 Returns \code{NULL} if the method is unknown. The
 aux/strata/spread capabilities are only \code{TRUE} for balanced
-methods. For the two names shared by an equal- and an
-unequal-probability built-in, the lookup resolves as it does for
-\code{type}: \code{"systematic"} reports the unequal-probability variant
-and \code{"srs"} the without-replacement variant.
+methods. An ambiguous built-in name without \code{dispatcher} is an
+error rather than silently selecting one variant.
 }
 \description{
 Return the capabilities of a sampling method. Works for built-in
@@ -39,6 +44,8 @@ methods and methods added via \code{\link[=register_method]{register_method()}}.
 \examples{
 method_spec("brewer")
 method_spec("cube")
+method_spec("srs", dispatcher = "equal_prob_wr")
+method_spec("systematic", dispatcher = "equal_prob_wor")
 method_spec("nonexistent")
 
 }

@@ -91,6 +91,54 @@ test_that("systematic PPS batch never writes out of bounds (audit crash)", {
   expect_true(all(s$sample >= 1L & s$sample <= 4L))
 })
 
+test_that("balanced batch size mismatches fail before writing past a column", {
+  pik <- rep(5 / 11, 11)
+  spread <- matrix(as.double(seq_along(pik)), ncol = 1L)
+  aux <- spread
+
+  set.seed(1)
+  expect_error(
+    balanced_wor(pik, spread = spread, method = "lpm2", nrep = 3, eps = 0.45),
+    "lpm2 batch draw 2 produced size 6, expected 5"
+  )
+
+  set.seed(1)
+  expect_error(
+    balanced_wor(pik, spread = spread, method = "scps", nrep = 3, eps = 0.45),
+    "SCPS batch draw 1 produced size 4, expected 5"
+  )
+
+  set.seed(1)
+  expect_error(
+    balanced_wor(pik, aux = aux, method = "cube", nrep = 3, eps = 0.45),
+    "cube batch draw 1 produced size 7, expected 5"
+  )
+
+  set.seed(1)
+  expect_error(
+    balanced_wor(
+      pik,
+      aux = aux,
+      strata = rep(1L, length(pik)),
+      method = "cube",
+      nrep = 3,
+      eps = 0.45
+    ),
+    "stratified cube batch draw 1 produced size 7, expected 5"
+  )
+})
+
+test_that("CPS zero-work design initializes its weight buffer", {
+  pik <- 1 - c(1, 2, 3, 4) * 1e-13
+  design <- .Call(sondage:::C_cps_design, as.double(pik))
+
+  expect_identical(design$n_work, 0L)
+  expect_identical(design$w, numeric(length(pik)))
+
+  sample <- unequal_prob_wor(pik, method = "cps", nrep = 2)
+  expect_identical(dim(sample$sample), c(4L, 2L))
+})
+
 test_that("near-boundary interior pik are sampled, not snapped", {
   # pik close to (but not exactly) 0/1 stay in the design
   p <- c(1e-9, 1 - 1e-9, 0.5, 0.5)  # sums to 2 within fp tolerance
@@ -310,6 +358,129 @@ test_that("systematic JIP matches direct interval reference", {
     expect_equal(unclass(J), sys_jip_ref(pik), tolerance = 1e-10,
                  ignore_attr = TRUE)
     expect_lt(max(abs(rowSums(J) - sum(pik) * pik)), 1e-8)
+  }
+})
+
+test_that("systematic JIP preserves exact structural zeros", {
+  s <- equal_prob_wor(10, 3, method = "systematic")
+  J <- joint_inclusion_prob(s)
+
+  expect_identical(J[8, 9], 0)
+  expect_identical(J[9, 10], 0)
+
+  sampled <- s
+  sampled$sample <- c(8L, 9L)
+  J_sub <- joint_inclusion_prob(sampled, sampled_only = TRUE)
+  expect_identical(J_sub[1, 2], 0)
+
+  expect_warning(
+    syg <- sampling_cov(s, weighted = TRUE),
+    "joint inclusion probabilities are zero"
+  )
+  expect_true(is.na(syg[8, 9]))
+  expect_true(is.na(syg[9, 10]))
+})
+
+test_that("equal-probability batch draws normalize near-integer n", {
+  near_three <- 3 + 5e-5
+
+  for (method in c("srs", "systematic")) {
+    one <- equal_prob_wor(10, near_three, method = method)
+    many <- equal_prob_wor(10, near_three, method = method, nrep = 2)
+
+    expect_identical(one$n, 3L, info = method)
+    expect_identical(many$n, 3L, info = method)
+    expect_identical(dim(many$sample), c(3L, 2L), info = method)
+  }
+})
+
+test_that("systematic PPS returns sorted indices with certainty units", {
+  set.seed(17)
+  for (i in seq_len(20)) {
+    s <- unequal_prob_wor(c(0.5, 1, 0.5), method = "systematic")
+    expect_false(is.unsorted(s$sample))
+  }
+})
+
+test_that("optimized batch paths preserve sequential single-draw streams", {
+  compare_fixed <- function(batch, draw_one) {
+    singles <- lapply(seq_len(ncol(batch)), function(i) draw_one())
+    expect_identical(batch, do.call(cbind, singles))
+  }
+
+  for (method in c("srs", "systematic")) {
+    set.seed(12)
+    batch <- equal_prob_wor(20, 5, method, nrep = 4)$sample
+    set.seed(12)
+    compare_fixed(batch, function() equal_prob_wor(20, 5, method)$sample)
+  }
+
+  set.seed(12)
+  batch <- equal_prob_wr(20, 5, nrep = 4)
+  set.seed(12)
+  singles <- lapply(seq_len(4), function(i) equal_prob_wr(20, 5))
+  expect_identical(batch$sample, do.call(cbind, lapply(singles, `[[`, "sample")))
+  expect_identical(batch$hits, do.call(cbind, lapply(singles, `[[`, "hits")))
+
+  hits <- c(0.2, 0.5, 0.8, 0.5)
+  for (method in c("chromy", "multinomial")) {
+    set.seed(12)
+    batch <- unequal_prob_wr(hits, method, nrep = 4)
+    set.seed(12)
+    singles <- lapply(seq_len(4), function(i) unequal_prob_wr(hits, method))
+    expect_identical(
+      batch$sample, do.call(cbind, lapply(singles, `[[`, "sample"))
+    )
+    expect_identical(batch$hits, do.call(cbind, lapply(singles, `[[`, "hits")))
+  }
+})
+
+test_that("random-size WOR batching uses the selected raw hook", {
+  local_mocked_bindings(
+    .get_builtin_spec = function(method, context) {
+      list(draw = function(pik, prn = NULL) which(pik > 0.4))
+    },
+    .method_is_fixed_size = function(method, context) FALSE,
+    .package = "sondage"
+  )
+
+  s <- sondage:::.batch_wor(c(0.2, 0.6, 0.2), "synthetic_random", 2L)
+  expect_identical(s$sample, list(2L, 2L))
+})
+
+test_that("shared spatial C validation remains defensive", {
+  pik <- rep(0.5, 4)
+  symbols <- list(sondage:::C_lpm2, sondage:::C_scps)
+  for (symbol in symbols) {
+    expect_error(.Call(symbol, as.double(pik), 1:4, 1e-10), "numeric matrix")
+    expect_error(
+      .Call(symbol, as.double(pik), matrix(as.double(1:6), nrow = 3), 1e-10),
+      "does not match"
+    )
+    expect_error(
+      .Call(symbol, as.double(pik), matrix(numeric(), nrow = 4), 1e-10),
+      "at least one column"
+    )
+  }
+})
+
+test_that("cube option validation agrees between single and batch paths", {
+  pik <- rep(0.5, 6)
+  aux <- matrix(as.double(seq_along(pik)), ncol = 1)
+  for (nrep in c(1L, 2L)) {
+    expect_no_error(
+      balanced_wor(
+        pik, aux = aux, nrep = nrep, condition_aux = TRUE, qr_tol = 0
+      )
+    )
+    expect_error(
+      balanced_wor(pik, aux = aux, nrep = nrep, condition_aux = 1),
+      "condition_aux"
+    )
+    expect_error(
+      balanced_wor(pik, aux = aux, nrep = nrep, qr_tol = -1),
+      "non-negative"
+    )
   }
 })
 

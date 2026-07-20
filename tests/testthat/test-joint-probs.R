@@ -428,7 +428,7 @@ test_that("sampled_only returns n x n for CPS matching full[s,s]", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), full[idx, idx, drop = FALSE])
 })
 
 test_that("sampled_only CPS matches full[s,s] for larger N", {
@@ -442,7 +442,7 @@ test_that("sampled_only CPS matches full[s,s] for larger N", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), full[idx, idx, drop = FALSE])
 })
 
 test_that("sampled_only CPS handles certainty units", {
@@ -453,7 +453,7 @@ test_that("sampled_only CPS handles certainty units", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), full[idx, idx, drop = FALSE])
 })
 
 test_that("sampled_only CPS handles equal-pik case", {
@@ -466,7 +466,7 @@ test_that("sampled_only CPS handles equal-pik case", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), full[idx, idx, drop = FALSE])
 })
 
 test_that("sampled_only returns n x n for systematic matching full[s,s]", {
@@ -477,7 +477,7 @@ test_that("sampled_only returns n x n for systematic matching full[s,s]", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), full[idx, idx, drop = FALSE])
 })
 
 test_that("sampled_only systematic matches full[s,s] for larger N", {
@@ -491,7 +491,7 @@ test_that("sampled_only systematic matches full[s,s] for larger N", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), full[idx, idx, drop = FALSE])
 })
 
 test_that("sampled_only systematic handles certainty units", {
@@ -502,7 +502,7 @@ test_that("sampled_only systematic handles certainty units", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), full[idx, idx, drop = FALSE])
 })
 
 test_that("sampled_only returns n x n for HE methods matching full[s,s]", {
@@ -523,7 +523,7 @@ test_that("sampled_only returns n x n for HE methods matching full[s,s]", {
       info = paste("dim for", method)
     )
     expect_equal(
-      sub,
+      unname(sub),
       full[idx, idx, drop = FALSE],
       tolerance = 1e-10,
       info = paste("values for", method)
@@ -544,7 +544,7 @@ test_that("sampled_only returns n x n for Poisson matching full[s,s]", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), full[idx, idx, drop = FALSE])
 })
 
 test_that("sampled_only returns n x n for SRS WOR matching full[s,s]", {
@@ -554,7 +554,7 @@ test_that("sampled_only returns n x n for SRS WOR matching full[s,s]", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(3, 3))
-  expect_equal(sub, full[idx, idx])
+  expect_equal(unname(sub), full[idx, idx])
 })
 
 test_that("sampled_only returns n x n for Bernoulli matching full[s,s]", {
@@ -565,7 +565,7 @@ test_that("sampled_only returns n x n for Bernoulli matching full[s,s]", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx])
+  expect_equal(unname(sub), full[idx, idx])
 })
 
 test_that("sampled_only errors for batch WOR designs", {
@@ -611,7 +611,11 @@ test_that("sampled_only works with HE certainty units", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx, drop = FALSE], tolerance = 1e-10)
+  expect_equal(
+    unname(sub),
+    full[idx, idx, drop = FALSE],
+    tolerance = 1e-10
+  )
 })
 
 test_that("N > 10K error suggests sampled_only", {
@@ -630,7 +634,7 @@ test_that("sampled_only CPS with n=1 returns diagonal only", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), full[idx, idx, drop = FALSE])
 })
 
 test_that("sampled_only systematic with equal pik matches full[s,s]", {
@@ -642,7 +646,7 @@ test_that("sampled_only systematic with equal pik matches full[s,s]", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(sub, full[idx, idx, drop = FALSE])
+  expect_equal(unname(sub), full[idx, idx, drop = FALSE])
 })
 
 test_that("sampled_only works for all WOR methods at N=500", {
@@ -664,7 +668,7 @@ test_that("sampled_only works for all WOR methods at N=500", {
     )
     expect_equal(sub, t(sub), info = paste("symmetry for", method))
     expect_equal(
-      diag(sub),
+      unname(diag(sub)),
       pik[idx],
       tolerance = 1e-8,
       info = paste("diagonal for", method)
@@ -684,7 +688,7 @@ test_that("sampled_only supports N > 10K for CPS", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(diag(sub), pik[idx], tolerance = 1e-10)
+  expect_equal(unname(diag(sub)), pik[idx], tolerance = 1e-10)
 })
 
 test_that("sampled_only supports N > 10K for systematic", {
@@ -699,7 +703,7 @@ test_that("sampled_only supports N > 10K for systematic", {
 
   idx <- s$sample
   expect_equal(dim(sub), c(length(idx), length(idx)))
-  expect_equal(diag(sub), pik[idx], tolerance = 1e-10)
+  expect_equal(unname(diag(sub)), pik[idx], tolerance = 1e-10)
 })
 
 test_that("sampled_only sampling_cov end-to-end for all methods", {
@@ -720,7 +724,7 @@ test_that("sampled_only sampling_cov end-to-end for all methods", {
       info = paste("dim for", method)
     )
     expect_equal(
-      sub_cov,
+      unname(sub_cov),
       full_cov[idx, idx, drop = FALSE],
       tolerance = 1e-10,
       info = paste("values for", method)

@@ -23,7 +23,11 @@ NULL
     }
   } else if (is.list(s)) {
     nrep <- length(s)
-    cat(sprintf("%d replicates\n  rep 1 (n=%d): ", nrep, length(s[[1]])))
+    cat(sprintf(
+      "%d replicates\n  rep 1 (realized n=%d): ",
+      nrep,
+      length(s[[1]])
+    ))
     if (length(s[[1]]) <= 20) {
       cat(s[[1]], "\n")
     } else {
@@ -38,22 +42,42 @@ NULL
   }
 }
 
-#' @rdname print.sondage_sample
-#' @export
-print.unequal_prob <- function(x, ...) {
-  wr <- inherits(x, "wr")
-  label <- ifelse(wr, "Unequal prob WR", "Unequal prob WOR")
-  cat(sprintf("%s [%s] (n=%g, N=%d): ", label, x$method, x$n, x$N))
+#' @noRd
+.print_design <- function(x, label) {
+  if (!x$fixed_size && !is.list(x$sample)) {
+    size <- sprintf(
+      "expected n=%g, realized n=%d, N=%d",
+      x$n,
+      length(x$sample),
+      x$N
+    )
+  } else if (!x$fixed_size) {
+    size <- sprintf("expected n=%g, N=%d", x$n, x$N)
+  } else {
+    size <- sprintf("n=%g, N=%d", x$n, x$N)
+  }
+
+  cat(sprintf("%s [%s] (%s): ", label, x$method, size))
   .print_sample(x$sample)
   invisible(x)
 }
 
 #' @rdname print.sondage_sample
 #' @export
+print.unequal_prob <- function(x, ...) {
+  label <- if (inherits(x, "balanced")) {
+    "Balanced WOR"
+  } else if (inherits(x, "wr")) {
+    "Unequal prob WR"
+  } else {
+    "Unequal prob WOR"
+  }
+  .print_design(x, label)
+}
+
+#' @rdname print.sondage_sample
+#' @export
 print.equal_prob <- function(x, ...) {
-  wr <- inherits(x, "wr")
-  label <- ifelse(wr, "Equal prob WR", "Equal prob WOR")
-  cat(sprintf("%s [%s] (n=%g, N=%d): ", label, x$method, x$n, x$N))
-  .print_sample(x$sample)
-  invisible(x)
+  label <- if (inherits(x, "wr")) "Equal prob WR" else "Equal prob WOR"
+  .print_design(x, label)
 }

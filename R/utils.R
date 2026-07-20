@@ -25,7 +25,7 @@ check_pik <- function(
   fixed_size = FALSE,
   tol = NULL
 ) {
-  if (!is.numeric(pik)) {
+  if (!is.numeric(pik) || !is.null(dim(pik))) {
     stop("'pik' must be a numeric vector", call. = FALSE)
   }
   if (length(pik) == 0L) {
@@ -82,7 +82,7 @@ check_pik <- function(
 #' @keywords internal
 #' @noRd
 check_prn <- function(prn, N) {
-  if (!is.numeric(prn)) {
+  if (!is.numeric(prn) || !is.null(dim(prn))) {
     stop("'prn' must be a numeric vector", call. = FALSE)
   }
   if (length(prn) != N) {
@@ -100,6 +100,210 @@ check_prn <- function(prn, N) {
   invisible(TRUE)
 }
 
+#' Check whether a value is a non-empty scalar character string
+#'
+#' This predicate is intentionally non-throwing so dispatchers can distinguish
+#' possible registered method names from built-in method choices.
+#'
+#' @keywords internal
+#' @noRd
+.is_method_name <- function(x) {
+  is.character(x) &&
+    length(x) == 1L &&
+    !is.na(x) &&
+    nzchar(x)
+}
+
+#' Validate a method registry name
+#'
+#' @keywords internal
+#' @noRd
+.check_method_name <- function(name) {
+  if (!.is_method_name(name)) {
+    stop("'name' must be a non-empty character string", call. = FALSE)
+  }
+  name
+}
+
+#' Match a documented character choice without exposing match.arg internals
+#'
+#' Partial matching is deliberately preserved for backward compatibility.
+#'
+#' @keywords internal
+#' @noRd
+.match_choice <- function(x, choices, name) {
+  if (is.null(x) || identical(x, choices)) {
+    return(choices[[1L]])
+  }
+  if (is.character(x) && length(x) == 1L && !is.na(x)) {
+    match <- pmatch(x, choices, nomatch = 0L)
+    if (!is.na(match) && match > 0L) {
+      return(choices[[match]])
+    }
+  }
+
+  quoted <- sprintf('"%s"', choices)
+  alternatives <- if (length(quoted) == 1L) {
+    quoted
+  } else if (length(quoted) == 2L) {
+    paste(quoted, collapse = " or ")
+  } else {
+    paste0(
+      paste(quoted[-length(quoted)], collapse = ", "),
+      ", or ",
+      quoted[[length(quoted)]]
+    )
+  }
+  stop(
+    sprintf("'%s' must be one of %s", name, alternatives),
+    call. = FALSE
+  )
+}
+
+#' Validate a scalar logical flag
+#'
+#' @keywords internal
+#' @noRd
+.check_flag <- function(x, name) {
+  if (!is.logical(x) || length(x) != 1L || is.na(x) || !is.null(dim(x))) {
+    stop(sprintf("'%s' must be TRUE or FALSE", name), call. = FALSE)
+  }
+  x
+}
+
+#' Validate a finite scalar number
+#'
+#' @keywords internal
+#' @noRd
+.check_number <- function(x, name) {
+  if (length(x) != 1L || !is.null(dim(x))) {
+    stop(sprintf("'%s' must be a single numeric value", name), call. = FALSE)
+  }
+  if (is.na(x)) {
+    stop(sprintf("'%s' must not be NA", name), call. = FALSE)
+  }
+  if (!is.numeric(x)) {
+    stop(sprintf("'%s' must be a single numeric value", name), call. = FALSE)
+  }
+  if (!is.finite(x)) {
+    stop(sprintf("'%s' must be finite", name), call. = FALSE)
+  }
+  as.double(x)
+}
+
+#' Validate indices used for a sampled joint-probability submatrix
+#'
+#' @keywords internal
+#' @noRd
+.check_sample_idx <- function(sample_idx, N) {
+  if (!is.numeric(sample_idx) || !is.null(dim(sample_idx))) {
+    stop("'sample_idx' must be an integer vector", call. = FALSE)
+  }
+  if (anyNA(sample_idx)) {
+    stop("'sample_idx' must not contain missing values", call. = FALSE)
+  }
+  if (any(!is.finite(sample_idx)) || any(sample_idx != floor(sample_idx))) {
+    stop("'sample_idx' must contain whole numbers", call. = FALSE)
+  }
+  if (any(sample_idx < 1 | sample_idx > N)) {
+    stop(
+      sprintf("'sample_idx' values must be between 1 and length(pik) = %d", N),
+      call. = FALSE
+    )
+  }
+  if (anyDuplicated(sample_idx)) {
+    stop("'sample_idx' must not contain duplicate indices", call. = FALSE)
+  }
+  as.integer(sample_idx)
+}
+
+#' Reject arguments that a built-in method does not consume
+#'
+#' The caller supplies only dot metadata, so checking names never forces the
+#' promises in `...`. Keep the empty-dots guard at the call site to avoid a
+#' helper call on performance-sensitive paths.
+#'
+#' @param n Number of arguments in `...`.
+#' @param names Names of the arguments in `...`.
+#' @param allowed Names accepted by the selected built-in method.
+#'
+#' @keywords internal
+#' @noRd
+.check_dots <- function(n, names, allowed = character()) {
+  if (is.null(names)) {
+    names <- rep.int("", n)
+  }
+
+  bad <- is.na(names) | !nzchar(names) | !(names %in% allowed)
+  if (!any(bad)) {
+    return(invisible(TRUE))
+  }
+
+  labels <- ifelse(
+    is.na(names[bad]) | !nzchar(names[bad]),
+    "<unnamed>",
+    sprintf("'%s'", names[bad])
+  )
+  labels <- unique(labels)
+  stop(
+    sprintf(
+      "unused argument%s in '...': %s",
+      if (length(labels) == 1L) "" else "s",
+      paste(labels, collapse = ", ")
+    ),
+    call. = FALSE
+  )
+}
+
+#' Report that a method cannot use permanent random numbers
+#'
+#' @param method Selected method.
+#' @param supported Built-in alternatives that support `prn`, when useful.
+#'
+#' @keywords internal
+#' @noRd
+.stop_unsupported_prn <- function(method, supported = character()) {
+  message <- sprintf("method '%s' does not support 'prn'", method)
+  if (length(supported) > 0L) {
+    alternatives <- paste(sprintf("'%s'", supported), collapse = ", ")
+    message <- paste0(
+      message,
+      "; permanent random numbers are supported by ",
+      alternatives
+    )
+  }
+  stop(message, call. = FALSE)
+}
+
+#' Validate replicate count and permanent-random-number compatibility
+#'
+#' @keywords internal
+#' @noRd
+.check_nrep_prn <- function(
+  nrep,
+  prn = NULL,
+  method = NULL,
+  supports_prn = TRUE,
+  supported = character()
+) {
+  nrep <- check_integer(nrep, "nrep")
+  if (nrep < 1L) {
+    stop("'nrep' must be at least 1", call. = FALSE)
+  }
+  if (!is.null(prn) && !supports_prn) {
+    .stop_unsupported_prn(method, supported)
+  }
+  if (!is.null(prn) && nrep > 1L) {
+    stop(
+      "prn and nrep > 1 cannot be used together. ",
+      "Permanent random numbers produce identical samples across replicates. ",
+      "Use a loop with different prn vectors for coordinated repeated sampling.",
+      call. = FALSE
+    )
+  }
+  nrep
+}
+
 #' Check that a value is close to an integer
 #'
 #' @param x Numeric value to check.
@@ -111,11 +315,14 @@ check_prn <- function(prn, N) {
 #' @keywords internal
 #' @noRd
 check_integer <- function(x, name = "n", tol = 1e-4) {
-  if (!is.numeric(x) || length(x) != 1L) {
+  if (length(x) != 1L || !is.null(dim(x))) {
     stop(sprintf("%s must be a single number", name), call. = FALSE)
   }
   if (is.na(x)) {
     stop(sprintf("%s must not be NA", name), call. = FALSE)
+  }
+  if (!is.numeric(x)) {
+    stop(sprintf("%s must be a single number", name), call. = FALSE)
   }
   if (!is.finite(x)) {
     stop(sprintf("%s must be finite", name), call. = FALSE)
@@ -158,15 +365,7 @@ check_integer <- function(x, name = "n", tol = 1e-4) {
 #' @keywords internal
 #' @noRd
 check_eps <- function(eps, name = "eps") {
-  if (!is.numeric(eps) || length(eps) != 1L) {
-    stop(sprintf("'%s' must be a single numeric value", name), call. = FALSE)
-  }
-  if (is.na(eps)) {
-    stop(sprintf("'%s' must not be NA", name), call. = FALSE)
-  }
-  if (!is.finite(eps)) {
-    stop(sprintf("'%s' must be finite", name), call. = FALSE)
-  }
+  eps <- .check_number(eps, name)
   if (eps <= 0 || eps >= 0.5) {
     stop(
       sprintf("'%s' must be in the open interval (0, 0.5)", name),
@@ -187,7 +386,7 @@ check_eps <- function(eps, name = "eps") {
 #' @keywords internal
 #' @noRd
 check_hits <- function(hits) {
-  if (!is.numeric(hits)) {
+  if (!is.numeric(hits) || !is.null(dim(hits))) {
     stop("'hits' must be a numeric vector", call. = FALSE)
   }
   if (length(hits) == 0L) {

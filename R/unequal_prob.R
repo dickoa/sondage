@@ -147,43 +147,22 @@ unequal_prob_wor <- function(
   prn = NULL,
   ...
 ) {
-  if (is.character(method) && length(method) == 1L && is_registered_method(method)) {
+  if (.is_method_name(method) && is_registered_method(method)) {
     return(.dispatch_registered_wor(pik, method, nrep, prn, ...))
   }
-  method <- match.arg(method)
-  nrep <- check_integer(nrep, "nrep")
-  if (nrep < 1L) {
-    stop("'nrep' must be at least 1", call. = FALSE)
-  }
-
-  if (!is.null(prn) && !.method_supports_prn(method, "wor")) {
-    warning(
-      sprintf("prn is not used by method '%s' and will be ignored", method),
-      call. = FALSE
-    )
-  }
-
-  if (!is.null(prn) && nrep > 1L) {
-    stop(
-      "prn and nrep > 1 cannot be used together. ",
-      "Permanent random numbers produce identical samples across replicates. ",
-      "Use a loop with different prn vectors for coordinated repeated sampling.",
-      call. = FALSE
-    )
-  }
+  method <- .match_choice(
+    method,
+    c("cps", "sampford", "brewer", "systematic", "poisson", "sps", "pareto"),
+    "method"
+  )
+  nrep <- .check_nrep_prn(
+    nrep, prn, method,
+    supports_prn = .method_supports_prn(method, "wor"),
+    supported = c("poisson", "sps", "pareto")
+  )
 
   if (nrep == 1L) {
-    switch(
-      method,
-      cps = .cps_sample(pik, ...),
-      sampford = .sampford_sample(pik, ...),
-      brewer = .brewer_sample(pik, ...),
-      systematic = .systematic_pps_sample(pik, ...),
-      poisson = .poisson_pps_sample(pik, prn = prn, ...),
-      sps = .sps_sample(pik, prn = prn, ...),
-      pareto = .pareto_sample(pik, prn = prn, ...),
-      .stop_unknown_method(method) # nocov
-    )
+    .wor_sample(pik, method, prn = prn, ...)
   } else {
     .batch_wor(pik, method, nrep, ...)
   }
@@ -210,9 +189,10 @@ unequal_prob_wor <- function(
 #'   }
 #' @param nrep Number of replicate samples (default 1).
 #' @param prn Optional vector of permanent random numbers for sample
-#'   coordination. Not currently used by any WR method; a warning is
-#'   issued if provided.
-#' @param ... Additional arguments passed to methods.
+#'   coordination. No built-in WR method currently supports `prn`;
+#'   supplying it is an error. Registered methods can opt into PRN support.
+#' @param ... Additional arguments passed to methods registered via
+#'   [register_method()]. Built-in methods take no additional arguments.
 #'
 #' @return An object of class `c("unequal_prob", "wr", "sondage_sample")`.
 #'   When `nrep = 1`, `$sample` is an integer vector and `$hits` is an
@@ -247,21 +227,11 @@ unequal_prob_wr <- function(
   prn = NULL,
   ...
 ) {
-  if (is.character(method) && length(method) == 1L && is_registered_method(method)) {
+  if (.is_method_name(method) && is_registered_method(method)) {
     return(.dispatch_registered_wr(hits, method, nrep, prn, ...))
   }
-  method <- match.arg(method)
-  nrep <- check_integer(nrep, "nrep")
-  if (nrep < 1L) {
-    stop("'nrep' must be at least 1", call. = FALSE)
-  }
-
-  if (!is.null(prn)) {
-    warning(
-      sprintf("prn is not used by method '%s' and will be ignored", method),
-      call. = FALSE
-    )
-  }
+  method <- .match_choice(method, c("chromy", "multinomial"), "method")
+  nrep <- .check_nrep_prn(nrep, prn, method, supports_prn = FALSE)
 
   if (nrep == 1L) {
     switch(
@@ -306,127 +276,37 @@ unequal_prob_wr <- function(
 }
 
 #' @noRd
-.cps_sample <- function(pik, eps = NULL, ...) {
-  if (!is.null(eps)) .stop_eps_removed()
-  check_pik(pik, fixed_size = TRUE)
-  idx <- .cps_equal_fast_path(pik)
-  if (is.null(idx)) {
-    idx <- .Call(C_cps_single, as.double(pik))
+.draw_wor_once <- function(pik, method, prn = NULL) {
+  if (method == "cps") {
+    idx <- .cps_equal_fast_path(pik)
+    if (!is.null(idx)) return(idx)
   }
-  .new_wor_sample(
-    sample = idx,
-    pik = pik,
-    n = as.integer(round(sum(pik))),
-    N = length(pik),
-    method = "cps",
-    fixed_size = TRUE,
-    prob_class = "unequal_prob"
-  )
+  draw <- .get_builtin_spec(method, "wor")$draw
+  if (is.null(draw)) .stop_unknown_method(method) # nocov
+  draw(as.double(pik), if (is.null(prn)) NULL else as.double(prn))
 }
 
 #' @noRd
-.sampford_sample <- function(pik, eps = NULL, ...) {
+.wor_sample <- function(pik, method, prn = NULL, eps = NULL) {
   if (!is.null(eps)) .stop_eps_removed()
-  check_pik(pik, fixed_size = TRUE)
-  idx <- .Call(C_up_sampford, as.double(pik))
-  .new_wor_sample(
-    sample = idx,
-    pik = pik,
-    n = as.integer(round(sum(pik))),
-    N = length(pik),
-    method = "sampford",
-    fixed_size = TRUE,
-    prob_class = "unequal_prob"
-  )
-}
-
-#' @noRd
-.brewer_sample <- function(pik, eps = NULL, ...) {
-  if (!is.null(eps)) .stop_eps_removed()
-  check_pik(pik, fixed_size = TRUE)
-  idx <- .Call(C_up_brewer, as.double(pik))
-  .new_wor_sample(
-    sample = idx,
-    pik = pik,
-    n = as.integer(round(sum(pik))),
-    N = length(pik),
-    method = "brewer",
-    fixed_size = TRUE,
-    prob_class = "unequal_prob"
-  )
-}
-
-#' @noRd
-.systematic_pps_sample <- function(pik, eps = NULL, ...) {
-  if (!is.null(eps)) .stop_eps_removed()
-  check_pik(pik, fixed_size = TRUE)
-  idx <- .Call(C_up_systematic, as.double(pik))
-  .new_wor_sample(
-    sample = idx,
-    pik = pik,
-    n = as.integer(round(sum(pik))),
-    N = length(pik),
-    method = "systematic",
-    fixed_size = TRUE,
-    prob_class = "unequal_prob"
-  )
-}
-
-#' @noRd
-.poisson_pps_sample <- function(pik, prn = NULL, ...) {
-  check_pik(pik)
+  fixed_size <- .method_is_fixed_size(method, "wor")
+  check_pik(pik, fixed_size = fixed_size)
   N <- length(pik)
   if (!is.null(prn)) check_prn(prn, N)
-  idx <- .Call(C_up_poisson, as.double(pik), if (is.null(prn)) NULL else as.double(prn))
+  n <- sum(pik)
   .new_wor_sample(
-    sample = idx,
+    sample = .draw_wor_once(pik, method, prn),
     pik = pik,
-    n = sum(pik),
+    n = if (fixed_size) as.integer(round(n)) else n,
     N = N,
-    method = "poisson",
-    fixed_size = FALSE,
+    method = method,
+    fixed_size = fixed_size,
     prob_class = "unequal_prob"
   )
 }
 
 #' @noRd
-.sps_sample <- function(pik, prn = NULL, eps = NULL, ...) {
-  if (!is.null(eps)) .stop_eps_removed()
-  check_pik(pik, fixed_size = TRUE)
-  N <- length(pik)
-  if (!is.null(prn)) check_prn(prn, N)
-  idx <- .Call(C_up_sps, as.double(pik), if (is.null(prn)) NULL else as.double(prn))
-  .new_wor_sample(
-    sample = idx,
-    pik = pik,
-    n = as.integer(round(sum(pik))),
-    N = N,
-    method = "sps",
-    fixed_size = TRUE,
-    prob_class = "unequal_prob"
-  )
-}
-
-#' @noRd
-.pareto_sample <- function(pik, prn = NULL, eps = NULL, ...) {
-  if (!is.null(eps)) .stop_eps_removed()
-  check_pik(pik, fixed_size = TRUE)
-  N <- length(pik)
-  if (!is.null(prn)) check_prn(prn, N)
-  idx <- .Call(C_up_pareto, as.double(pik), if (is.null(prn)) NULL else as.double(prn))
-  .new_wor_sample(
-    sample = idx,
-    pik = pik,
-    n = as.integer(round(sum(pik))),
-    N = N,
-    method = "pareto",
-    fixed_size = TRUE,
-    prob_class = "unequal_prob"
-  )
-}
-
-#' @noRd
-.chromy_sample <- function(hits, ...) {
+.chromy_sample <- function(hits) {
   check_hits(hits)
   n <- check_integer(sum(hits), "sum(hits)")
   N <- length(hits)
@@ -448,7 +328,7 @@ unequal_prob_wr <- function(
 }
 
 #' @noRd
-.multinomial_sample <- function(hits, ...) {
+.multinomial_sample <- function(hits) {
   check_hits(hits)
   n <- check_integer(sum(hits), "sum(hits)")
   N <- length(hits)
@@ -477,7 +357,10 @@ unequal_prob_wr <- function(
 .batch_wor <- function(pik, method, nrep, ...) {
   # prn is rejected upstream in unequal_prob_wor when nrep > 1, so batch
   # callers never carry a PRN vector, so no prn forwarding here.
-  if (!is.null(list(...)[["eps"]])) .stop_eps_removed()
+  if (...length()) {
+    .check_dots(...length(), ...names(), allowed = "eps")
+    if (!is.null(list(...)[["eps"]])) .stop_eps_removed()
+  }
   fixed_size <- .method_is_fixed_size(method, "wor")
   check_pik(pik, fixed_size = fixed_size)
 
@@ -493,25 +376,15 @@ unequal_prob_wr <- function(
     }
   } else if (!fixed_size) {
     sample_data <- lapply(seq_len(nrep), function(i) {
-      .poisson_pps_sample(pik, ...)$sample
+      .draw_wor_once(pik, method)
     })
   } else {
     # Validation already ran above; call the C sampler directly per
     # replicate instead of building a full design object each time.
     n_int <- as.integer(round(n))
     mat <- matrix(0L, n_int, nrep)
-    pik_d <- as.double(pik)
-    draw_fn <- switch(
-      method,
-      sampford = function() .Call(C_up_sampford, pik_d),
-      brewer = function() .Call(C_up_brewer, pik_d),
-      systematic = function() .Call(C_up_systematic, pik_d),
-      sps = function() .Call(C_up_sps, pik_d, NULL),
-      pareto = function() .Call(C_up_pareto, pik_d, NULL),
-      .stop_unknown_method(method) # nocov
-    )
     for (i in seq_len(nrep)) {
-      mat[, i] <- draw_fn()
+      mat[, i] <- .draw_wor_once(pik, method)
     }
     sample_data <- mat
   }
@@ -528,25 +401,34 @@ unequal_prob_wr <- function(
 }
 
 #' @noRd
-.batch_wr <- function(hits, method, nrep, ...) {
+.batch_wr <- function(hits, method, nrep) {
   # prn is rejected upstream in unequal_prob_wr (WR methods do not support
   # PRN); no prn forwarding here.
+  check_hits(hits)
   n <- check_integer(sum(hits), "sum(hits)")
   N <- length(hits)
   prob <- hits / sum(hits)
 
-  sample_mat <- matrix(0L, n, nrep)
-  hits_mat <- matrix(0L, N, nrep)
-  draw_fn <- switch(
-    method,
-    chromy = .chromy_sample,
-    multinomial = .multinomial_sample,
+  if (method == "chromy") {
+    draws <- .Call(
+      C_up_chromy_batch, as.double(hits), n, as.integer(nrep)
+    )
+    sample_mat <- draws[[1L]]
+    hits_mat <- draws[[2L]]
+  } else if (method == "multinomial") {
+    sample_mat <- matrix(0L, n, nrep)
+    hits_mat <- matrix(0L, N, nrep)
+    for (i in seq_len(nrep)) {
+      idx <- if (n == 0L) {
+        integer(0L)
+      } else {
+        sample.int(N, n, replace = TRUE, prob = prob)
+      }
+      sample_mat[, i] <- idx
+      hits_mat[, i] <- tabulate(idx, nbins = N)
+    }
+  } else {
     .stop_unknown_method(method) # nocov
-  )
-  for (i in seq_len(nrep)) {
-    d <- draw_fn(hits, ...)
-    sample_mat[, i] <- d$sample
-    hits_mat[, i] <- d$hits
   }
 
   .new_wr_sample(

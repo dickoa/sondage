@@ -145,6 +145,10 @@ inclusion_prob(sim) # generics still work
 - `sampling_cov(s, weighted = TRUE)` - Check quantities for SYG variance estimator
 - `sampling_cov(s, sampled_only = TRUE)` - Covariance for sampled units only
 
+Joint and covariance matrices preserve population-unit names. When the
+probability vector is unnamed, sampled-only matrices use population indices as
+row and column names so their units remain identifiable.
+
 ## Method comparison
 
 | Method        | Dispatcher         | Fixed n | Exact marginals† | Exact pi_ij        | PRN |

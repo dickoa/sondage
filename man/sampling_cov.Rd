@@ -34,7 +34,8 @@ A symmetric N x N matrix (or n x n if \code{sampled_only = TRUE}).
 For WOR designs with \code{weighted = FALSE}, off-diagonal entries are
 typically negative for well-behaved designs. With \code{weighted = TRUE},
 off-diagonal entries are typically non-positive (entries where
-\eqn{\pi_{ij} = 0} are set to \code{NA}).
+\eqn{\pi_{ij} = 0} are set to \code{NA}). Unit labels are inherited from
+the underlying joint matrix.
 }
 \description{
 Computes the sampling covariance matrix used in variance estimation.

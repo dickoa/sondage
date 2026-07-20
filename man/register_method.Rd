@@ -11,10 +11,10 @@ register_method(
   joint_fn = NULL,
   fixed_size = TRUE,
   variance_family = NULL,
-  supports_prn = FALSE,
-  supports_aux = TRUE,
-  supports_strata = FALSE,
-  supports_spread = FALSE,
+  supports_prn = NULL,
+  supports_aux = NULL,
+  supports_strata = NULL,
+  supports_spread = NULL,
   probabilities = c("unknown", "exact", "approximate")
 )
 }
@@ -46,26 +46,32 @@ default) means undeclared: consumers fall back on inferring a
 treatment from \code{type} and \code{fixed_size}.}
 
 \item{supports_prn}{Does this method support permanent random
-numbers for sample coordination? Only \code{"wor"} and \code{"wr"} methods;
-\code{\link[=balanced_wor]{balanced_wor()}} has no \code{prn} argument.}
+numbers for sample coordination? Set to \code{TRUE} or \code{FALSE} for
+\code{"wor"} and \code{"wr"} methods. \code{NULL} (the default) resolves to
+\code{FALSE}. Leave \code{NULL} for \code{"balanced"} methods; \code{\link[=balanced_wor]{balanced_wor()}}
+has no \code{prn} argument.}
 
 \item{supports_aux}{Does this method use auxiliary balancing
-variables? Only meaningful for \code{type = "balanced"}. Set it to
-\code{FALSE} for spread-only (spatially balanced) methods such as the
-local pivotal method, so that passing \code{aux} to \code{\link[=balanced_wor]{balanced_wor()}}
-is an error instead of being silently ignored.}
+variables? Set to \code{TRUE} or \code{FALSE} for \code{type = "balanced"}.
+\code{NULL} (the default) resolves to \code{TRUE} for balanced methods and
+\code{FALSE} otherwise. Set it to \code{FALSE} for spread-only (spatially
+balanced) methods such as the local pivotal method, so that passing
+\code{aux} to \code{\link[=balanced_wor]{balanced_wor()}} is an error instead of being silently
+ignored. Leave \code{NULL} for \code{"wor"} and \code{"wr"} methods.}
 
 \item{supports_strata}{Does this method support stratified balanced
-sampling? Only meaningful for \code{type = "balanced"}. When \code{FALSE}
-(the default), passing \code{strata} to \code{\link[=balanced_wor]{balanced_wor()}} with this
-method is an error, and \code{sample_fn} does not need a \code{strata}
-argument.}
+sampling? Set to \code{TRUE} or \code{FALSE} for \code{type = "balanced"}.
+\code{NULL} (the default) resolves to \code{FALSE}. When \code{FALSE}, passing
+\code{strata} to \code{\link[=balanced_wor]{balanced_wor()}} with this method is an error, and
+\code{sample_fn} does not need a \code{strata} argument. Leave \code{NULL} for
+\code{"wor"} and \code{"wr"} methods.}
 
 \item{supports_spread}{Does this method support spatial spreading
-(well-spread / spatially balanced sampling)? Only meaningful for
-\code{type = "balanced"}. When \code{FALSE} (the default), passing \code{spread}
-to \code{\link[=balanced_wor]{balanced_wor()}} with this method is an error, and \code{sample_fn}
-does not need a \code{spread} argument.}
+(well-spread / spatially balanced sampling)? Set to \code{TRUE} or
+\code{FALSE} for \code{type = "balanced"}. \code{NULL} (the default) resolves to
+\code{FALSE}. When \code{FALSE}, passing \code{spread} to \code{\link[=balanced_wor]{balanced_wor()}} with
+this method is an error, and \code{sample_fn} does not need a \code{spread}
+argument. Leave \code{NULL} for \code{"wor"} and \code{"wr"} methods.}
 
 \item{probabilities}{Where the method sits in the first-order
 probability taxonomy, for downstream packages that weight or
@@ -73,15 +79,15 @@ record per-unit selection probabilities:
 \itemize{
 \item \code{"exact"}: the true first-order inclusion probabilities
 (types \code{"wor"} and \code{"balanced"}) or expected hits (type
-\code{"wr"}) equal the \code{pik} vector passed to \code{sample_fn}, as for
-Sampford or the cube method.
-\item \code{"approximate"}: \code{pik} is the method's first-order target,
+\code{"wr"}) equal the \code{pik} or \code{hits} vector passed to \code{sample_fn},
+as for Sampford or the cube method.
+\item \code{"approximate"}: \code{pik} or \code{hits} is the method's first-order target,
 achieved up to a documented approximation, as for Pareto or
 sequential Poisson order sampling. Design weights \code{1/pik}
 remain standard practice.
-\item \code{"unknown"} (the default): \code{pik} is an input weight or
-preference only, so the true first-order probabilities are
-not known. The toy sampler in the examples is such a method:
+\item \code{"unknown"} (the default): \code{pik} or \code{hits} is an input weight or
+preference only, so the corresponding first-order quantities
+are not known. The toy WOR sampler in the examples is such a method:
 successive sampling with \code{prob = pik} does not yield inclusion
 probabilities equal to \code{pik}, so its design weights \code{1/pik}
 would be systematically biased, not merely noisy. (The same
@@ -107,23 +113,40 @@ Register a user-defined sampling method so it can be used through
 \code{\link[=unequal_prob_wor]{unequal_prob_wor()}}, \code{\link[=unequal_prob_wr]{unequal_prob_wr()}}, or \code{\link[=balanced_wor]{balanced_wor()}} and
 their associated generics.
 }
+\details{
+Registrations last for the current R session. Registering an existing
+custom method name is an error; call \code{\link[=unregister_method]{unregister_method()}} first when
+deliberately replacing a method.
+}
 \section{Contracts}{
 
 
-\strong{\code{sample_fn(pik, n = NULL, prn = NULL, ...)}} (types \code{"wor"} and \code{"wr"})
+\strong{\code{sample_fn(pik, n = NULL, prn = NULL, ...)}} (type \code{"wor"})
 \describe{
-\item{\code{pik}}{Inclusion probabilities (WOR) or expected hits (WR),
-numeric vector of length N.}
-\item{\code{n}}{Target sample size (integer). For WOR this equals
-\code{round(sum(pik))}; for WR \code{round(sum(hits))}.}
+\item{\code{pik}}{Inclusion probabilities, numeric vector of length N.}
+\item{\code{n}}{Target sample size, equal to \code{round(sum(pik))}.}
 \item{\code{prn}}{Permanent random numbers (numeric vector length N,
-values in (0,1)), or \code{NULL}. Always \code{NULL} when the method is
-registered with \code{supports_prn = FALSE}.}
+values in (0,1)), or \code{NULL}. Supplying \code{prn} is an error when the
+method is registered with \code{supports_prn = FALSE}, and \code{sample_fn}
+is not called.}
 \item{Returns}{Integer vector of selected unit indices (1-based).
-For WOR: distinct indices of length \code{n} (fixed-size) or varying
-length (random-size). For WR: indices with possible repeats,
-of length \code{n}. The dispatcher validates the type, range, size,
-and replacement rules before constructing the sample object.}
+Indices are distinct and have length \code{n} for fixed-size methods,
+or varying length for random-size methods. The dispatcher validates
+the type, range, size, and replacement rules before constructing
+the sample object.}
+}
+
+\strong{\code{sample_fn(hits, n = NULL, prn = NULL, ...)}} (type \code{"wr"})
+\describe{
+\item{\code{hits}}{Expected hits, numeric vector of length N.}
+\item{\code{n}}{Target sample size, equal to \code{round(sum(hits))}.}
+\item{\code{prn}}{Permanent random numbers (numeric vector length N,
+values in (0,1)), or \code{NULL}. Supplying \code{prn} is an error when the
+method is registered with \code{supports_prn = FALSE}, and \code{sample_fn}
+is not called.}
+\item{Returns}{Integer vector of \code{n} selected unit indices (1-based),
+with possible repeats. The dispatcher validates the type, range,
+size, and replacement rules before constructing the sample object.}
 }
 
 \strong{\code{sample_fn(pik, n = NULL, aux = NULL, ...)}} (type \code{"balanced"})
@@ -150,12 +173,30 @@ your function signature.}
 (1-based). The dispatcher validates the returned indices.}
 }
 
-\strong{\code{joint_fn(pik, sample_idx = NULL, ...)}} (optional)
+\strong{\code{joint_fn(pik, sample_idx = NULL, ...)}} (optional; types \code{"wor"}
+and \code{"balanced"})
 \describe{
-\item{\code{pik}}{Same as above.}
+\item{\code{pik}}{Inclusion probabilities, numeric vector of length N.}
+\item{\code{eps}}{If the function explicitly declares an \code{eps} formal,
+it receives the value supplied to \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}.}
 \item{\code{sample_idx}}{When non-NULL, an integer vector of sampled
 unit indices. Return only the submatrix for these units.}
 \item{Returns}{Symmetric matrix of joint inclusion probabilities
+(N x N when \code{sample_idx} is NULL, \code{length(sample_idx)} x
+\code{length(sample_idx)} otherwise). The dispatcher validates that
+the matrix has the required dimensions and contains finite,
+symmetric numeric values.}
+}
+
+\strong{\code{joint_fn(hits, sample_idx = NULL, ...)}} (optional; type \code{"wr"})
+\describe{
+\item{\code{hits}}{Expected hits, numeric vector of length N, renormalized
+to sum exactly to the integer sample size \code{n}.}
+\item{\code{nsim}}{If the function explicitly declares an \code{nsim} formal,
+it receives the value supplied to \code{\link[=joint_expected_hits]{joint_expected_hits()}}.}
+\item{\code{sample_idx}}{When non-NULL, an integer vector of distinct
+sampled unit indices. Return only the submatrix for these units.}
+\item{Returns}{Symmetric matrix of joint expected hits
 (N x N when \code{sample_idx} is NULL, \code{length(sample_idx)} x
 \code{length(sample_idx)} otherwise). The dispatcher validates that
 the matrix has the required dimensions and contains finite,

@@ -251,6 +251,8 @@ SEXP C_cps_design(SEXP pik_sexp) {
     SEXP w_sexp = PROTECT(allocVector(REALSXP, N));
     if (N > 0 && n_work > 0) {
         memcpy(REAL(w_sexp), w_arr, N * sizeof(double));
+    } else if (N > 0) {
+        memset(REAL(w_sexp), 0, (size_t)N * sizeof(double));
     }
     SET_VECTOR_ELT(result, 6, w_sexp);
     SET_STRING_ELT(names, 6, mkChar("w"));
@@ -298,7 +300,7 @@ SEXP C_cps_draw_batch(SEXP design, SEXP n_samples_sexp) {
     int *result_ptr = INTEGER(result);
 
     for (int s = 0; s < n_samples; s++) {
-        int *col = result_ptr + s * n_total;
+        int *col = result_ptr + (R_xlen_t)s * n_total;
         for (int k = 0; k < N_certain; k++) {
             col[k] = certain_idx[k];
         }
@@ -311,7 +313,7 @@ SEXP C_cps_draw_batch(SEXP design, SEXP n_samples_sexp) {
 
     if (n_work == 0) {
         for (int s = 0; s < n_samples; s++) {
-            int *col = result_ptr + s * n_total + N_certain;
+            int *col = result_ptr + (R_xlen_t)s * n_total + N_certain;
             for (int i = 0; i < N; i++) {
                 col[i] = idx_map[i];
             }
@@ -353,7 +355,7 @@ SEXP C_cps_draw_batch(SEXP design, SEXP n_samples_sexp) {
             }
         }
 
-        int *col = result_ptr + s * n_total + N_certain;
+        int *col = result_ptr + (R_xlen_t)s * n_total + N_certain;
         for (int i = 0; i < n; i++) {
             if (selected_idx[i] < 0 || selected_idx[i] >= N) {
                 PutRNGstate();
