@@ -1,12 +1,6 @@
-# sondage 0.8.8
+# sondage 0.9.0
 
 Initial CRAN release.
-
-Built-in samplers and design-query methods now reject unused arguments in
-`...`, so misspelled argument names fail instead of being silently ignored.
-Supplying `prn` to a method that does not support permanent random numbers is
-now an error. Registered methods continue to receive their extension arguments
-through `...`.
 
 ## Sampling
 
@@ -36,11 +30,8 @@ Five dispatchers, 16 built-in methods:
   every step, for expected O(N^2 d) time and O(N) workspace.
 
 All sampling functions return S3 design objects with class
-`c(prob_class, wor_or_wr, "sondage_sample")` (balanced designs
+`c(prob_class, {wor|wr}, "sondage_sample")` (balanced designs
 additionally carry `"balanced"`).
-
-Print methods now identify balanced designs explicitly and distinguish the
-expected and realized sizes of random-size samples.
 
 ## Design queries
 
@@ -57,13 +48,6 @@ expected and realized sizes of random-size samples.
   simulation-based for `chromy`.
 * `sampling_cov()`: sampling covariance; `weighted = TRUE` returns
   Sen-Yates-Grundy check quantities.
-
-The matrix-valued generics accept `sampled_only = TRUE` to return only the
-sampled-units submatrix (useful for large populations).
-`inclusion_prob()` now preserves input unit names. Joint-probability,
-joint-expectation, and covariance matrices use those names consistently across
-R and C implementations; sampled-only matrices fall back to population indices
-when the probability vector is unnamed.
 
 ## Extensibility
 

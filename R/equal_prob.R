@@ -128,7 +128,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 #' @noRd
 .srs_wor_sample <- function(N, n) {
   N <- .check_ep_args(N, n, replace = FALSE)
-  n <- check_integer(n, "n")
+  n <- .check_number(n, "n", integer = TRUE)
 
   .new_wor_sample(
     sample = .srs_wor_draw(N, n),
@@ -144,7 +144,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 #' @noRd
 .systematic_ep_sample <- function(N, n) {
   N <- .check_ep_args(N, n, replace = FALSE)
-  n <- check_integer(n, "n")
+  n <- .check_number(n, "n", integer = TRUE)
 
   .new_wor_sample(
     sample = .systematic_ep_draw(N, n),
@@ -165,7 +165,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
   if (is.null(prn)) {
     sel <- as.logical(rbinom(N, 1, p))
   } else {
-    check_prn(prn, N)
+    .check_prn(prn, N)
     sel <- prn < p
   }
   idx <- which(sel)
@@ -200,7 +200,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 #' @noRd
 .srs_wr_sample <- function(N, n) {
   N <- .check_ep_args(N, n, replace = TRUE)
-  n <- check_integer(n, "n")
+  n <- .check_number(n, "n", integer = TRUE)
 
   prob <- rep(1 / N, N)
 
@@ -226,7 +226,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
 
 #' @noRd
 .check_ep_args <- function(N, n, replace = FALSE) {
-  N <- check_integer(N, "N")
+  N <- .check_number(N, "N", integer = TRUE)
   if (N < 1L) {
     stop("'N' must be a positive integer", call. = FALSE)
   }
@@ -257,7 +257,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
     })
     pik <- rep(p, N_int)
   } else {
-    n_int <- check_integer(n, "n")
+    n_int <- .check_number(n, "n", integer = TRUE)
     n <- n_int
     mat <- matrix(0L, n_int, nrep)
     draw_fn <- switch(
@@ -289,7 +289,7 @@ equal_prob_wr <- function(N, n, method = "srs", nrep = 1L, prn = NULL, ...) {
   # prn is rejected upstream in equal_prob_wr (srs-WR does not support
   # PRN); no prn forwarding here.
   N_int <- .check_ep_args(N, n, replace = TRUE)
-  n_int <- check_integer(n, "n")
+  n_int <- .check_number(n, "n", integer = TRUE)
   prob <- rep(1 / N_int, N_int)
 
   sample_mat <- matrix(0L, n_int, nrep)

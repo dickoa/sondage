@@ -562,10 +562,10 @@ unregister_method <- function(name) {
     nrep, prn, method, supports_prn = reg$supports_prn
   )
 
-  check_pik(pik, fixed_size = reg$fixed_size)
+  .check_pik(pik, fixed_size = reg$fixed_size)
   N <- length(pik)
   if (!is.null(prn)) {
-    check_prn(prn, N)
+    .check_prn(prn, N)
   }
   n <- if (reg$fixed_size) as.integer(round(sum(pik))) else sum(pik)
 
@@ -604,11 +604,11 @@ unregister_method <- function(name) {
     nrep, prn, method, supports_prn = reg$supports_prn
   )
 
-  check_hits(hits)
-  n <- check_integer(sum(hits), "sum(hits)")
+  .check_hits(hits)
+  n <- .check_number(sum(hits), "sum(hits)", integer = TRUE)
   N <- length(hits)
   if (!is.null(prn)) {
-    check_prn(prn, N)
+    .check_prn(prn, N)
   }
   prob <- hits / sum(hits)
 
@@ -671,7 +671,7 @@ unregister_method <- function(name) {
   .check_registered_type(reg, "balanced")
   nrep <- .check_nrep_prn(nrep)
 
-  check_pik(pik, fixed_size = reg$fixed_size)
+  .check_pik(pik, fixed_size = reg$fixed_size)
   N <- length(pik)
 
   if (!is.null(aux)) {

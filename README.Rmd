@@ -18,7 +18,7 @@ set.seed(1)
 [![Codecov test coverage](https://codecov.io/gl/dickoa/sondage/branch/main/graph/badge.svg)](https://app.codecov.io/gl/dickoa/sondage?branch=main)
 <!-- badges: end -->
 
-Fast survey sampling algorithms for R. Sampling functions return **design objects** with generics for extracting inclusion probabilities, joint inclusion probabilities, and variance estimation quantities.
+Fast survey sampling algorithms for `R`. Sampling functions return **design objects** with generics for extracting inclusion probabilities, joint inclusion probabilities, and variance estimation quantities.
 
 For without-replacement designs, the stored `pik` vector is the design-defining target inclusion probability vector. For methods with exact first-order guarantees, this equals the true first-order inclusion probabilities. For order-sampling methods such as `sps` and `pareto`, the stored vector remains the target `pik`, while the true finite-population first-order inclusion probabilities are only approximately equal to that target.
 
@@ -75,7 +75,7 @@ s_bal
 
 ```{r}
 # Controlled selection: keep the number of sampled states per region
-# within the integers adjacent to its expectation (Goodman & Kish, 1950)
+# within the integers adjacent to its expectation (similar to Goodman & Kish, 1950)
 B <- sapply(levels(state.region), function(g) as.double(state.region == g))
 S <- colSums(B * pik)
 s_ctrl <- balanced_wor(
@@ -124,8 +124,7 @@ inclusion_prob(sim) # generics still work
 - `balanced_wor(pik, aux, method = "cube")` - Cube method (Deville & Tillé, 2004)
 - `balanced_wor(pik, aux, strata, method = "cube")` - Stratified cube (Chauvet, 2009)
 - `balanced_wor(pik, bounds = list(B, lower, upper))` - Cube with inequality
-  constraints (Tripet & Tillé, 2026): controlled selection à la Goodman & Kish,
-  controlled matrix rounding, minimum group sizes
+  constraints (Tripet & Tillé, 2026) providing controlled matrix rounding, minimum group sizes
 - `balanced_wor(pik, spread, method = "lpm2")` - Spatially balanced, well-spread
   sampling with the local pivotal method 2 (Grafström, Lundström & Schelin, 2012)
 - `balanced_wor(pik, spread, method = "scps")` - Spatially correlated Poisson
@@ -245,9 +244,9 @@ estimation.
 
 ## Why not sampling?
 
-The `sampling` package (Tillé and Matei) is the reference toolkit for survey sampling in R, and it is more comprehensive than `sondage`. Many of the algorithms here follow the methods it established, and `sondage` would not exist without it.
+The `sampling` package (Tillé and Matei) is the reference toolkit for survey sampling in `R`, and it is more comprehensive than `sondage`. Many of the algorithms here follow the methods it established, and `sondage` would not exist without it.
 
-What `sondage` adds is speed. The sampling algorithms are written in C, so they scale better to large populations. Every sampling function also returns a design object with generics for inclusion probabilities, joint inclusion probabilities, and variance quantities, so the results are easy to carry into downstream work.
+What `sondage` adds is speed. The sampling algorithms are written in `C`, so they usually scale better to large populations. Every sampling function also returns a design object with `S3` generics for inclusion probabilities, joint inclusion probabilities, and variance quantities, so the results are easy to carry into downstream work.
 
 The two packages are complementary rather than competing. With `register_method()` you can plug any unequal probability algorithm from `sampling` into the `sondage` dispatchers and generics, so they can be used together.
 

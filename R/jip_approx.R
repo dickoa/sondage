@@ -78,8 +78,8 @@
 #'
 #' @export
 he_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
-  check_pik(pik)
-  eps <- check_eps(eps)
+  .check_pik(pik)
+  eps <- .check_eps(eps)
 
   if (is.null(sample_idx)) {
     .Call(C_high_entropy_jip, as.double(pik), as.double(eps))
@@ -161,8 +161,8 @@ he_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
 #'
 #' @export
 hajek_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
-  check_pik(pik)
-  eps <- check_eps(eps)
+  .check_pik(pik)
+  eps <- .check_eps(eps)
 
   N <- length(pik)
   cert <- which(pik >= 1 - eps)
@@ -180,7 +180,6 @@ hajek_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
   pikl <- matrix(0, ns, ns)
   diag(pikl) <- pik_out
 
-  # Handle certainty units: pi_ij = pik[other]
   if (length(cert) > 0L) {
     if (!is.null(sample_idx)) {
       cert_s <- which(sample_idx %in% cert)
@@ -194,7 +193,6 @@ hajek_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
     }
   }
 
-  # n <= 1: no pairs possible, off-diagonal stays zero
   n_sum <- sum(pik[valid])
   if (n_sum <= 1 + eps) {
     return(pikl)
@@ -207,7 +205,6 @@ hajek_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
     return(pikl)
   }
 
-  # Valid output units
   if (!is.null(sample_idx)) {
     valid_s <- which(pik_out > eps & pik_out < 1 - eps)
   } else {

@@ -57,13 +57,13 @@ test_that("documented numeric vectors reject dimensional input", {
 })
 
 test_that("documented scalar numbers reject dimensional input", {
-  expect_error(equal_prob_wor(matrix(4), 2), "single number")
+  expect_error(equal_prob_wor(matrix(4), 2), "single numeric value")
   expect_error(equal_prob_wor(4, matrix(2)), "single numeric value")
-  expect_error(equal_prob_wor(4, 2, nrep = matrix(1)), "single number")
+  expect_error(equal_prob_wor(4, 2, nrep = matrix(1)), "single numeric value")
   expect_error(he_jip(c(0.5, 0.5), eps = matrix(1e-6)), "single numeric value")
 
   s <- unequal_prob_wr(c(1, 1), method = "chromy")
-  expect_error(joint_expected_hits(s, nsim = matrix(10)), "single number")
+  expect_error(joint_expected_hits(s, nsim = matrix(10)), "single numeric value")
 })
 
 test_that("auxiliary inputs retain useful coercions and reject non-numeric data", {

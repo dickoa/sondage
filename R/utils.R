@@ -1,3 +1,28 @@
+#' Validate a non-empty numeric vector
+#'
+#' Performs the shape and missing-value checks shared by the package's
+#' domain-specific vector validators.
+#'
+#' @param x Vector to validate.
+#' @param name Parameter name for error messages.
+#'
+#' @return Invisibly returns TRUE if valid, otherwise stops with error.
+#'
+#' @keywords internal
+#' @noRd
+.check_numeric_vector <- function(x, name) {
+  if (!is.numeric(x) || !is.null(dim(x))) {
+    stop(sprintf("'%s' must be a numeric vector", name), call. = FALSE)
+  }
+  if (length(x) == 0L) {
+    stop(sprintf("'%s' vector is empty", name), call. = FALSE)
+  }
+  if (anyNA(x)) {
+    stop(sprintf("there are missing values in '%s'", name), call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
 #' Validate inclusion probability vector
 #'
 #' Checks that pik is a valid vector of inclusion probabilities.
@@ -18,22 +43,14 @@
 #'
 #' @keywords internal
 #' @noRd
-check_pik <- function(
+.check_pik <- function(
   pik,
   allow_zero = TRUE,
   allow_one = TRUE,
   fixed_size = FALSE,
   tol = NULL
 ) {
-  if (!is.numeric(pik) || !is.null(dim(pik))) {
-    stop("'pik' must be a numeric vector", call. = FALSE)
-  }
-  if (length(pik) == 0L) {
-    stop("'pik' vector is empty", call. = FALSE)
-  }
-  if (anyNA(pik)) {
-    stop("there are missing values in 'pik'", call. = FALSE)
-  }
+  .check_numeric_vector(pik, "pik")
   if (any(pik < 0 | pik > 1)) {
     stop("inclusion probabilities must be between 0 and 1", call. = FALSE)
   }
@@ -81,18 +98,13 @@ check_pik <- function(
 #'
 #' @keywords internal
 #' @noRd
-check_prn <- function(prn, N) {
-  if (!is.numeric(prn) || !is.null(dim(prn))) {
-    stop("'prn' must be a numeric vector", call. = FALSE)
-  }
+.check_prn <- function(prn, N) {
+  .check_numeric_vector(prn, "prn")
   if (length(prn) != N) {
     stop(
       sprintf("'prn' must have length %d (same as population size)", N),
       call. = FALSE
     )
-  }
-  if (anyNA(prn)) {
-    stop("there are missing values in 'prn'", call. = FALSE)
   }
   if (any(prn <= 0) || any(prn >= 1)) {
     stop("'prn' values must be in the open interval (0, 1)", call. = FALSE)
@@ -173,9 +185,15 @@ check_prn <- function(prn, N) {
 
 #' Validate a finite scalar number
 #'
+#' @param x Value to validate.
+#' @param name Parameter name for error messages.
+#' @param integer If TRUE, require a value close to an integer and return an
+#'   integer. Otherwise, return a double.
+#' @param tol Tolerance used when `integer = TRUE`.
+#'
 #' @keywords internal
 #' @noRd
-.check_number <- function(x, name) {
+.check_number <- function(x, name, integer = FALSE, tol = 1e-4) {
   if (length(x) != 1L || !is.null(dim(x))) {
     stop(sprintf("'%s' must be a single numeric value", name), call. = FALSE)
   }
@@ -188,7 +206,18 @@ check_prn <- function(prn, N) {
   if (!is.finite(x)) {
     stop(sprintf("'%s' must be finite", name), call. = FALSE)
   }
-  as.double(x)
+  if (!integer) {
+    return(as.double(x))
+  }
+
+  r <- round(x)
+  if (abs(x - r) > tol) {
+    stop(
+      sprintf("%s (%.4g) is not close to an integer", name, x),
+      call. = FALSE
+    )
+  }
+  as.integer(r)
 }
 
 #' Validate indices used for a sampled joint-probability submatrix
@@ -286,7 +315,7 @@ check_prn <- function(prn, N) {
   supports_prn = TRUE,
   supported = character()
 ) {
-  nrep <- check_integer(nrep, "nrep")
+  nrep <- .check_number(nrep, "nrep", integer = TRUE)
   if (nrep < 1L) {
     stop("'nrep' must be at least 1", call. = FALSE)
   }
@@ -302,39 +331,6 @@ check_prn <- function(prn, N) {
     )
   }
   nrep
-}
-
-#' Check that a value is close to an integer
-#'
-#' @param x Numeric value to check.
-#' @param name Name of the parameter for the error message.
-#' @param tol Tolerance for integer check.
-#'
-#' @return The value rounded to an integer.
-#'
-#' @keywords internal
-#' @noRd
-check_integer <- function(x, name = "n", tol = 1e-4) {
-  if (length(x) != 1L || !is.null(dim(x))) {
-    stop(sprintf("%s must be a single number", name), call. = FALSE)
-  }
-  if (is.na(x)) {
-    stop(sprintf("%s must not be NA", name), call. = FALSE)
-  }
-  if (!is.numeric(x)) {
-    stop(sprintf("%s must be a single number", name), call. = FALSE)
-  }
-  if (!is.finite(x)) {
-    stop(sprintf("%s must be finite", name), call. = FALSE)
-  }
-  r <- round(x)
-  if (abs(x - r) > tol) {
-    stop(
-      sprintf("%s (%.4g) is not close to an integer", name, x),
-      call. = FALSE
-    )
-  }
-  as.integer(r)
 }
 
 #' Reject the removed design-modifying 'eps' argument
@@ -364,7 +360,7 @@ check_integer <- function(x, name = "n", tol = 1e-4) {
 #'
 #' @keywords internal
 #' @noRd
-check_eps <- function(eps, name = "eps") {
+.check_eps <- function(eps, name = "eps") {
   eps <- .check_number(eps, name)
   if (eps <= 0 || eps >= 0.5) {
     stop(
@@ -385,16 +381,8 @@ check_eps <- function(eps, name = "eps") {
 #'
 #' @keywords internal
 #' @noRd
-check_hits <- function(hits) {
-  if (!is.numeric(hits) || !is.null(dim(hits))) {
-    stop("'hits' must be a numeric vector", call. = FALSE)
-  }
-  if (length(hits) == 0L) {
-    stop("'hits' vector is empty", call. = FALSE)
-  }
-  if (anyNA(hits)) {
-    stop("there are missing values in 'hits'", call. = FALSE)
-  }
+.check_hits <- function(hits) {
+  .check_numeric_vector(hits, "hits")
   if (any(!is.finite(hits))) {
     stop("'hits' values must be finite (no Inf or NaN)", call. = FALSE)
   }

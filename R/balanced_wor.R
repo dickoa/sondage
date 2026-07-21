@@ -281,9 +281,7 @@ balanced_wor <- function(
   nrep = 1L,
   ...
 ) {
-  if (
-    .is_method_name(method) && is_registered_method(method)
-  ) {
+  if (.is_method_name(method) && is_registered_method(method)) {
     if (!is.null(bounds)) {
       stop(
         "registered balanced methods do not support 'bounds'",
@@ -309,7 +307,10 @@ balanced_wor <- function(
   if (method %in% c("lpm2", "scps")) {
     if (!is.null(aux)) {
       stop(
-        sprintf("method '%s' does not use auxiliary balancing variables; ", method),
+        sprintf(
+          "method '%s' does not use auxiliary balancing variables; ",
+          method
+        ),
         "use method = \"cube\" to balance on 'aux'",
         call. = FALSE
       )
@@ -333,7 +334,7 @@ balanced_wor <- function(
         call. = FALSE
       )
     }
-    check_pik(pik, fixed_size = TRUE)
+    .check_pik(pik, fixed_size = TRUE)
     return(.spatial_wor(pik, spread, method, nrep = nrep, ...))
   }
 
@@ -354,7 +355,7 @@ balanced_wor <- function(
     )
   }
 
-  check_pik(pik, fixed_size = TRUE)
+  .check_pik(pik, fixed_size = TRUE)
 
   if (nrep == 1L) {
     .cube_sample(pik, aux = aux, strata = strata, bounds = bounds, ...)
@@ -395,7 +396,7 @@ balanced_wor <- function(
   ...
 ) {
   N <- length(pik)
-  eps <- check_eps(eps)
+  eps <- .check_eps(eps)
   .check_cube_eps_classification(pik, eps)
   spread <- .check_cube_aux(spread, N, what = "spread")
   if (ncol(spread) == 0L) {
@@ -406,7 +407,10 @@ balanced_wor <- function(
     if (nrep == 1L) "single" else "batch"
   ]]
   sample_data <- draw(
-    as.double(pik), spread, as.double(eps), as.integer(nrep)
+    as.double(pik),
+    spread,
+    as.double(eps),
+    as.integer(nrep)
   )
 
   .new_wor_sample(
@@ -433,7 +437,10 @@ balanced_wor <- function(
   N <- length(pik)
   dots <- list(...)
   options <- .check_cube_options(
-    pik, eps, dots[["condition_aux"]], dots[["qr_tol"]]
+    pik,
+    eps,
+    dots[["condition_aux"]],
+    dots[["qr_tol"]]
   )
   eps <- options$eps
   condition_aux <- options$condition_aux
@@ -516,7 +523,8 @@ balanced_wor <- function(
           "with certainty only when pik is exactly 0 or exactly 1. ",
           "Round those values yourself or use a smaller eps."
         ),
-        sum(bad), eps
+        sum(bad),
+        eps
       ),
       call. = FALSE
     )
@@ -533,8 +541,10 @@ balanced_wor <- function(
   condition_aux = NULL,
   qr_tol = NULL
 ) {
-  if (is.null(eps)) eps <- 1e-10
-  eps <- check_eps(eps)
+  if (is.null(eps)) {
+    eps <- 1e-10
+  }
+  eps <- .check_eps(eps)
   .check_cube_eps_classification(pik, eps)
   condition_aux <- if (is.null(condition_aux)) {
     FALSE
@@ -801,7 +811,10 @@ balanced_wor <- function(
 #' @noRd
 .check_strata <- function(strata, N) {
   if (!is.numeric(strata) || !is.null(dim(strata))) {
-    stop("'strata' must be a numeric vector of positive integers", call. = FALSE)
+    stop(
+      "'strata' must be a numeric vector of positive integers",
+      call. = FALSE
+    )
   }
   if (length(strata) != N) {
     stop(
@@ -850,7 +863,10 @@ balanced_wor <- function(
   n <- sum(pik)
   dots <- list(...)
   options <- .check_cube_options(
-    pik, dots[["eps"]], dots[["condition_aux"]], dots[["qr_tol"]]
+    pik,
+    dots[["eps"]],
+    dots[["condition_aux"]],
+    dots[["qr_tol"]]
   )
   eps <- options$eps
   condition_aux <- options$condition_aux

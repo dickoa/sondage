@@ -290,9 +290,9 @@ unequal_prob_wr <- function(
 .wor_sample <- function(pik, method, prn = NULL, eps = NULL) {
   if (!is.null(eps)) .stop_eps_removed()
   fixed_size <- .method_is_fixed_size(method, "wor")
-  check_pik(pik, fixed_size = fixed_size)
+  .check_pik(pik, fixed_size = fixed_size)
   N <- length(pik)
-  if (!is.null(prn)) check_prn(prn, N)
+  if (!is.null(prn)) .check_prn(prn, N)
   n <- sum(pik)
   .new_wor_sample(
     sample = .draw_wor_once(pik, method, prn),
@@ -307,8 +307,8 @@ unequal_prob_wr <- function(
 
 #' @noRd
 .chromy_sample <- function(hits) {
-  check_hits(hits)
-  n <- check_integer(sum(hits), "sum(hits)")
+  .check_hits(hits)
+  n <- .check_number(sum(hits), "sum(hits)", integer = TRUE)
   N <- length(hits)
   prob <- hits / sum(hits)
 
@@ -329,8 +329,8 @@ unequal_prob_wr <- function(
 
 #' @noRd
 .multinomial_sample <- function(hits) {
-  check_hits(hits)
-  n <- check_integer(sum(hits), "sum(hits)")
+  .check_hits(hits)
+  n <- .check_number(sum(hits), "sum(hits)", integer = TRUE)
   N <- length(hits)
   prob <- hits / sum(hits)
 
@@ -362,7 +362,7 @@ unequal_prob_wr <- function(
     if (!is.null(list(...)[["eps"]])) .stop_eps_removed()
   }
   fixed_size <- .method_is_fixed_size(method, "wor")
-  check_pik(pik, fixed_size = fixed_size)
+  .check_pik(pik, fixed_size = fixed_size)
 
   N <- length(pik)
   n <- sum(pik)
@@ -404,8 +404,8 @@ unequal_prob_wr <- function(
 .batch_wr <- function(hits, method, nrep) {
   # prn is rejected upstream in unequal_prob_wr (WR methods do not support
   # PRN); no prn forwarding here.
-  check_hits(hits)
-  n <- check_integer(sum(hits), "sum(hits)")
+  .check_hits(hits)
+  n <- .check_number(sum(hits), "sum(hits)", integer = TRUE)
   N <- length(hits)
   prob <- hits / sum(hits)
 

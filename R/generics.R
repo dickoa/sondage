@@ -86,30 +86,10 @@ inclusion_prob.default <- function(x, n, ...) {
   if (missing(n)) {
     stop("'n' is required when 'x' is not a design object", call. = FALSE)
   }
-  if (length(n) != 1L || !is.null(dim(n))) {
-    stop("'n' must be a single numeric value", call. = FALSE)
-  }
-  if (is.na(n)) {
-    stop("'n' must not be NA", call. = FALSE)
-  }
-  if (!is.numeric(n)) {
-    stop("'n' must be a single numeric value", call. = FALSE)
-  }
-  if (!is.finite(n)) {
-    stop("'n' must be finite", call. = FALSE)
-  }
-  n <- as.double(n)
+  n <- .check_number(n, "n", integer = TRUE)
   if (n < 0) {
     stop("'n' must be non-negative", call. = FALSE)
   }
-  rounded_n <- round(n)
-  if (abs(n - rounded_n) > 1e-4) {
-    stop(
-      sprintf("n (%.4g) is not close to an integer", n),
-      call. = FALSE
-    )
-  }
-  n <- as.integer(rounded_n)
 
   if (!is.numeric(x) || !is.null(dim(x))) {
     stop("'x' must be a numeric vector", call. = FALSE)
@@ -183,19 +163,7 @@ expected_hits.default <- function(x, n, ...) {
   if (missing(n)) {
     stop("'n' is required when 'x' is not a design object", call. = FALSE)
   }
-  if (length(n) != 1L || !is.null(dim(n))) {
-    stop("'n' must be a single numeric value", call. = FALSE)
-  }
-  if (is.na(n)) {
-    stop("'n' must not be NA", call. = FALSE)
-  }
-  if (!is.numeric(n)) {
-    stop("'n' must be a single numeric value", call. = FALSE)
-  }
-  if (!is.finite(n)) {
-    stop("'n' must be finite", call. = FALSE)
-  }
-  n <- as.double(n)
+  n <- .check_number(n, "n")
   if (n < 0) {
     stop("'n' must be non-negative", call. = FALSE)
   }
@@ -337,7 +305,7 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
   N <- x$N
   n <- x$n
   sample_idx <- x$sample
-  eps <- check_eps(eps)
+  eps <- .check_eps(eps)
 
   if (sampled_only) {
     if (is.matrix(sample_idx) || is.list(sample_idx)) {
@@ -618,7 +586,7 @@ joint_expected_hits.wr <- function(
     switch(
       x$method,
       chromy = {
-        nsim <- check_integer(nsim, "nsim")
+        nsim <- .check_number(nsim, "nsim", integer = TRUE)
         if (nsim < 1L) {
           stop("'nsim' must be a positive integer", call. = FALSE)
         }
@@ -651,7 +619,7 @@ joint_expected_hits.wr <- function(
     switch(
       x$method,
       chromy = {
-        nsim <- check_integer(nsim, "nsim")
+        nsim <- .check_number(nsim, "nsim", integer = TRUE)
         if (nsim < 1L) {
           stop("'nsim' must be a positive integer", call. = FALSE)
         }
