@@ -74,8 +74,8 @@ s_bal
 ```
 
 ```{r}
-# Controlled selection: keep the number of sampled states per region
-# within the integers adjacent to its expectation (similar to Goodman & Kish, 1950)
+# Controlled selection e.g to keep the number of sampled states per region
+# within the integers adjacent to its expectation
 B <- sapply(levels(state.region), function(g) as.double(state.region == g))
 S <- colSums(B * pik)
 s_ctrl <- balanced_wor(
