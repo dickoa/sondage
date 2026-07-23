@@ -16,7 +16,7 @@
 #'   values. The target sample size, `sum(pik)`, must be at least 1.
 #' @param aux An optional numeric matrix (N x p) of auxiliary balancing
 #'   variables. Each column defines a balancing constraint. The sample
-#'   size constraint is always included automatically; `aux` specifies
+#'   size constraint is always included automatically and `aux` specifies
 #'   additional variables to balance on.
 #'   When `NULL`, only the sample size is balanced (equivalent to an
 #'   unbalanced fixed-size design).
@@ -104,10 +104,9 @@
 #' it is \strong{not} divided by `pik`. To bound a Horvitz-Thompson
 #' estimator, pass `x / pik` as the constraint column.
 #'
-#' The main application is controlled selection (Goodman & Kish,
-#' 1950): bounding category counts to the integers adjacent to their
-#' expectation. With indicator columns `B` and
-#' `S <- colSums(B * pik)`, use `lower = floor(S)`,
+#' One application is controlled selection with bounding
+#' category counts to the integers adjacent to their expectation.
+#' With indicator columns `B` and `S <- colSums(B * pik)`, use `lower = floor(S)`,
 #' `upper = ceiling(S)`. Categories may overlap (e.g. row and column
 #' margins of a two-way control table, as in NAEP-style designs).
 #'

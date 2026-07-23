@@ -235,15 +235,15 @@ the stored target `pik` vector. HE = high-entropy approximation.
 - Use `cps` when exactness matters more than speed: it is the
   maximum-entropy fixed-size unequal-probability design, with exact
   first and second-order inclusion probabilities.
+- Use `brewer` when you want exact first-order inclusion probabilities
+  with lower computational cost than `cps`, and can work with
+  approximate second-order quantities in `sondage`.
 - Use `sampford` for the SAS-familiar fixed-size PPS design with exact
   first- and second-order inclusion probabilities. Its C kernel uses
   complement sampling and a bounded-rejection/non-rejective hybrid.
 - Use `systematic` when very fast sampling and ordering or implicit
   stratification are central, and structural zeros in some joint
   inclusion probabilities are acceptable.
-- Use `brewer` when you want exact first-order inclusion probabilities
-  with lower computational cost than `cps`, and can work with
-  approximate second-order quantities in `sondage`.
 - Use `poisson` when a random sample size is acceptable and independent
   selection is desirable.
 - Use `sps` or `pareto` as fast high-entropy order-sampling alternatives
@@ -277,7 +277,7 @@ ignoring `aux`.
 # A simple randomized pivotal sampler written in R
 random_pivotal_sample <- function(pik, n = NULL, prn = NULL, ...) {
   p <- pik
-  tol <- 64 * .Machine$double.eps
+  tol <- 1e-06
   active <- which(p > tol & p < 1 - tol)
   while (length(active) >= 2L) {
     ij <- sample(active, 2L)

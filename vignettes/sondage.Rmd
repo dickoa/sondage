@@ -117,7 +117,7 @@ s$sample
 inclusion_prob(s)  # extract the stored design-defining target pik
 ```
 
-Other fixed-size methods include `"brewer"` (draw-by-draw, order-invariant), `"systematic"` (O(N), implicit stratification), `"sps"` [Sequential Poisson sampling, @ohlsson1998, supports PRN], and `"pareto"` [Pareto sampling, @rosen1997, supports PRN]. The `"poisson"` method produces a random sample size.
+Other fixed-size methods include `"brewer"` (draw-by-draw, order-invariant), `"sampford"` [@sampford1967], "systematic"` (O(N), implicit stratification), `"sps"` [Sequential Poisson sampling, @ohlsson1998, supports PRN], and `"pareto"` [Pareto sampling, @rosen1997, supports PRN]. The `"poisson"` method produces a random sample size.
 
 For `sps` and `pareto`, `inclusion_prob(s)` still returns the stored target `pik` vector used to define the design. Those methods do not, in general, provide exact finite-population first-order inclusion probabilities equal to that target.
 
@@ -150,6 +150,8 @@ The cube method proceeds in two phases: a *flight phase* that moves probabilitie
 
 Users should order auxiliary variables by importance (most important first) in the `aux` matrix.
 
+For ill-conditioned or collinear auxiliary variables, `condition_aux = TRUE` applies weighted centering and scaling followed by rank pruning before running the cube algorithm.
+
 ### Stratified balanced sampling
 
 When strata are known, the stratified cube method [@chauvet2009] preserves within-stratum sample sizes while balancing on auxiliary variables. Exact preservation requires `sum(pik)` within each stratum to be close to an integer; when this condition is not met, within-stratum and total sample sizes will vary around their targets and the design is treated as random-size (`fixed_size = FALSE`):
@@ -168,6 +170,54 @@ table(strata[s_strat$sample])
 ```
 
 Joint inclusion probabilities for the cube use the high-entropy approximation, since the cube produces a near-maximum-entropy design.
+
+### Balanced sampling with inequalities
+
+The cube method also accepts linear inequality constraints through `bounds = list(B, lower, upper)` [@tripet2026]. These constrain raw realized-sample sums, $\mathtt{lower}_j \leq \sum_{k \in S} B_{kj} \leq \mathtt{upper}_j$, while preserving the supplied first-order inclusion probabilities. A common use is to keep category counts between the integers immediately below and above their expectations:
+
+```{r}
+pik_control <- rep(0.5, 12)
+group <- rep(c("a", "b", "c"), each = 4)
+B <- sapply(unique(group), function(g) as.double(group == g))
+expected_counts <- colSums(B * pik_control)
+
+s_control <- balanced_wor(
+  pik_control,
+  bounds = list(
+    B = B,
+    lower = floor(expected_counts),
+    upper = ceiling(expected_counts)
+  )
+)
+colSums(B[s_control$sample, , drop = FALSE])
+```
+
+
+### Spatially balanced sampling
+
+It's possible to select well-spread, spatially balanced samples using `lpm2` [local pivotal method 2, @grafstrom2012] and `scps` [spatially correlated poisson sampling, @grafstrom2012scps].
+
+
+```{r}
+coordinates <- as.matrix(expand.grid(x = 1:4, y = 1:4))
+pik_spatial <- rep(0.25, nrow(coordinates))
+
+s_lpm2 <- balanced_wor(
+  pik_spatial,
+  spread = coordinates,
+  method = "lpm2"
+)
+s_scps <- balanced_wor(
+  pik_spatial,
+  spread = coordinates,
+  method = "scps"
+)
+s_lpm2$sample
+s_scps$sample
+```
+
+
+These built-in methods are spread-only: they do not accept `aux`, `strata`, or `bounds`. They preserve the supplied first-order inclusion probabilities, but intentionally produce low-entropy designs, so `joint_inclusion_prob()` and `sampling_cov()` are not available for them.
 
 ## Design queries
 
@@ -256,40 +306,40 @@ props <- data.frame(
   Method = c(
     "SRS WOR", "Systematic (EP)", "Bernoulli",
     "SRS WR",
-    "CPS", "Brewer", "Systematic PPS", "Poisson",
+    "CPS", "Brewer", "Sampford", "Systematic PPS", "Poisson",
     "SPS", "Pareto",
     "Chromy", "Multinomial",
-    "Cube"
+    "Cube", "LPM2", "SCPS"
   ),
   Type = c(
     rep("EP WOR", 3), "EP WR",
-    rep("UP WOR", 6),
+    rep("UP WOR", 7),
     rep("UP WR", 2),
-    "Balanced"
+    rep("Balanced", 3)
   ),
   `Fixed n` = c(
     "Yes", "Yes", "No",
     "Yes",
-    "Yes", "Yes", "Yes", "No",
+    "Yes", "Yes", "Yes", "Yes", "No",
     "Yes", "Yes",
     "Yes", "Yes",
-    "Yes"
+    "Yes", "Yes", "Yes"
   ),
   `Exact design marginals?` = c(
     "Yes", "Yes", "Yes",
     "Yes",
-    "Yes", "Yes", "Yes", "Yes",
+    "Yes", "Yes", "Yes", "Yes", "Yes",
     "Target only*", "Target only*",
     "Yes", "Yes",
-    "Yes"
+    "Yes", "Yes", "Yes"
   ),
   `Joint probs` = c(
     "Exact", "Exact (zeros)", "Exact",
     "Exact",
-    "Exact", "HE approx", "Exact (zeros)", "Exact",
+    "Exact", "HE approx", "Exact", "Exact (zeros)", "Exact",
     "HE approx", "HE approx",
     "Simulated", "Exact",
-    "HE approx"
+    "HE approx", "Not available", "Not available"
   ),
   check.names = FALSE
 )
@@ -320,20 +370,24 @@ for such pairs. Consider successive-differences, Hartley--Rao, or replication me
 **Chromy.** Pairwise expectations $E(n_i n_j)$ are estimated by Monte Carlo
 simulation in `joint_expected_hits()` (controlled by `nsim`, default 10 000).
 
-**Cube (balanced sampling).** The cube method [@deville2004] produces near-maximum-entropy samples, so `joint_inclusion_prob()` uses the high-entropy approximation. The stratified variant [@chauvet2009] preserves exact within-stratum sample sizes. Order auxiliary variables by importance (most important first) since the landing phase relaxes constraints from last to first.
+**Cube (balanced sampling).** The cube method [@deville2004] produces near-maximum-entropy samples, so `joint_inclusion_prob()` uses the high-entropy approximation. The stratified variant [@chauvet2009] preserves exact within-stratum sample sizes. Order auxiliary variables by importance (most important first) since the landing phase relaxes constraints from last to first. Inequality bounds provide controlled selection, but tight bounds can make the high-entropy approximation less accurate.
+
+**LPM2 and SCPS (spatially balanced sampling).** Both methods preserve exact first-order inclusion probabilities and spread the sample using the variables supplied in `spread`. Their low-entropy spatial dependence is deliberate; no joint inclusion probability or sampling covariance approximation is exposed. Use a local-neighbourhood variance estimator instead.
 
 ### Choosing a method
 
-- **CPS**: Use when exactness matters more than speed: it is the maximum-entropy fixed-size unequal-probability design, with exact first- and second-order inclusion probabilities.
-- **Systematic**: Use when very fast sampling and ordering or implicit stratification are central, and structural zeros in some joint inclusion probabilities are acceptable.
+- **CPS**: Use when exactness matters more than speed. It is the maximum-entropy fixed-size unequal-probability design, with exact first- and second-order inclusion probabilities.
 - **Brewer**: Use when you want exact first-order inclusion probabilities with lower computational cost than `cps`, and can work with approximate second-order quantities in `sondage`.
+- **Sampford**: Use for fixed-size PPS with exact first- and second-order inclusion probabilities and fast typical draws.
+- **Systematic**: Use when very fast sampling and ordering or implicit stratification are central, and structural zeros in some joint inclusion probabilities are acceptable (low-entropy).
 - **Poisson**: Use when a random sample size is acceptable and independent selection is desirable.
 - **SPS / Pareto**: Use as fast high-entropy order-sampling alternatives when approximate first- and second-order quantities are acceptable.
-- **Cube**: Use when balancing on auxiliary variables is more important than exact second-order inclusion probabilities.
+- **Cube**: Use when balancing on auxiliary variables is important.
+- **LPM2 / SCPS**: Use when spatial spread is the priority and a local-neighbourhood variance strategy is available.
 
 ### Choosing a variance strategy
 
-- **SYG with exact $\pi_{ij}$**: CPS and SRS WOR provide exact joint probabilities, so the Sen--Yates--Grundy variance estimator [@sen1953; @yatesandgrundy1953] is unbiased.
+- **SYG with exact $\pi_{ij}$**: CPS, Sampford and SRS WOR provide exact joint probabilities, so the Sen--Yates--Grundy variance estimator [@sen1953; @yatesandgrundy1953] is unbiased.
 - **SYG with approximate $\pi_{ij}$**: For Brewer, SPS, Pareto, and cube, joint probabilities use the high-entropy approximation [@brewer2003, eq. 18]. This guarantees symmetry, non-negativity, and $\pi_{ij} \le \min(\pi_i, \pi_j)$, but does *not* satisfy the fixed-size marginal identity $\sum_{j \neq i}\pi_{ij} = (n-1)\pi_i$ exactly. The marginal defect is typically small but can be non-trivial for highly skewed $\pi_k$ vectors when $n$ is small (e.g., $n = 2$); a warning is issued when it exceeds 5% of $n$. For `sps` and `pareto`, this approximation is built from the stored target `pik` vector rather than the unknown exact finite-population first-order probabilities. Use `method = "cps"` when exact second-order structure is required.
 - **Independent designs** (Poisson, Bernoulli): The covariance $\Delta_{ij} = 0$ for $i \neq j$, so the variance simplifies to $\text{Var}(\hat{Y}_{HT}) = \sum_i (1 - \pi_i)\, y_i^2 / \pi_i$.
 - **Systematic designs with $\pi_{ij} = 0$**: The SYG estimator is undefined. Use successive-differences, Hartley--Rao approximations, or replication methods.

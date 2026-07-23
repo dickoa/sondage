@@ -8,15 +8,15 @@
 #'   non-integer sum, so looser sums are rejected rather than silently
 #'   rounded. Their target sample size, `sum(pik)`, must be at least 1.
 #'   Units with `pik` of exactly 0 are never selected and
-#'   units with exactly 1 are always selected; values in between --
-#'   however close to the boundary -- are sampled as given.
+#'   units with exactly 1 are always selected and values in between
+#'   are sampled as given.
 #' @param method The sampling method:
 #'   \describe{
 #'     \item{`"cps"`}{Conditional Poisson Sampling (maximum entropy;
 #'       Chen et al., 1994). Fixed size, exact joint probabilities
 #'       with all \eqn{\pi_{ij} > 0}. Calibration and the conditional
 #'       probability table are O(Nn) (probability-domain
-#'       Poisson-binomial recurrence); each draw is O(N) thereafter.
+#'       Poisson-binomial recurrence), each draw is O(N) thereafter.
 #'       Equal `pik` are drawn directly as SRS.}
 #'     \item{`"sampford"`}{Sampford's (1967) fixed-size PPS design.
 #'       Gives the supplied first-order inclusion probabilities exactly
@@ -98,12 +98,11 @@
 #' @details
 #' **Near-certainty inclusion probabilities (CPS).** The CPS
 #' fixed-point calibration converges geometrically for well-spread
-#' `pik`, but
-#' asymptotes at a non-zero defect when some `pik` are within a few
-#' decimal digits of 0 or 1 (e.g. 0.9999). When this happens the
+#' `pik`, but asymptotes at a non-zero defect when some `pik` are
+#' within a few decimal digits of 0 or 1 (e.g. 0.9999). When this happens the
 #' function emits a "CPS calibration did not reach tolerance" warning
 #' reporting the achieved `max_diff`. The realized first-order
-#' inclusion probabilities differ from the target by up to `max_diff` --
+#' inclusion probabilities differ from the target by up to `max_diff`,
 #' typically 1e-5 or smaller for inputs in the 0.999-range, well within
 #' Monte Carlo error for most estimators. If the warning is unwanted,
 #' clip `pik` away from 0/1 before calling.
@@ -142,7 +141,15 @@
 #' @export
 unequal_prob_wor <- function(
   pik,
-  method = c("cps", "sampford", "brewer", "systematic", "poisson", "sps", "pareto"),
+  method = c(
+    "cps",
+    "sampford",
+    "brewer",
+    "systematic",
+    "poisson",
+    "sps",
+    "pareto"
+  ),
   nrep = 1L,
   prn = NULL,
   ...
@@ -156,7 +163,9 @@ unequal_prob_wor <- function(
     "method"
   )
   nrep <- .check_nrep_prn(
-    nrep, prn, method,
+    nrep,
+    prn,
+    method,
     supports_prn = .method_supports_prn(method, "wor"),
     supported = c("poisson", "sps", "pareto")
   )
@@ -214,7 +223,7 @@ unequal_prob_wor <- function(
 #' x <- c(40, 80, 50, 60, 70)
 #' hits <- expected_hits(x, n = 3)
 #'
-#' set.seed(42)
+#' set.seed(12345)
 #' s <- unequal_prob_wr(hits, method = "chromy")
 #' s$sample
 #' s$hits
@@ -282,17 +291,23 @@ unequal_prob_wr <- function(
     if (!is.null(idx)) return(idx)
   }
   draw <- .get_builtin_spec(method, "wor")$draw
-  if (is.null(draw)) .stop_unknown_method(method) # nocov
+  if (is.null(draw)) {
+    .stop_unknown_method(method)
+  } # nocov
   draw(as.double(pik), if (is.null(prn)) NULL else as.double(prn))
 }
 
 #' @noRd
 .wor_sample <- function(pik, method, prn = NULL, eps = NULL) {
-  if (!is.null(eps)) .stop_eps_removed()
+  if (!is.null(eps)) {
+    .stop_eps_removed()
+  }
   fixed_size <- .method_is_fixed_size(method, "wor")
   .check_pik(pik, fixed_size = fixed_size)
   N <- length(pik)
-  if (!is.null(prn)) .check_prn(prn, N)
+  if (!is.null(prn)) {
+    .check_prn(prn, N)
+  }
   n <- sum(pik)
   .new_wor_sample(
     sample = .draw_wor_once(pik, method, prn),
@@ -411,7 +426,10 @@ unequal_prob_wr <- function(
 
   if (method == "chromy") {
     draws <- .Call(
-      C_up_chromy_batch, as.double(hits), n, as.integer(nrep)
+      C_up_chromy_batch,
+      as.double(hits),
+      n,
+      as.integer(nrep)
     )
     sample_mat <- draws[[1L]]
     hits_mat <- draws[[2L]]

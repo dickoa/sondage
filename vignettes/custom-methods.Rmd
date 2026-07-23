@@ -54,11 +54,11 @@ The dispatcher validates that sample indices are finite integers in range and ob
 
 Capability flags describe what the method can do, and the dispatchers enforce them. `NULL` means unspecified: it resolves to `FALSE`, except that `supports_aux` resolves to `TRUE` for a balanced method. WOR and WR methods may explicitly set only `supports_prn`; balanced methods may explicitly set only `supports_aux`, `supports_strata`, and `supports_spread`. Supplying a capability for another method type is an error, even when its value is `FALSE`.
 
-A `"wor"` or `"wr"` method that sets `supports_prn = TRUE` receives a validated `prn` vector for sample coordination. Otherwise supplying `prn` is an error. A `"balanced"` method only receives a `strata` argument when registered with `supports_strata = TRUE`, and a `spread` argument (spatial coordinates) when registered with `supports_spread = TRUE`. Spread-only methods that never look at balancing variables should declare `supports_aux = FALSE`. In every case, passing a design input to a method without the matching capability is an error, because silently dropping `prn`, `aux`, `strata`, or `spread` would change the requested design. The simplest balanced registration therefore needs nothing beyond `aux`.
+A `"wor"` or `"wr"` method that sets `supports_prn = TRUE` receives a validated `prn` vector for sample coordination. Otherwise supplying `prn` is an error. A `"balanced"` method only receives a `strata` argument when registered with `supports_strata = TRUE`, and a `spread` argument (spatial coordinates) when registered with `supports_spread = TRUE`. Spread-only methods that never look at balancing variables should declare `supports_aux = FALSE`. In every case, passing a design input to a method without the matching capability is an error, because silently dropping `prn`, `aux`, `strata`, or `spread` would change the requested design. The simplest balanced registration therefore needs nothing beyond `aux`. The cube method's `bounds` interface is currently built-in only, registered balanced methods cannot opt into `bounds`.
 
-`variance_family` declares how design-based variance should be estimated for samples drawn with the method: `"srs"`, `"pps_brewer"`, `"poisson"`, `"wr"`, or `"unsupported"`. `sondage` does not use it itself, but packages that export samples for variance estimation do. Without a declaration they must infer a treatment from `type` and `fixed_size`, and for a random-size WOR method no safe inference exists because a Poisson-type method (independent selections) and a correlated random-size scheme need different estimators. The declaration is an assertion the author is responsible for; `?register_method` lists the constraints between `variance_family`, `type`, and `fixed_size`, and Example 1 shows how to check a declaration by simulation. When in doubt, declare `"unsupported"` rather than guess.
+`variance_family` declares how design-based variance should be estimated for samples drawn with the method: `"srs"`, `"pps_brewer"`, `"poisson"`, `"wr"`, or `"unsupported"`. `sondage` does not use it itself, but packages that export samples for variance estimation do. Without a declaration they must infer a treatment from `type` and `fixed_size`, and for a random-size WOR method no safe inference exists because a Poisson-type method (independent selections) and a correlated random-size scheme need different estimators. The declaration is an assertion the author is responsible for and `?register_method` lists the constraints between `variance_family`, `type`, and `fixed_size`, and Example 1 shows how to check a declaration by simulation. When in doubt, declare `"unsupported"` rather than guess.
 
-`probabilities` places the method in the first-order probability taxonomy. Use `"exact"` when the true first-order inclusion probabilities equal the `pik` passed to a WOR callback, or the expected hits equal the `hits` passed to a WR callback, as they do for Sampford and the cube method. Use `"approximate"` when the method honors its input to a documented approximation, as Pareto and sequential Poisson order sampling do. Use `"unknown"`, the default, when the input only steers the selection. Successive sampling with `sample.int(prob = pik)` belongs to this last tier because its true inclusion probabilities differ from `pik`. The same draw with replacement does honor expected hits, so a multinomial-style `"wr"` method declares `"exact"`.
+`probabilities` places the method in the first-order probability taxonomy. Use `"exact"` when the true first-order inclusion probabilities equal the `pik` passed to a WOR callback, or the expected hits equal the `hits` passed to a WR callback, as they do for Sampford and the cube method. Use `"approximate"` when the method honors its input to a documented approximation, as Pareto and sequential Poisson order sampling do. Use `"unknown"`, the default, when the input only steers the selection. Successive sampling with `sample.int(prob = pik, replace = FALSE)` belongs to this last tier because its true inclusion probabilities differ from `pik`. The same draw with replacement does honor expected hits, so a multinomial-style `"wr"` method declares `"exact"`.
 
 The tier matters to packages that use `1/pik` as design weights. For an `"unknown"` method, those weights are systematically biased rather than merely noisy. A downstream package may therefore read the tier through `method_spec()` and refuse the method for weighted estimation instead of asserting probabilities the design never had. The default is deliberately strict. If you have not established which tier your method is in, its selection probabilities are unknown. Sampling through sondage itself is unaffected because the declaration describes the method and never disables it. As with `variance_family`, the method author is responsible for the declaration. The simulation below shows how to check it.
 
@@ -73,29 +73,29 @@ fixed-size $\pi$ps sampler that is not already a built-in `sondage` method.
 
 ```{r pivotal-fn}
 random_pivotal_sample <- function(pik, n = NULL, prn = NULL, ...) {
-  p <- as.double(pik)
-  tol <- 64 * .Machine$double.eps
-  active <- which(p > tol & p < 1 - tol)
+  tol <- 1e-06
+  active <- which(pik > tol & pik < 1 - tol)
 
   while (length(active) >= 2L) {
     ij <- sample(active, 2L)
     i <- ij[1L]
     j <- ij[2L]
-    total <- p[i] + p[j]
+    total <- pik[i] + pik[j]
 
     if (total < 1) {
-      if (runif(1) < p[i] / total) p[c(i, j)] <- c(total, 0)
-      else p[c(i, j)] <- c(0, total)
+      if (runif(1) < pik[i] / total)
+        pik[c(i, j)] <- c(total, 0)
+      else pik[c(i, j)] <- c(0, total)
     } else {
-      if (runif(1) < (1 - p[j]) / (2 - total)) {
-        p[c(i, j)] <- c(1, total - 1)
+      if (runif(1) < (1 - pik[j]) / (2 - total)) {
+        pik[c(i, j)] <- c(1, total - 1)
       } else {
-        p[c(i, j)] <- c(total - 1, 1)
+        pik[c(i, j)] <- c(total - 1, 1)
       }
     }
-    active <- which(p > tol & p < 1 - tol)
+    active <- which(pik > tol & pik < 1 - tol)
   }
-  sort(which(p > 0.5))
+  sort(which(pik > 0.5))
 }
 ```
 
@@ -220,7 +220,50 @@ round(sampling_cov(s), 4)
 unregister_method("tille")
 ```
 
-## Example 3: A custom balanced method
+## Example 3: A custom with-replacement method
+
+With-replacement callbacks receive expected hits rather than inclusion
+probabilities. The sample callback returns `n` indices and may repeat units;
+the joint callback returns $E(N_iN_j)$, not joint inclusion probabilities.
+This example reproduces a multinomial PPS design under a custom name:
+
+```{r custom-wr}
+custom_multinomial_sample <- function(hits, n = NULL, prn = NULL, ...) {
+  sample.int(length(hits), size = n, replace = TRUE, prob = hits)
+}
+
+custom_multinomial_joint <- function(hits, sample_idx = NULL, ...) {
+  n <- round(sum(hits))
+  keep <- if (is.null(sample_idx)) seq_along(hits) else sample_idx
+  h <- hits[keep]
+  factor <- (n - 1) / n
+  joint <- factor * outer(h, h)
+  diag(joint) <- h + factor * h^2
+  joint
+}
+
+register_method(
+  "custom_multinomial",
+  type            = "wr",
+  sample_fn       = custom_multinomial_sample,
+  joint_fn        = custom_multinomial_joint,
+  variance_family = "wr",
+  probabilities   = "exact"
+)
+
+hits <- expected_hits(c(2, 3, 5, 10), n = 4)
+s_wr <- unequal_prob_wr(hits, method = "custom_multinomial")
+s_wr
+joint_expected_hits(s_wr)
+joint_expected_hits(s_wr, sampled_only = TRUE)
+```
+
+```{r custom-wr-cleanup, include = FALSE}
+unregister_method("custom_multinomial")
+```
+
+
+## Example 4: A custom balanced method
 
 Balanced methods register with `type = "balanced"` and dispatch
 through `balanced_wor()`. The minimal contract only involves `aux`,
@@ -301,7 +344,7 @@ unregister_method("cube_lp")
 unregister_method("cube_lp_str")
 ```
 
-## Example 4: A spatial method with `spread`
+## Example 5: A spatial method with `spread`
 
 Spatially balanced (well-spread) designs select units that are far
 apart in space, which improves precision whenever the study variable
@@ -383,7 +426,7 @@ A caller who passes `aux` then gets an immediate error instead of a
 sample that silently ignored the requested balancing constraints.
 
 ```{r lpm1-run}
-set.seed(42)
+set.seed(25)
 N <- 200
 coords <- cbind(runif(N), runif(N))
 pik <- rep(0.15, N)

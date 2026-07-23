@@ -13,15 +13,21 @@
 
 .wor_specs <- list(
   cps = list(
-    fixed_size = TRUE, prn = FALSE, variance_family = "pps_brewer",
+    fixed_size = TRUE,
+    prn = FALSE,
+    variance_family = "pps_brewer",
     draw = function(pik, prn = NULL) .Call(C_cps_single, pik)
   ),
   sampford = list(
-    fixed_size = TRUE, prn = FALSE, variance_family = "pps_brewer",
+    fixed_size = TRUE,
+    prn = FALSE,
+    variance_family = "pps_brewer",
     draw = function(pik, prn = NULL) .Call(C_up_sampford, pik)
   ),
   brewer = list(
-    fixed_size = TRUE, prn = FALSE, variance_family = "pps_brewer",
+    fixed_size = TRUE,
+    prn = FALSE,
+    variance_family = "pps_brewer",
     draw = function(pik, prn = NULL) .Call(C_up_brewer, pik)
   ),
   systematic = list(
@@ -31,7 +37,9 @@
     draw = function(pik, prn = NULL) .Call(C_up_systematic, pik)
   ),
   poisson = list(
-    fixed_size = FALSE, prn = TRUE, variance_family = "poisson",
+    fixed_size = FALSE,
+    prn = TRUE,
+    variance_family = "poisson",
     draw = function(pik, prn = NULL) .Call(C_up_poisson, pik, prn)
   ),
   # The order-sampling pair honors pik to Rosen's documented
@@ -131,7 +139,7 @@
 .he_jip_methods <- c("brewer", "sps", "pareto", "cube")
 
 # Methods with C-level batch optimisation (workspace reuse).
-.batch_optimised_methods <- c("cps")
+.batch_optimised_methods <- "cps"
 
 #' Look up the spec for a built-in method.
 #'
@@ -310,18 +318,26 @@ method_spec <- function(name, dispatcher = NULL) {
 #' @noRd
 .method_supports_prn <- function(method, context) {
   spec <- .get_builtin_spec(method, context)
-  if (!is.null(spec)) return(isTRUE(spec$prn))
+  if (!is.null(spec)) {
+    return(isTRUE(spec$prn))
+  }
   reg <- .method_registry[[method]]
-  if (!is.null(reg)) return(isTRUE(reg$supports_prn))
+  if (!is.null(reg)) {
+    return(isTRUE(reg$supports_prn))
+  }
   FALSE
 }
 
 #' @noRd
 .method_is_fixed_size <- function(method, context) {
   spec <- .get_builtin_spec(method, context)
-  if (!is.null(spec)) return(isTRUE(spec$fixed_size))
+  if (!is.null(spec)) {
+    return(isTRUE(spec$fixed_size))
+  }
   reg <- .method_registry[[method]]
-  if (!is.null(reg)) return(isTRUE(reg$fixed_size))
+  if (!is.null(reg)) {
+    return(isTRUE(reg$fixed_size))
+  }
   FALSE
 }
 

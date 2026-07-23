@@ -23,7 +23,7 @@ values. The target sample size, \code{sum(pik)}, must be at least 1.}
 
 \item{aux}{An optional numeric matrix (N x p) of auxiliary balancing
 variables. Each column defines a balancing constraint. The sample
-size constraint is always included automatically; \code{aux} specifies
+size constraint is always included automatically and \code{aux} specifies
 additional variables to balance on.
 When \code{NULL}, only the sample size is balanced (equivalent to an
 unbalanced fixed-size design).}
@@ -137,10 +137,9 @@ unlike rejective procedures.
 it is \strong{not} divided by \code{pik}. To bound a Horvitz-Thompson
 estimator, pass \code{x / pik} as the constraint column.
 
-The main application is controlled selection (Goodman & Kish,
-1950): bounding category counts to the integers adjacent to their
-expectation. With indicator columns \code{B} and
-\code{S <- colSums(B * pik)}, use \code{lower = floor(S)},
+One application is controlled selection with bounding
+category counts to the integers adjacent to their expectation.
+With indicator columns \code{B} and \code{S <- colSums(B * pik)}, use \code{lower = floor(S)},
 \code{upper = ceiling(S)}. Categories may overlap (e.g. row and column
 margins of a two-way control table, as in NAEP-style designs).
 

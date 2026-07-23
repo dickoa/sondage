@@ -257,7 +257,7 @@ expected_hits.wor <- function(x, ...) {
 #' probabilities can emit a "CPS calibration did not reach tolerance"
 #' warning for `pik` values very close to 0 or 1. The realized joint
 #' probabilities differ from their exact values by up to the reported
-#' `max_diff`; see [unequal_prob_wor()] for context and remediation.
+#' `max_diff`, see [unequal_prob_wor()] for context and remediation.
 #'
 #' @return A symmetric N x N matrix (or n x n if `sampled_only = TRUE`)
 #'   of joint inclusion probabilities. Diagonal entries are the
@@ -292,11 +292,12 @@ joint_inclusion_prob <- function(x, ...) {
 joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
   sampled_only <- .check_flag(sampled_only, "sampled_only")
   if (...length()) {
-    builtin <- x$method %in% c(
-      names(.wor_specs),
-      names(.ep_wor_specs),
-      names(.balanced_specs)
-    )
+    builtin <- x$method %in%
+      c(
+        names(.wor_specs),
+        names(.ep_wor_specs),
+        names(.balanced_specs)
+      )
     if (builtin) {
       .check_dots(...length(), ...names())
     }
@@ -383,8 +384,12 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
         J
       },
       .registered_joint_or_stop(
-        x$method, pik, sample_idx, "joint_inclusion_prob",
-        list(eps = eps), ...
+        x$method,
+        pik,
+        sample_idx,
+        "joint_inclusion_prob",
+        list(eps = eps),
+        ...
       )
     )
   } else {
@@ -410,7 +415,12 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
         J
       },
       .registered_joint_or_stop(
-        x$method, pik, NULL, "joint_inclusion_prob", list(eps = eps), ...
+        x$method,
+        pik,
+        NULL,
+        "joint_inclusion_prob",
+        list(eps = eps),
+        ...
       )
     )
 
@@ -611,8 +621,12 @@ joint_expected_hits.wr <- function(
         pikl
       },
       .registered_joint_or_stop(
-        x$method, n * prob, sample_idx, "joint_expected_hits",
-        list(nsim = nsim), ...
+        x$method,
+        n * prob,
+        sample_idx,
+        "joint_expected_hits",
+        list(nsim = nsim),
+        ...
       )
     )
   } else {
@@ -637,8 +651,12 @@ joint_expected_hits.wr <- function(
         pikl
       },
       .registered_joint_or_stop(
-        x$method, n * prob, NULL, "joint_expected_hits",
-        list(nsim = nsim), ...
+        x$method,
+        n * prob,
+        NULL,
+        "joint_expected_hits",
+        list(nsim = nsim),
+        ...
       )
     )
   }

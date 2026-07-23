@@ -81,7 +81,7 @@ For \code{cps}, the fixed-point calibration used to produce the joint
 probabilities can emit a "CPS calibration did not reach tolerance"
 warning for \code{pik} values very close to 0 or 1. The realized joint
 probabilities differ from their exact values by up to the reported
-\code{max_diff}; see \code{\link[=unequal_prob_wor]{unequal_prob_wor()}} for context and remediation.
+\code{max_diff}, see \code{\link[=unequal_prob_wor]{unequal_prob_wor()}} for context and remediation.
 }
 \examples{
 pik <- c(0.2, 0.3, 0.5)

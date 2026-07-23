@@ -52,7 +52,7 @@ or minimum replacement.
 x <- c(40, 80, 50, 60, 70)
 hits <- expected_hits(x, n = 3)
 
-set.seed(42)
+set.seed(12345)
 s <- unequal_prob_wr(hits, method = "chromy")
 s$sample
 s$hits

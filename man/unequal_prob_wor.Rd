@@ -19,8 +19,8 @@ floating-point accuracy: an exact fixed-size design cannot have a
 non-integer sum, so looser sums are rejected rather than silently
 rounded. Their target sample size, \code{sum(pik)}, must be at least 1.
 Units with \code{pik} of exactly 0 are never selected and
-units with exactly 1 are always selected; values in between --
-however close to the boundary -- are sampled as given.}
+units with exactly 1 are always selected and values in between
+are sampled as given.}
 
 \item{method}{The sampling method:
 \describe{
@@ -28,7 +28,7 @@ however close to the boundary -- are sampled as given.}
 Chen et al., 1994). Fixed size, exact joint probabilities
 with all \eqn{\pi_{ij} > 0}. Calibration and the conditional
 probability table are O(Nn) (probability-domain
-Poisson-binomial recurrence); each draw is O(N) thereafter.
+Poisson-binomial recurrence), each draw is O(N) thereafter.
 Equal \code{pik} are drawn directly as SRS.}
 \item{\code{"sampford"}}{Sampford's (1967) fixed-size PPS design.
 Gives the supplied first-order inclusion probabilities exactly
@@ -94,12 +94,11 @@ Draws a sample with unequal inclusion probabilities, without replacement.
 \details{
 \strong{Near-certainty inclusion probabilities (CPS).} The CPS
 fixed-point calibration converges geometrically for well-spread
-\code{pik}, but
-asymptotes at a non-zero defect when some \code{pik} are within a few
-decimal digits of 0 or 1 (e.g. 0.9999). When this happens the
+\code{pik}, but asymptotes at a non-zero defect when some \code{pik} are
+within a few decimal digits of 0 or 1 (e.g. 0.9999). When this happens the
 function emits a "CPS calibration did not reach tolerance" warning
 reporting the achieved \code{max_diff}. The realized first-order
-inclusion probabilities differ from the target by up to \code{max_diff} --
+inclusion probabilities differ from the target by up to \code{max_diff},
 typically 1e-5 or smaller for inputs in the 0.999-range, well within
 Monte Carlo error for most estimators. If the warning is unwanted,
 clip \code{pik} away from 0/1 before calling.
