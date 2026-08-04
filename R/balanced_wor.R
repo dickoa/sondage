@@ -11,7 +11,7 @@
 #' are far apart in the space spanned by the spreading variables.
 #'
 #' @param pik A numeric vector of inclusion probabilities (length N).
-#'   `sum(pik)` must be an integer to floating-point accuracy; see
+#'   `sum(pik)` must be an integer to floating-point accuracy. See
 #'   [unequal_prob_wor()] for the exact-0/1 handling of boundary
 #'   values. The target sample size, `sum(pik)`, must be at least 1.
 #' @param aux An optional numeric matrix (N x p) of auxiliary balancing

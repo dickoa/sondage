@@ -14,6 +14,7 @@ set.seed(1)
 # sondage
 
 <!-- badges: start -->
+[![CRAN status](https://www.r-pkg.org/badges/version/sondage)](https://CRAN.R-project.org/package=sondage)
 [![R-CMD-check](https://gitlab.com/dickoa/sondage/badges/main/pipeline.svg)](https://gitlab.com/dickoa/sondage/-/pipelines)
 [![Codecov test coverage](https://codecov.io/gl/dickoa/sondage/branch/main/graph/badge.svg)](https://app.codecov.io/gl/dickoa/sondage?branch=main)
 <!-- badges: end -->
@@ -153,7 +154,7 @@ row and column names so their units remain identifiable.
 | Method        | Dispatcher         | Fixed n | Exact marginals† | Exact pi_ij        | PRN |
 |---------------|--------------------|---------|------------------|--------------------|-----|
 | `srs`         | `equal_prob_wor`   | yes     | yes              | yes                | no  |
-| `systematic`  | `equal_prob_wor`   | yes     | yes              | yes                | no  |
+| `systematic`  | `equal_prob_wor`   | yes     | yes              | yes (some = 0)     | no  |
 | `bernoulli`   | `equal_prob_wor`   | no      | yes              | yes (independent)  | yes |
 | `srs`         | `equal_prob_wr`    | yes     | yes              | yes (analytic)     | no  |
 | `cps`         | `unequal_prob_wor` | yes     | yes              | yes                | no  |

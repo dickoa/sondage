@@ -117,7 +117,7 @@ s$sample
 inclusion_prob(s)  # extract the stored design-defining target pik
 ```
 
-Other fixed-size methods include `"brewer"` (draw-by-draw, order-invariant), `"sampford"` [@sampford1967], "systematic"` (O(N), implicit stratification), `"sps"` [Sequential Poisson sampling, @ohlsson1998, supports PRN], and `"pareto"` [Pareto sampling, @rosen1997, supports PRN]. The `"poisson"` method produces a random sample size.
+Other fixed-size methods include `"brewer"` (draw-by-draw, order-invariant), `"sampford"` [@sampford1967], `"systematic"` (O(N), implicit stratification), `"sps"` [Sequential Poisson sampling, @ohlsson1998, supports PRN], and `"pareto"` [Pareto sampling, @rosen1997, supports PRN]. The `"poisson"` method produces a random sample size.
 
 For `sps` and `pareto`, `inclusion_prob(s)` still returns the stored target `pik` vector used to define the design. Those methods do not, in general, provide exact finite-population first-order inclusion probabilities equal to that target.
 

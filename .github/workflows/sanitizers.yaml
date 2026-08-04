@@ -1,0 +1,62 @@
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+name: sanitizers
+
+permissions: read-all
+
+jobs:
+  # Tier 2: CRAN-equivalent. R itself is built with sanitizers.
+  # gcc-asan is Fedora-based and mirrors the CRAN gcc-SAN flavor.
+  rhub-containers:
+    runs-on: ubuntu-latest
+    name: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [gcc-asan, clang-ubsan]
+    container:
+      image: ghcr.io/r-hub/containers/${{ matrix.platform }}:latest
+    env:
+      NOT_CRAN: true
+      UBSAN_OPTIONS: print_stacktrace=1
+      ASAN_OPTIONS: detect_leaks=0
+      _R_CHECK_FORCE_SUGGESTS_: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          Rscript -e 'install.packages(c("testthat", "sampling", "survey"), repos = "https://cloud.r-project.org")'
+
+      - name: Install package
+        run: R CMD INSTALL --no-byte-compile .
+
+      - name: Run tests under sanitizers
+        run: |
+          Rscript -e 'library(testthat); library(sondage);
+                      test_dir("tests/testthat", package = "sondage",
+                               stop_on_failure = TRUE)' 2>&1 | tee san.log
+
+      # R CMD check does NOT fail on sanitizer diagnostics; they only appear
+      # in the output. Without this gate the job goes green while UB fires.
+      - name: Fail on sanitizer diagnostics
+        run: |
+          if grep -qE "runtime error|AddressSanitizer|LeakSanitizer" san.log; then
+            echo "::error::Sanitizer diagnostics found"
+            grep -nE "runtime error|AddressSanitizer|LeakSanitizer" san.log
+            exit 1
+          fi
+          echo "No sanitizer diagnostics."
+
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanitizer-log-${{ matrix.platform }}
+          path: san.log

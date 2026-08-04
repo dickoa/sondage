@@ -34,7 +34,7 @@
 #'   `$sample` is a matrix (n x nrep) for fixed-size methods, or a list
 #'   of integer vectors of varying lengths for `"bernoulli"`.
 #'   `$n` is an integer for `"srs"` and `"systematic"` (realized size)
-#'   and a double for `"bernoulli"` (expected size); see [sondage_sample].
+#'   and a double for `"bernoulli"` (expected size). See [sondage_sample].
 #'
 #' @seealso [equal_prob_wr()] for with-replacement designs,
 #'   [unequal_prob_wor()] for unequal probability designs.

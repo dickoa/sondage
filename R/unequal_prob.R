@@ -30,7 +30,7 @@
 #'       approximation; see [joint_inclusion_prob()]). O(Nn).}
 #'     \item{`"systematic"`}{Systematic PPS. Fixed size, exact joint
 #'       probabilities but \strong{some may be zero} (pairs that never
-#'       co-occur), making the SYG estimator inapplicable; see
+#'       co-occur), making the SYG estimator inapplicable. See
 #'       [sampling_cov()]. O(N).}
 #'     \item{`"poisson"`}{Poisson sampling. \strong{Random} sample
 #'       size (expected \eqn{n = \sum \pi_k}). Units selected
@@ -41,7 +41,7 @@
 #'       \eqn{n} smallest are selected. Fixed size, high-entropy.
 #'       Supports PRN. Approximate joint probabilities. The true
 #'       first-order inclusion probabilities are approximately equal
-#'       to the supplied `pik`; see [inclusion_prob()].
+#'       to the supplied `pik`. See [inclusion_prob()].
 #'       Expected O(N). Tied keys (possible with duplicated `prn`
 #'       values) are broken toward the smallest population index.}
 #'     \item{`"pareto"`}{Pareto sampling (Rosen, 1997). Order
@@ -69,7 +69,7 @@
 #'   When `nrep > 1`, `$sample` is a matrix (n x nrep) for fixed-size methods,
 #'   or a list of integer vectors of varying lengths for random-size methods (`"poisson"`).
 #'   `$n` is an integer for fixed-size methods (realized size) and a
-#'   double for `"poisson"` (expected size, `sum(pik)`); see
+#'   double for `"poisson"` (expected size, `sum(pik)`). See
 #'   [sondage_sample].
 #'
 #' @references

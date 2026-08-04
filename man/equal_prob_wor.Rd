@@ -52,7 +52,7 @@ When \code{nrep = 1}, \verb{$sample} is an integer vector. When \code{nrep > 1},
 \verb{$sample} is a matrix (n x nrep) for fixed-size methods, or a list
 of integer vectors of varying lengths for \code{"bernoulli"}.
 \verb{$n} is an integer for \code{"srs"} and \code{"systematic"} (realized size)
-and a double for \code{"bernoulli"} (expected size); see \link{sondage_sample}.
+and a double for \code{"bernoulli"} (expected size). See \link{sondage_sample}.
 }
 \description{
 Draws a sample with equal inclusion probabilities, without replacement.

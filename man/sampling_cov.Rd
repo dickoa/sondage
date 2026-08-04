@@ -86,3 +86,8 @@ American Statistical Association}.
 
 \enc{Tillé}{Tille}, Y. (2006). \emph{Sampling Algorithms}. Springer.
 }
+\seealso{
+\code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} for the without-replacement joint
+probabilities this is computed from, \code{\link[=joint_expected_hits]{joint_expected_hits()}} for the
+with-replacement analogue.
+}

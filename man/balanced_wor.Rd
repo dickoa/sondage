@@ -17,7 +17,7 @@ balanced_wor(
 }
 \arguments{
 \item{pik}{A numeric vector of inclusion probabilities (length N).
-\code{sum(pik)} must be an integer to floating-point accuracy; see
+\code{sum(pik)} must be an integer to floating-point accuracy. See
 \code{\link[=unequal_prob_wor]{unequal_prob_wor()}} for the exact-0/1 handling of boundary
 values. The target sample size, \code{sum(pik)}, must be at least 1.}
 

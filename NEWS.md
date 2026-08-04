@@ -1,3 +1,12 @@
+# sondage 0.9.1
+
+* Allocated the `long double` scratch buffers used by the exact Sampford
+  joint inclusion probabilities with `R_allocLD()` instead of `R_alloc()`.
+  `R_alloc()` guarantees only the alignment required by `double`, so on
+  platforms where `long double` needs 16-byte alignment the accesses were
+  undefined behavior, as reported by CRAN's gcc-UBSan check. Computed
+  values are unchanged.
+
 # sondage 0.9.0
 
 Initial CRAN release.

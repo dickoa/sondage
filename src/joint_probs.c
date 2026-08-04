@@ -728,14 +728,16 @@ static SEXP sampford_jip_impl(SEXP pik_sexp, const int *idx, int n_out) {
     for (int i = 0; i < N; i++) {
         scaled_sum += (long double)(p[i] / (1.0 - p[i])) / max_odds;
     }
-    long double *q = (long double *) R_alloc(N, sizeof(long double));
+    /* R_allocLD, not R_alloc: R_alloc only guarantees alignment for double,
+       but long double requires 16-byte alignment on x86-64. */
+    long double *q = R_allocLD((size_t) N);
     for (int i = 0; i < N; i++) {
         q[i] = ((long double)(p[i] / (1.0 - p[i])) / max_odds) *
                (long double)m / scaled_sum;
     }
 
-    long double *E = (long double *) R_alloc(m + 1, sizeof(long double));
-    long double *G = (long double *) R_alloc(m + 1, sizeof(long double));
+    long double *E = R_allocLD((size_t) m + 1);
+    long double *G = R_allocLD((size_t) m + 1);
     memset(E, 0, (size_t)(m + 1) * sizeof(long double));
     memset(G, 0, (size_t)(m + 1) * sizeof(long double));
     E[0] = 1.0L;
@@ -756,8 +758,8 @@ static SEXP sampford_jip_impl(SEXP pik_sexp, const int *idx, int n_out) {
     }
 
     const int d = m - 2;
-    long double *e = (long double *) R_alloc(d + 1, sizeof(long double));
-    long double *g = (long double *) R_alloc(d + 1, sizeof(long double));
+    long double *e = R_allocLD((size_t) d + 1);
+    long double *g = R_allocLD((size_t) d + 1);
 
     for (int a = 0; a < n_out; a++) {
         if ((a & 127) == 0) R_CheckUserInterrupt();

@@ -41,7 +41,7 @@ Must be \code{TRUE} for \code{type = "wr"}.}
 variance should be estimated for this method, for downstream
 packages that export designs for variance estimation. One of
 \code{"srs"}, \code{"pps_brewer"}, \code{"poisson"}, \code{"wr"}, or
-\code{"unsupported"}; see \strong{Variance families} below. \code{NULL} (the
+\code{"unsupported"}. See \strong{Variance families} below. \code{NULL} (the
 default) means undeclared: consumers fall back on inferring a
 treatment from \code{type} and \code{fixed_size}.}
 

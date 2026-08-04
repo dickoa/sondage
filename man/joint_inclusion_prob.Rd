@@ -27,7 +27,7 @@ but n is manageable. Default \code{FALSE}.}
 
 \item{eps}{High-entropy approximation boundary tolerance (default
 1e-6), used only by the HE-approximate methods (\code{brewer}, \code{sps},
-\code{pareto}, \code{cube}); see \code{\link[=he_jip]{he_jip()}}. The exact \code{cps} and
+\code{pareto}, \code{cube}). See \code{\link[=he_jip]{he_jip()}}. The exact \code{cps} and
 \code{systematic} methods ignore it and treat only exact 0/1 as
 excluded/certainty units.}
 }

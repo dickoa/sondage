@@ -285,7 +285,7 @@ joint_inclusion_prob <- function(x, ...) {
 #' @rdname joint_inclusion_prob
 #' @param eps High-entropy approximation boundary tolerance (default
 #'   1e-6), used only by the HE-approximate methods (`brewer`, `sps`,
-#'   `pareto`, `cube`); see [he_jip()]. The exact `cps` and
+#'   `pareto`, `cube`). See [he_jip()]. The exact `cps` and
 #'   `systematic` methods ignore it and treat only exact 0/1 as
 #'   excluded/certainty units.
 #' @export
@@ -505,7 +505,7 @@ joint_inclusion_prob.default <- function(x, ...) {
 #'
 #' For `method = "chromy"`, `sampled_only = TRUE` reduces memory
 #' (the n_s x n_s accumulator replaces an N x N one) but not
-#' simulation cost -- each of `nsim` draws still covers the full
+#' simulation cost. Each of `nsim` draws still covers the full
 #' population.
 #'
 #' @return A symmetric N x N matrix (or n_s x n_s if
@@ -741,6 +741,10 @@ joint_expected_hits.default <- function(x, ...) {
 #'   American Statistical Association}.
 #'
 #' \enc{Tillé}{Tille}, Y. (2006). \emph{Sampling Algorithms}. Springer.
+#'
+#' @seealso [joint_inclusion_prob()] for the without-replacement joint
+#'   probabilities this is computed from, [joint_expected_hits()] for the
+#'   with-replacement analogue.
 #'
 #' @examples
 #' pik <- c(0.2, 0.3, 0.5)

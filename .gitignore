@@ -12,5 +12,6 @@ reference/
 *.o
 *.so
 *~
+README_files
 ..Rcheck/
 *.~undo-tree~

@@ -31,7 +31,7 @@
 #'   variance should be estimated for this method, for downstream
 #'   packages that export designs for variance estimation. One of
 #'   `"srs"`, `"pps_brewer"`, `"poisson"`, `"wr"`, or
-#'   `"unsupported"`; see **Variance families** below. `NULL` (the
+#'   `"unsupported"`. See **Variance families** below. `NULL` (the
 #'   default) means undeclared: consumers fall back on inferring a
 #'   treatment from `type` and `fixed_size`.
 #' @param supports_prn Does this method support permanent random

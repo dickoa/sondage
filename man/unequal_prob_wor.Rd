@@ -42,7 +42,7 @@ size, approximate joint probabilities (high-entropy
 approximation; see \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}). O(Nn).}
 \item{\code{"systematic"}}{Systematic PPS. Fixed size, exact joint
 probabilities but \strong{some may be zero} (pairs that never
-co-occur), making the SYG estimator inapplicable; see
+co-occur), making the SYG estimator inapplicable. See
 \code{\link[=sampling_cov]{sampling_cov()}}. O(N).}
 \item{\code{"poisson"}}{Poisson sampling. \strong{Random} sample
 size (expected \eqn{n = \sum \pi_k}). Units selected
@@ -53,7 +53,7 @@ Order sampling with key \eqn{\xi_k = u_k / \pi_k}; the
 \eqn{n} smallest are selected. Fixed size, high-entropy.
 Supports PRN. Approximate joint probabilities. The true
 first-order inclusion probabilities are approximately equal
-to the supplied \code{pik}; see \code{\link[=inclusion_prob]{inclusion_prob()}}.
+to the supplied \code{pik}. See \code{\link[=inclusion_prob]{inclusion_prob()}}.
 Expected O(N). Tied keys (possible with duplicated \code{prn}
 values) are broken toward the smallest population index.}
 \item{\code{"pareto"}}{Pareto sampling (Rosen, 1997). Order
@@ -85,7 +85,7 @@ When \code{nrep = 1}, \verb{$sample} is an integer vector of selected unit indic
 When \code{nrep > 1}, \verb{$sample} is a matrix (n x nrep) for fixed-size methods,
 or a list of integer vectors of varying lengths for random-size methods (\code{"poisson"}).
 \verb{$n} is an integer for fixed-size methods (realized size) and a
-double for \code{"poisson"} (expected size, \code{sum(pik)}); see
+double for \code{"poisson"} (expected size, \code{sum(pik)}). See
 \link{sondage_sample}.
 }
 \description{

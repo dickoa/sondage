@@ -15,8 +15,8 @@ All \code{sondage_sample} objects contain:
 when \code{nrep > 1}).}
 \item{\verb{$n}}{Sample size. For designs with \verb{$fixed_size = TRUE}, an
 integer equal to the realized sample size. For random-size designs
-(\verb{$fixed_size = FALSE}), a double equal to the expected sample size
--- \code{sum(pik)} for \code{"poisson"}, the user-supplied target for
+(\verb{$fixed_size = FALSE}), a double equal to the expected sample size:
+\code{sum(pik)} for \code{"poisson"}, the user-supplied target for
 \code{"bernoulli"}.}
 \item{\verb{$N}}{Population size.}
 \item{\verb{$method}}{Sampling method name.}

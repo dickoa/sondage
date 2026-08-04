@@ -48,6 +48,77 @@ check-devel:
     - Rscript -e "rcmdcheck::rcmdcheck(args = c('--no-manual', '--as-cran'), error_on = 'error')"
   allow_failure: true
 
+# Tier 1: instrument only the package's own C code. Needs no sanitizer build
+# of R, so it runs in the ordinary rocker image. Catches package-level UB,
+# which is the class of defect CRAN's gcc-SAN reported on 0.9.0.
+.sanitizer-base: &sanitizer-base
+  stage: check
+  image: rocker/r-ver:4.6.0
+  variables:
+    NOT_CRAN: "true"
+  before_script:
+    - apt-get update && apt-get install -y
+        libcurl4-openssl-dev
+        libssl-dev
+        libxml2-dev
+        libuv1-dev
+        pandoc
+        qpdf
+    - mkdir -p $R_LIBS_USER
+    - Rscript -e "install.packages(c('curl', 'remotes'), repos='https://cloud.r-project.org')"
+    - Rscript -e "remotes::install_deps(dependencies = TRUE)"
+    # Stale objects make make(1) skip compilation, silently producing an
+    # uninstrumented build that reports zero errors.
+    - rm -f src/*.o src/*.so
+
+sanitize-ubsan:
+  <<: *sanitizer-base
+  script:
+    - |
+      cat > /tmp/Makevars.ubsan <<'EOF'
+      CFLAGS = -g -O1 -fno-omit-frame-pointer -fsanitize=undefined -fno-sanitize=float-divide-by-zero
+      LDFLAGS = -fsanitize=undefined
+      EOF
+    - R_MAKEVARS_USER=/tmp/Makevars.ubsan R CMD INSTALL --no-docs --no-byte-compile -l $R_LIBS_USER .
+    - UBSAN_OPTIONS=print_stacktrace=1 Rscript -e "library(testthat); library(sondage); test_dir('tests/testthat', package='sondage', stop_on_failure=TRUE)" 2>&1 | tee san.log
+    # Sanitizer diagnostics do not fail the test run; gate on them explicitly.
+    - |
+      if grep -qE "runtime error" san.log; then
+        grep -nE "runtime error" san.log
+        echo "UBSan diagnostics found"
+        exit 1
+      fi
+      echo "No UBSan diagnostics."
+  artifacts:
+    when: always
+    paths:
+      - san.log
+
+sanitize-asan:
+  <<: *sanitizer-base
+  script:
+    - |
+      cat > /tmp/Makevars.asan <<'EOF'
+      CFLAGS = -g -O1 -fno-omit-frame-pointer -fsanitize=address
+      LDFLAGS = -fsanitize=address
+      EOF
+    # ASan must be preloaded: the runtime has to initialize before libR, or
+    # R CMD INSTALL fails at the load test with a bare "loading failed".
+    - export ASANLIB=$(gcc -print-file-name=libasan.so)
+    - LD_PRELOAD=$ASANLIB ASAN_OPTIONS=detect_leaks=0 R_MAKEVARS_USER=/tmp/Makevars.asan R CMD INSTALL --no-docs --no-byte-compile -l $R_LIBS_USER .
+    - LD_PRELOAD=$ASANLIB ASAN_OPTIONS=detect_leaks=0 Rscript -e "library(testthat); library(sondage); test_dir('tests/testthat', package='sondage', stop_on_failure=TRUE)" 2>&1 | tee san.log
+    - |
+      if grep -qE "ERROR: AddressSanitizer" san.log; then
+        grep -nE "ERROR: AddressSanitizer" san.log
+        echo "ASan diagnostics found"
+        exit 1
+      fi
+      echo "No ASan diagnostics."
+  artifacts:
+    when: always
+    paths:
+      - san.log
+
 coverage:
   stage: coverage
   image: rocker/r-ver:4.6.0

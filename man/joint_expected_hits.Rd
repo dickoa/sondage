@@ -60,7 +60,7 @@ allocating the full N x N matrix.
 
 For \code{method = "chromy"}, \code{sampled_only = TRUE} reduces memory
 (the n_s x n_s accumulator replaces an N x N one) but not
-simulation cost -- each of \code{nsim} draws still covers the full
+simulation cost. Each of \code{nsim} draws still covers the full
 population.
 }
 \examples{
