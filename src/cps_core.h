@@ -163,6 +163,22 @@ static int cps_calibrate(const double *pik_target, int N, int n,
         }
     }
 
+    /*
+     * Exact path for one draw: a conditional Poisson design of size one
+     * selects unit i with probability w_i / sum(w), so odds proportional
+     * to the target are exact. The fixed-point update below does not
+     * contract here: with two units near 0.5 each step overshoots by
+     * about the size of the correction. Reached at n = N - 1 too, through
+     * the callers' complement.
+     */
+    if (n == 1) {
+        for (int i = 0; i < N; i++) {
+            w[i] = pik_target[i];
+        }
+        cps_compute_f(w, N, n, f);
+        return 1;
+    }
+
     double *piktilde = (double *) R_alloc(N, sizeof(double));
     double *pik_implied = (double *) R_alloc(N, sizeof(double));
     double *pro = (double *) R_alloc((size_t)N * n, sizeof(double));

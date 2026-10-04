@@ -1,3 +1,12 @@
+# sondage 0.9.2
+
+* `unequal_prob_wor(method = "cps")` now draws a single unit, or all but one
+  unit, from the exact design. Calibration did not converge when two units
+  had inclusion probabilities near 0.5, so it warned after 500 iterations and
+  the realized probabilities missed their targets by up to 7e-3. One draw has
+  a closed form, odds proportional to `pik`, which is now used. Samples of
+  every other size are unchanged.
+
 # sondage 0.9.1
 
 * Allocated the `long double` scratch buffers used by the exact Sampford

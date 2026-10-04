@@ -283,9 +283,10 @@ test_that("cps stress: repeated medium-large draws do not crash", {
 })
 
 test_that("CPS near-certainty pik: warning reports max_diff and boundary unit", {
-  # pik very close to (but not at) 1. Newton asymptotes at ~5e-5;
-  # the warning should name the max_diff and flag the near-boundary unit.
-  pik <- c(0.9999, 0.5, 0.5001)  # sum = 2
+  # pik very close to (but not at) 0 and 1, with two draws left to
+  # calibrate. The iteration stops short at about 3e-7, and the warning
+  # should name the max_diff and flag the near-boundary unit.
+  pik <- c(0.99999, 0.99998, 1e-05, 2e-05)  # sum = 2
   expect_warning(
     unequal_prob_wor(pik, method = "cps"),
     "max_diff"
@@ -300,16 +301,16 @@ test_that("CPS near-certainty: realized pik within max_diff of target", {
   # Empirical check that the design is statistically correct even when
   # the warning fires: realized pi_hat should be within max_diff of target.
   set.seed(2026)
-  pik <- c(0.9999, 0.5, 0.5001)
+  pik <- c(0.99999, 0.99998, 1e-05, 2e-05)
   nsim <- 5000
-  hits <- integer(3)
+  hits <- integer(4)
   for (i in seq_len(nsim)) {
     s <- suppressWarnings(unequal_prob_wor(pik, method = "cps"))
     hits[s$sample] <- hits[s$sample] + 1L
   }
   pi_hat <- hits / nsim
-  # MC error ~ sqrt(p*(1-p)/n); for n=5000, p=0.5 that's ~0.007.
-  # The non-convergence defect is 5e-5, far below MC noise.
+  # MC error ~ sqrt(p*(1-p)/n) is at most ~0.007 for n=5000.
+  # The non-convergence defect is about 3e-7, far below MC noise.
   expect_lt(max(abs(pi_hat - pik)), 0.02)
 })
 
@@ -324,9 +325,46 @@ test_that("CPS with well-spread pik converges silently", {
 test_that("CPS warns only once per call even at max_iter=500", {
   # Convergence cap was bumped from 100 to 500; ensure the warning
   # still fires exactly once and doesn't suppress the sample.
-  pik <- c(0.9999, 0.5, 0.5001)
+  pik <- c(0.99999, 0.99998, 1e-05, 2e-05)
   w <- capture_warnings(s <- unequal_prob_wor(pik, method = "cps"))
   expect_length(w, 1L)
   expect_match(w, "500 iterations")
   expect_length(s$sample, 2)
+})
+
+test_that("CPS calibrates one draw exactly, with no warning", {
+  # One draw from two units near 0.5 made the fixed-point step overshoot
+  # by about its own size, so calibration never closed.
+  for (p in c(0.01, 0.2, 0.45, 0.48, 0.49, 0.499, 0.4999, 0.5, 0.51, 0.9)) {
+    expect_no_warning(unequal_prob_wor(c(p, 1 - p), method = "cps"))
+  }
+  expect_no_warning(unequal_prob_wor(c(0.48, 0.52), method = "cps", nrep = 50))
+})
+
+test_that("CPS calibrates n = N - 1 exactly through its complement", {
+  expect_no_warning(unequal_prob_wor(c(0.51, 0.5, 0.99), method = "cps"))
+  expect_no_warning(
+    unequal_prob_wor(c(0.52, 0.49, 0.995, 0.995), method = "cps")
+  )
+})
+
+test_that("CPS one-draw selection frequency matches its target", {
+  pik <- c(0.48148, 0.51852)
+  set.seed(7)
+  s <- unequal_prob_wor(pik, method = "cps", nrep = 2e5)$sample
+  z <- (mean(s[1, ] == 1) - pik[1]) / sqrt(pik[1] * pik[2] / 2e5)
+  expect_lt(abs(z), 3)
+})
+
+test_that("CPS samples of two or more draws are unchanged by the one-draw path", {
+  set.seed(1)
+  a <- unequal_prob_wor(c(0.2, 0.4, 0.5, 0.6, 0.3), method = "cps", nrep = 5)
+  expect_identical(as.vector(a$sample), c(2L, 5L, 4L, 5L, 3L, 4L, 1L, 5L, 4L, 5L))
+  set.seed(2)
+  b <- unequal_prob_wor(c(0.15, 0.35, 0.5, 0.65, 0.55, 0.8), method = "cps",
+                        nrep = 5)
+  expect_identical(
+    as.vector(b$sample),
+    c(3L, 4L, 6L, 2L, 4L, 6L, 2L, 4L, 6L, 3L, 4L, 5L, 4L, 5L, 6L)
+  )
 })
