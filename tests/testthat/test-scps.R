@@ -167,6 +167,7 @@ test_that("scps metadata and unsupported joint probabilities are explicit", {
   expect_false(spec$supports_aux)
   expect_false(spec$supports_strata)
   expect_true(spec$supports_spread)
+  expect_true(spec$supports_prn)
 
   set.seed(107)
   s <- balanced_wor(
@@ -192,4 +193,182 @@ test_that("scps is a reserved built-in method name", {
     ),
     "'scps' is a built-in method and cannot be overridden"
   )
+})
+
+test_that("scps tolerates a pik total off an integer by the accepted residue", {
+  # Regression: the residue reached the last step amplified by 1 / p, so
+  # draws failed as "numerically infeasible" (all of them at 1e-11).
+  set.seed(108)
+  N <- 30L
+  spread <- matrix(runif(2L * N), N)
+  for (delta in c(-9e-11, -1e-13, 1e-15, 1e-13, 9e-11)) {
+    pik <- inclusion_prob(rexp(N) + 0.01, 6)
+    free <- which(pik < 0.9)[1]
+    pik[free] <- pik[free] + (6 + delta - sum(pik))
+    sizes <- replicate(20L, {
+      length(balanced_wor(pik, spread = spread, method = "scps")$sample)
+    })
+    prn_sizes <- replicate(20L, {
+      u <- runif(N)
+      length(balanced_wor(pik, spread = spread, method = "scps", prn = u)$sample)
+    })
+    expect_true(all(c(sizes, prn_sizes) == 6L), info = paste("delta =", delta))
+  }
+})
+
+## Permanent random numbers
+
+test_that("scps with prn is a function of pik, spread and prn alone", {
+  set.seed(109)
+  N <- 40L
+  pik <- inclusion_prob(rexp(N) + 0.2, 8)
+  spread <- matrix(runif(2L * N), N)
+  u <- runif(N)
+
+  seed_before <- .Random.seed
+  first <- balanced_wor(pik, spread = spread, method = "scps", prn = u)$sample
+  expect_identical(.Random.seed, seed_before)
+  second <- balanced_wor(pik, spread = spread, method = "scps", prn = u)$sample
+  expect_identical(first, second)
+  expect_length(first, 8L)
+
+  # Gridded spread has many equal distances, a different quickselect path
+  grid <- matrix(as.double(sample(0:2, 2L * N, TRUE)), N)
+  expect_identical(
+    balanced_wor(pik, spread = grid, method = "scps", prn = u)$sample,
+    balanced_wor(pik, spread = grid, method = "scps", prn = u)$sample
+  )
+})
+
+test_that("scps with prn visits units in row order", {
+  # Two separated pairs with pik = 0.5. Unit 1 gives all its weight to
+  # unit 2 and unit 3 to unit 4, so u_1 decides the first pair and u_3 the
+  # second, and u_2, u_4 are never used.
+  pik <- rep(0.5, 4)
+  spread <- c(0, 1, 10, 11)
+  for (u1 in c(0.1, 0.9)) {
+    for (u3 in c(0.2, 0.8)) {
+      for (rest in c(0.05, 0.95)) {
+        u <- c(u1, rest, u3, 1 - rest)
+        s <- balanced_wor(pik, spread = spread, method = "scps", prn = u)
+        expected <- c(if (u1 < 0.5) 1L else 2L, if (u3 < 0.5) 3L else 4L)
+        expect_identical(s$sample, expected)
+      }
+    }
+  }
+})
+
+test_that("scps with prn respects first-order inclusion probabilities", {
+  set.seed(110)
+  pik <- c(1, 0, 0.2, 0.25, 0.35, 0.4, 0.5, 0.5, 0.55, 0.65, 0.7, 0.9)
+  spread <- cbind(c(0, 0, 0, 1, 1, 2, 2, 2, 3, 3, 4, 4), c(0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0))
+  nrep <- 8000L
+  hits <- integer(length(pik))
+  sizes <- integer(nrep)
+  for (draw in seq_len(nrep)) {
+    index <- balanced_wor(
+      pik,
+      spread = spread,
+      method = "scps",
+      prn = runif(length(pik))
+    )$sample
+    sizes[draw] <- length(index)
+    hits[index] <- hits[index] + 1L
+  }
+  empirical <- hits / nrep
+
+  expect_true(all(sizes == 6L))
+  free <- pik > 0 & pik < 1
+  z <- (empirical[free] - pik[free]) / sqrt(pik[free] * (1 - pik[free]) / nrep)
+
+  expect_equal(empirical[!free], pik[!free])
+  expect_lt(max(abs(z)), 4)
+})
+
+test_that("scps coordinates samples through prn", {
+  set.seed(111)
+  N <- 60L
+  pik1 <- inclusion_prob(rexp(N) + 0.5, 12)
+  pik2 <- inclusion_prob(rexp(N) + 0.5, 15)
+  spread <- matrix(runif(2L * N), N)
+  draw <- function(pik, u) {
+    balanced_wor(pik, spread = spread, method = "scps", prn = u)$sample
+  }
+  overlap <- function(pair) length(intersect(pair[[1]], pair[[2]]))
+
+  same <- replicate(200L, {
+    u <- runif(N)
+    overlap(list(draw(pik1, u), draw(pik2, u)))
+  })
+  opposite <- replicate(200L, {
+    u <- runif(N)
+    overlap(list(draw(pik1, u), draw(pik2, 1 - u)))
+  })
+  independent <- sum(pik1 * pik2)
+
+  expect_gt(mean(same), independent + 1)
+  expect_lt(mean(opposite), independent - 1)
+
+  # Same probabilities and prn: the same sample
+  u <- runif(N)
+  expect_identical(draw(pik1, u), draw(pik1, u))
+})
+
+test_that("scps without prn keeps its random visiting order", {
+  # Without prn the step unit is drawn at random, so row order does not
+  # fix the sample. With prn it does.
+  pik <- rep(0.5, 4)
+  spread <- c(0, 1, 10, 11)
+  set.seed(112)
+  samples <- replicate(
+    200L,
+    paste(balanced_wor(pik, spread = spread, method = "scps")$sample, collapse = "-")
+  )
+  expect_setequal(unique(samples), c("1-3", "1-4", "2-3", "2-4"))
+})
+
+test_that("scps validates prn and rejects it where unsupported", {
+  pik <- rep(0.5, 10)
+  spread <- matrix(runif(20), ncol = 2)
+
+  expect_error(
+    balanced_wor(pik, spread = spread, method = "scps", prn = runif(9)),
+    "must have length 10"
+  )
+  expect_error(
+    balanced_wor(pik, spread = spread, method = "scps", prn = c(0, runif(9))),
+    "open interval"
+  )
+  expect_error(
+    balanced_wor(pik, spread = spread, method = "scps", prn = runif(10), nrep = 2),
+    "prn and nrep > 1"
+  )
+  expect_error(
+    balanced_wor(pik, spread = spread, method = "lpm2", prn = runif(10)),
+    "method 'lpm2' does not support 'prn'.*'scps'"
+  )
+  expect_error(
+    balanced_wor(pik, prn = runif(10)),
+    "method 'cube' does not support 'prn'.*'scps'"
+  )
+})
+
+test_that("scps shares tied weight equally up to each unit's bound", {
+  # All units share one point, so every step's neighbours tie. With prn the
+  # thresholds follow by hand, and a prn 1e-9 either side of one flips it.
+  draw <- function(pik, u) {
+    balanced_wor(pik, spread = rep(0, 4), method = "scps", prn = u)$sample
+  }
+
+  # Every tied unit takes an equal third of unit 1's weight, so unit 2 is
+  # left at 1/3 once unit 1 is selected.
+  pik <- rep(0.5, 4)
+  expect_identical(draw(pik, c(0.25, 1 / 3 - 1e-9, 0.9, 0.9)), c(1L, 2L))
+  expect_identical(draw(pik, c(0.25, 1 / 3 + 1e-9, 0.4, 0.9)), c(1L, 3L))
+
+  # Unit 4 can take only 0.2, so units 2 and 3 take 0.4 each and unit 2 is
+  # left at 0.1.
+  pik <- c(0.5, 0.3, 0.3, 0.9)
+  expect_identical(draw(pik, c(0.25, 0.1 - 1e-9, 0.5, 0.5)), c(1L, 2L))
+  expect_identical(draw(pik, c(0.25, 0.1 + 1e-9, 0.5, 0.5)), c(1L, 4L))
 })

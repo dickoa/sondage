@@ -219,6 +219,17 @@ s_scps$sample
 
 These built-in methods are spread-only: they do not accept `aux`, `strata`, or `bounds`. They preserve the supplied first-order inclusion probabilities, but intentionally produce low-entropy designs, so `joint_inclusion_prob()` and `sampling_cov()` are not available for them.
 
+With permanent random numbers, `scps` visits the units in row order and selects unit $k$ when $u_k$ falls below its current conditional probability [@bondesson2008; @grafstrom2018]. Two surveys drawn with `prn = u` and `prn = 1 - u` are then negatively coordinated. @matei2023 spread on a measure of response burden instead of coordinates, so that highly burdened units rarely enter the same sample, and rarely enter both.
+
+```{r}
+set.seed(42)
+burdened <- as.double(seq_len(16) %in% c(2, 7, 11))
+u <- runif(16)
+s1 <- balanced_wor(pik_spatial, spread = burdened, method = "scps", prn = u)
+s2 <- balanced_wor(pik_spatial, spread = burdened, method = "scps", prn = 1 - u)
+intersect(s1$sample, s2$sample)
+```
+
 ## Design queries
 
 Once you have a design object, generics compute the quantities needed for variance estimation.

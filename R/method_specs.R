@@ -94,7 +94,7 @@
   ),
   scps = list(
     fixed_size = TRUE,
-    prn = FALSE,
+    prn = TRUE,
     aux = FALSE,
     strata = FALSE,
     spread = TRUE,

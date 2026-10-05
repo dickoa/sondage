@@ -782,13 +782,6 @@ test_that("register_method validates balanced-specific flags", {
       "only applies to type",
       info = paste("supports_spread =", value)
     )
-    expect_error(
-      register_method(
-        "x", "balanced", sample_fn = identity, supports_prn = value
-      ),
-      "only applies to type",
-      info = paste("supports_prn =", value)
-    )
   }
   expect_error(
     register_method("cube", "balanced", sample_fn = identity),
@@ -919,6 +912,74 @@ test_that("spread-only method with supports_aux = FALSE rejects aux", {
   s <- balanced_wor(pik, spread = coords, method = "toy_spat")
   expect_null(seen_aux)
   expect_equal(s$n, 4L)
+})
+
+test_that("prn-capable balanced method receives validated prn", {
+  on.exit(unregister_method("toy_prn"), add = TRUE)
+
+  seen_prn <- "unset"
+  register_method(
+    "toy_prn",
+    "balanced",
+    sample_fn = function(pik, n = NULL, aux = NULL, prn = NULL, ...) {
+      seen_prn <<- prn
+      seq_len(n)
+    },
+    supports_prn = TRUE
+  )
+  expect_true(method_spec("toy_prn")$supports_prn)
+
+  pik <- rep(0.5, 8)
+  u <- seq(0.05, 0.95, length.out = 8)
+  balanced_wor(pik, method = "toy_prn", prn = u)
+  expect_identical(seen_prn, u)
+
+  # Without prn the argument is not passed, so sample_fn sees its default
+  seen_prn <- "unset"
+  balanced_wor(pik, method = "toy_prn")
+  expect_null(seen_prn)
+
+  # prn validation fires before sample_fn is called
+  seen_prn <- "unset"
+  expect_error(
+    balanced_wor(pik, method = "toy_prn", prn = u[-1]),
+    "must have length 8"
+  )
+  expect_error(
+    balanced_wor(pik, method = "toy_prn", prn = replace(u, 1, 1)),
+    "open interval"
+  )
+  expect_error(
+    balanced_wor(pik, method = "toy_prn", prn = u, nrep = 2),
+    "prn and nrep > 1"
+  )
+  expect_identical(seen_prn, "unset")
+})
+
+test_that("balanced method without prn support rejects prn", {
+  on.exit(unregister_method("toy_noprn"), add = TRUE)
+
+  called <- FALSE
+  register_method(
+    "toy_noprn",
+    "balanced",
+    sample_fn = function(pik, n = NULL, aux = NULL, ...) {
+      called <<- TRUE
+      seq_len(n)
+    }
+  )
+  expect_false(method_spec("toy_noprn")$supports_prn)
+
+  # A minimal signature keeps working when prn is not supplied
+  s <- balanced_wor(rep(0.5, 4), method = "toy_noprn")
+  expect_equal(s$n, 2L)
+
+  called <- FALSE
+  expect_error(
+    balanced_wor(rep(0.5, 4), method = "toy_noprn", prn = runif(4)),
+    "method 'toy_noprn' does not support 'prn'"
+  )
+  expect_false(called)
 })
 
 test_that("spread-capable balanced method receives validated spread", {

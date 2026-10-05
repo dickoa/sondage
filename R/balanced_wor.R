@@ -51,6 +51,12 @@
 #' @param nrep Number of replicate samples (default 1). When `nrep > 1`,
 #'   `$sample` holds a matrix (n x nrep) for fixed-size designs, or a
 #'   list of integer vectors when within-stratum sizes are not exact.
+#' @param prn Optional vector of permanent random numbers (length N,
+#'   values in the open interval (0, 1)) for sample coordination.
+#'   Supported by `"scps"` and by methods registered with
+#'   `supports_prn = TRUE`. With `"scps"`, the sample is then a function
+#'   of `pik`, `spread`, `prn` and the row order alone. See **Sample
+#'   coordination** below. Cannot be combined with `nrep > 1`.
 #' @param ... Additional arguments passed to methods:
 #'   \describe{
 #'     \item{`eps`}{Boundary tolerance (default `1e-10`): decides when
@@ -156,7 +162,8 @@
 #' bounds that keep every working probability in \eqn{[0, 1]}.
 #' Equal-distance
 #' units share weight as evenly as their bounds allow. Random selection of
-#' the step unit avoids dependence on input row order.
+#' the step unit avoids dependence on input row order. With `prn`, units
+#' are visited in row order instead (see **Sample coordination** below).
 #'
 #' Both spatial methods deliberately drive joint inclusion probabilities of
 #' nearby units toward zero, so the design is \emph{not} high
@@ -177,8 +184,37 @@
 #' find the distance at which its maximal weights sum to one, avoiding a
 #' full sort of the remaining units at each step. Its expected cost is also
 #' O(N^2 * d). Both implementations use O(N) workspace and store no
-#' distance matrix; SCPS sorts only equal-distance cutoff groups to share
-#' their weight fairly.
+#' distance matrix. Units at the cutoff distance share their weight
+#' equally, up to their feasibility bounds, and SCPS sorts that group only
+#' when one of its units cannot take an equal share.
+#'
+#' @section Sample coordination:
+#'
+#' With `prn`, `method = "scps"` is the list-sequential correlated Poisson
+#' scheme of Bondesson & Thorburn (2008) with
+#' \enc{Grafström}{Grafstrom}'s maximal weights, coordinated through
+#' permanent random numbers as in \enc{Grafström}{Grafstrom} & Matei
+#' (2018). Units are visited in row order. Unit \eqn{k} is selected when
+#' \eqn{u_k < \pi_k^{(k-1)}}{u_k < pi_k^(k-1)}, its current conditional
+#' probability, and its
+#' probability displacement goes only to undecided units later in the
+#' list. The inclusion probabilities are still `pik` exactly. As with the
+#' `"poisson"`, `"sps"` and `"pareto"` methods of [unequal_prob_wor()], a
+#' small permanent random number makes selection more likely.
+#'
+#' Drawing two samples with the same `prn` coordinates them positively
+#' (large overlap), and drawing the second with `1 - prn` coordinates them
+#' negatively (small overlap). The sample depends on the row order, so
+#' coordinated draws must use the same ordering of the frame, for example
+#' sorted by a permanent unit identifier.
+#'
+#' Matei, Smith, Smeets & Klingwort (2023) replace the coordinates in
+#' `spread` by a measure of response burden, such as an indicator of
+#' highly burdened units or the inclusion probabilities, and draw the
+#' surveys with `prn` and `1 - prn`. Spreading on the burden measure keeps
+#' burdened units out of the same sample, and negative coordination keeps
+#' them out of both samples. This adapted SCP sampling is
+#' `balanced_wor(pik, spread = burden, method = "scps", prn = u)`.
 #'
 #' @return An object of class
 #'   `c("balanced", "unequal_prob", "wor", "sondage_sample")`.
@@ -188,6 +224,11 @@
 #'   is `FALSE` (e.g., stratified with non-integer per-stratum sizes).
 #'
 #' @references
+#' Bondesson, L. and Thorburn, D. (2008). A list sequential sampling
+#'   method suitable for real-time sampling. \emph{Scandinavian Journal of
+#'   Statistics}, 35(3), 466-483.
+#'   \doi{10.1111/j.1467-9469.2008.00596.x}
+#'
 #' Deville, J.C. and \enc{Tillé}{Tille}, Y. (1998). Unequal probability
 #'   sampling without replacement through a splitting method.
 #'   \emph{Biometrika}, 85(1), 89-101.
@@ -210,9 +251,17 @@
 #'   sampling. \emph{Journal of Statistical Planning and Inference},
 #'   142(1), 139-147. \doi{10.1016/j.jspi.2011.07.003}
 #'
+#' \enc{Grafström}{Grafstrom}, A. and Matei, A. (2018). Coordination of
+#'   spatially balanced samples. \emph{Survey Methodology}, 44(2),
+#'   215-238.
+#'
 #' \enc{Grafström}{Grafstrom}, A. and Schelin, L. (2014). How to select
 #'   representative samples. \emph{Scandinavian Journal of Statistics},
 #'   41(2), 277-290. \doi{10.1111/sjos.12016}
+#'
+#' Matei, A., Smith, P.A., Smeets, M.J.E. and Klingwort, J. (2023).
+#'   Targetted double control of burden in multiple surveys.
+#'   \emph{Survey Methodology}, 49(2), 363-384.
 #'
 #' Tripet, A. and \enc{Tillé}{Tille}, Y. (2026). Balanced sampling with
 #'   inequalities: application to category bounding, matrix rounding,
@@ -269,6 +318,16 @@
 #' s_scps <- balanced_wor(pik, spread = coords, method = "scps")
 #' s_scps$sample
 #'
+#' # Two surveys negatively coordinated with permanent random numbers,
+#' # spread on an indicator of highly burdened units (adapted SCP sampling)
+#' burdened <- as.double(seq_len(N) %in% c(4, 12, 21, 22, 32, 44))
+#' pik1 <- inclusion_prob(runif(N, 1, 5), 10)
+#' pik2 <- inclusion_prob(runif(N, 1, 5), 6)
+#' u <- runif(N)
+#' s1 <- balanced_wor(pik1, spread = burdened, method = "scps", prn = u)
+#' s2 <- balanced_wor(pik2, spread = burdened, method = "scps", prn = 1 - u)
+#' intersect(s1$sample, s2$sample)
+#'
 #' @export
 balanced_wor <- function(
   pik,
@@ -278,6 +337,7 @@ balanced_wor <- function(
   bounds = NULL,
   method = c("cube", "lpm2", "scps"),
   nrep = 1L,
+  prn = NULL,
   ...
 ) {
   if (.is_method_name(method) && is_registered_method(method)) {
@@ -288,7 +348,16 @@ balanced_wor <- function(
       )
     }
     return(
-      .dispatch_registered_balanced(pik, aux, strata, spread, method, nrep, ...)
+      .dispatch_registered_balanced(
+        pik,
+        aux,
+        strata,
+        spread,
+        method,
+        nrep,
+        prn,
+        ...
+      )
     )
   }
   method <- .match_choice(method, c("cube", "lpm2", "scps"), "method")
@@ -301,7 +370,13 @@ balanced_wor <- function(
     )
     .check_dots(...length(), ...names(), allowed = allowed_dots)
   }
-  nrep <- .check_nrep_prn(nrep)
+  nrep <- .check_nrep_prn(
+    nrep,
+    prn,
+    method,
+    supports_prn = .method_supports_prn(method, "balanced"),
+    supported = "scps"
+  )
 
   if (method %in% c("lpm2", "scps")) {
     if (!is.null(aux)) {
@@ -334,7 +409,7 @@ balanced_wor <- function(
       )
     }
     .check_pik(pik, fixed_size = TRUE)
-    return(.spatial_wor(pik, spread, method, nrep = nrep, ...))
+    return(.spatial_wor(pik, spread, method, nrep = nrep, prn = prn, ...))
   }
 
   if (!is.null(spread)) {
@@ -376,8 +451,8 @@ balanced_wor <- function(
     }
   ),
   scps = list(
-    single = function(pik, spread, eps, nrep) {
-      .Call(C_scps, pik, spread, eps)
+    single = function(pik, spread, eps, nrep, prn = NULL) {
+      .Call(C_scps, pik, spread, eps, prn)
     },
     batch = function(pik, spread, eps, nrep) {
       .Call(C_scps_batch, pik, spread, eps, nrep)
@@ -391,6 +466,7 @@ balanced_wor <- function(
   spread,
   method,
   nrep = 1L,
+  prn = NULL,
   eps = 1e-10,
   ...
 ) {
@@ -405,12 +481,19 @@ balanced_wor <- function(
   draw <- .spatial_draw_fns[[method]][[
     if (nrep == 1L) "single" else "batch"
   ]]
-  sample_data <- draw(
+  draw_args <- list(
     as.double(pik),
     spread,
     as.double(eps),
     as.integer(nrep)
   )
+  # prn reaches only methods whose spec allows it (checked upstream), and
+  # never a batch draw (prn with nrep > 1 is rejected upstream).
+  if (!is.null(prn)) {
+    .check_prn(prn, N)
+    draw_args$prn <- as.double(prn)
+  }
+  sample_data <- do.call(draw, draw_args)
 
   .new_wor_sample(
     sample = sample_data,

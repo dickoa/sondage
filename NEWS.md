@@ -1,4 +1,29 @@
-# sondage 0.9.2
+# sondage 0.10.0
+
+* `balanced_wor()` gains `prn` for sample coordination with permanent
+  random numbers, supported by `method = "scps"` (Grafström & Matei, 2018).
+  Units are then visited in row order, so the sample depends only on `pik`,
+  `spread`, `prn` and the row order. Drawing a second survey with `1 - prn`
+  coordinates the two negatively. Spreading on a measure of response burden
+  instead of coordinates gives the adapted SCP sampling of Matei, Smith,
+  Smeets & Klingwort (2023).
+
+* `balanced_wor(method = "scps")` is faster when many units are equally
+  distant from the unit being decided, as with a 0/1 burden indicator in
+  `spread`. A draw from 17,000 units takes about a tenth of the time. The
+  weights those units receive are unchanged. Samples drawn with `prn` are
+  unchanged. Without `prn`, a seed can give a different sample of the same
+  design when many units are tied, because the order in which decided units
+  leave the pool changes.
+
+* `register_method()` accepts `supports_prn = TRUE` for `type = "balanced"`.
+  Such methods receive `prn` when the caller supplies it.
+
+* `balanced_wor(method = "scps")` no longer fails with "SCPS maximal weights
+  are numerically infeasible" when `sum(pik)` misses an integer by a residue
+  the input check accepts. At 1e-11 every draw failed, and residues of a few
+  ulps, as `inclusion_prob()` can return, made some draws fail. Draws that
+  succeeded before are unchanged.
 
 * `unequal_prob_wor(method = "cps")` now draws a single unit, or all but one
   unit, from the exact design. Calibration did not converge when two units

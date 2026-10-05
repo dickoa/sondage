@@ -46,10 +46,8 @@ default) means undeclared: consumers fall back on inferring a
 treatment from \code{type} and \code{fixed_size}.}
 
 \item{supports_prn}{Does this method support permanent random
-numbers for sample coordination? Set to \code{TRUE} or \code{FALSE} for
-\code{"wor"} and \code{"wr"} methods. \code{NULL} (the default) resolves to
-\code{FALSE}. Leave \code{NULL} for \code{"balanced"} methods; \code{\link[=balanced_wor]{balanced_wor()}}
-has no \code{prn} argument.}
+numbers for sample coordination? \code{TRUE} or \code{FALSE}, for every
+method type. \code{NULL} (the default) resolves to \code{FALSE}.}
 
 \item{supports_aux}{Does this method use auxiliary balancing
 variables? Set to \code{TRUE} or \code{FALSE} for \code{type = "balanced"}.
@@ -168,6 +166,10 @@ Declare it as \code{strata = NULL} in your function signature.}
 \code{supports_spread = TRUE} and the caller supplies \code{spread}:
 a numeric matrix (N x d, double) of spatial coordinates (or
 other spreading variables). Declare it as \code{spread = NULL} in
+your function signature.}
+\item{\code{prn}}{Only when registered with \code{supports_prn = TRUE} and
+the caller supplies \code{prn}: permanent random numbers (numeric
+vector length N, values in (0,1)). Declare it as \code{prn = NULL} in
 your function signature.}
 \item{Returns}{Integer vector of distinct selected unit indices
 (1-based). The dispatcher validates the returned indices.}

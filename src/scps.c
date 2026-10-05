@@ -18,6 +18,14 @@
  * is a weighted-selection problem.  We solve it with randomized three-way
  * quickselect, avoiding a full sort at every step.  A draw therefore costs
  * expected O(N^2 * d) time and O(N) workspace, and stores no distance matrix.
+ *
+ * With permanent random numbers u (Grafstrom & Matei, 2018), the method is
+ * the list-sequential correlated Poisson scheme of Bondesson & Thorburn
+ * (2008): units are visited in row order, unit k is selected when
+ * u_k < p_k, and its displacement goes only to undecided units after k.
+ * The quickselect pivot then comes from a local generator reset at each
+ * draw, so the sample is a function of pik, spread and u alone and R's
+ * random number stream is left untouched.
  */
 
 #include "sampling_core.h"
@@ -27,6 +35,7 @@
 #include <R_ext/Utils.h>
 #include <float.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -53,16 +62,28 @@ static void scps_swap(ScpsCandidate *left, ScpsCandidate *right) {
     *right = tmp;
 }
 
+/* Uniform on [0, 1) for the quickselect pivot: R's generator, or with
+ * permanent random numbers a splitmix64 stream local to the draw. */
+static double scps_pivot_uniform(uint64_t *state) {
+    if (state == NULL) return unif_rand();
+    uint64_t z = (*state += UINT64_C(0x9E3779B97F4A7C15));
+    z = (z ^ (z >> 30)) * UINT64_C(0xBF58476D1CE4E5B9);
+    z = (z ^ (z >> 27)) * UINT64_C(0x94D049BB133111EB);
+    z ^= z >> 31;
+    return (double)(z >> 11) * (1.0 / 9007199254740992.0);
+}
+
 /* Return the smallest distance whose cumulative candidate capacity reaches
  * target.  Equal distances are kept together, which is important on grids.
  * The randomized pivot gives expected linear work per selection. */
 static double scps_weighted_cutoff(ScpsCandidate *candidate, int n,
-                                   double target) {
+                                   double target, uint64_t *pivot_state) {
     int lo = 0;
     int hi = n;
 
     while (hi - lo > 1) {
-        int pivot_position = lo + (int)(unif_rand() * (hi - lo));
+        int pivot_position =
+            lo + (int)(scps_pivot_uniform(pivot_state) * (hi - lo));
         if (pivot_position >= hi) pivot_position = hi - 1;
         double pivot = candidate[pivot_position].distance;
 
@@ -145,6 +166,27 @@ static void scps_assign_weights(ScpsCandidate *candidate, int n,
     }
 
     int tied = farther - closer;
+
+    /* When every unit of the cutoff group can take an equal share, the
+     * water filling below gives each exactly remaining / tied, so the sort
+     * is skipped.  Ties are the common case with categorical spreading
+     * variables, where the group can hold most of the pool at every step. */
+    if (tied > 0) {
+        double min_capacity = candidate[closer].capacity;
+        for (int k = closer + 1; k < farther; k++) {
+            if (candidate[k].capacity < min_capacity) {
+                min_capacity = candidate[k].capacity;
+            }
+        }
+        double share = remaining / tied;
+        if (min_capacity > share) {
+            for (int k = closer; k < farther; k++) {
+                candidate[k].weight = share;
+            }
+            return;
+        }
+    }
+
     qsort(candidate + closer, (size_t)tied, sizeof(ScpsCandidate),
           scps_capacity_compare);
 
@@ -190,7 +232,7 @@ static void scps_settle(SpatialPool *pool, double *prob, int id, double eps) {
  * Keeping that invariant numerically prevents tiny errors from accumulating
  * until a later maximal-weight system appears infeasible. */
 static int scps_correct_mass(SpatialPool *pool, double *prob, double correction,
-                             double eps) {
+                             double eps, double mass_tolerance) {
     double tolerance = 4.0 * DBL_EPSILON * (1.0 + fabs(correction));
 
     while (fabs(correction) > tolerance && pool->len > 0) {
@@ -211,12 +253,12 @@ static int scps_correct_mass(SpatialPool *pool, double *prob, double correction,
         double before = prob[best_id];
         prob[best_id] += change;
         double actual_change = prob[best_id] - before;
-        if (actual_change == 0.0) return fabs(correction) <= 1e-12;
+        if (actual_change == 0.0) return fabs(correction) <= mass_tolerance;
         correction -= actual_change;
         scps_settle(pool, prob, best_id, eps);
     }
 
-    return fabs(correction) <= 1e-12;
+    return fabs(correction) <= mass_tolerance;
 }
 
 static int scps_build_candidates(ScpsWorkspace *work, const double *prob,
@@ -248,17 +290,44 @@ static int scps_build_candidates(ScpsWorkspace *work, const double *prob,
     return n;
 }
 
+/* prn is NULL for the random-order design, or the permanent random
+ * numbers for the list-sequential one. */
 static int scps_run(double *prob, const double *spread, int N, int d,
-                    double eps, ScpsWorkspace *work) {
+                    double eps, const double *prn, ScpsWorkspace *work) {
     spatial_pool_fill(&work->pool, prob, N);
+
+    /* A fixed-size design cannot honor a pik that misses an integer total,
+     * and the input check admits such a residue.  It stays in the pool
+     * until the last step, where it shortens the capacity of the final
+     * neighbour by about residue / min(p, 1 - p), and where it is dropped. */
+    double pool_mass = 0.0;
+    for (int k = 0; k < work->pool.len; k++) {
+        pool_mass += prob[work->pool.list[k]];
+    }
+    double mass_excess = pool_mass - round(pool_mass);
+    double mass_tolerance = fabs(mass_excess) +
+                            128.0 * work->pool.capacity * DBL_EPSILON;
+    double correction_tolerance = fmax(1e-12, mass_tolerance);
+
+    uint64_t pivot_state = 0;
+    uint64_t *pivot_stream = (prn == NULL) ? NULL : &pivot_state;
+    int cursor = 0;
 
     int steps = 0;
     while (work->pool.len > 1) {
         if ((++steps & 255) == 0) R_CheckUserInterrupt();
 
-        int position = (int)(unif_rand() * work->pool.len);
-        if (position >= work->pool.len) position = work->pool.len - 1;
-        int step_id = work->pool.list[position];
+        int step_id;
+        if (prn == NULL) {
+            int position = (int)(unif_rand() * work->pool.len);
+            if (position >= work->pool.len) position = work->pool.len - 1;
+            step_id = work->pool.list[position];
+        } else {
+            /* Units only leave the pool, so every unit before the cursor is
+             * decided and the next undecided row is the step unit. */
+            while (work->pool.reverse[cursor] >= work->pool.len) cursor++;
+            step_id = cursor;
+        }
         double step_prob = prob[step_id];
 
         int n_candidates = scps_build_candidates(
@@ -271,20 +340,23 @@ static int scps_run(double *prob, const double *spread, int N, int d,
         }
 
         /* With an integer probability sum this condition follows from the
-         * CPS feasibility bounds.  Allow a small floating-point deficit. */
+         * CPS feasibility bounds.  A mass error e in the pool shortens the
+         * capacities, which are ratios over p or 1 - p, by up to
+         * e / min(p, 1 - p). */
         double feasibility_tolerance =
-            128.0 * work->pool.capacity * DBL_EPSILON;
+            mass_tolerance / fmin(step_prob, 1.0 - step_prob);
         if (total_capacity < 1.0 - feasibility_tolerance) {
             return 0;
         }
 
         double cutoff_target = fmin(1.0, total_capacity);
         double cutoff = scps_weighted_cutoff(
-            work->candidate, n_candidates, cutoff_target
+            work->candidate, n_candidates, cutoff_target, pivot_stream
         );
         scps_assign_weights(work->candidate, n_candidates, cutoff);
 
-        double outcome = (unif_rand() < step_prob) ? 1.0 : 0.0;
+        double u = (prn == NULL) ? unif_rand() : prn[step_id];
+        double outcome = (u < step_prob) ? 1.0 : 0.0;
         double displacement = outcome - step_prob;
         double mass_change = displacement;
         prob[step_id] = outcome;
@@ -301,7 +373,7 @@ static int scps_run(double *prob, const double *spread, int N, int d,
         }
 
         if (!scps_correct_mass(
-                &work->pool, prob, -mass_change, eps
+                &work->pool, prob, -mass_change, eps, correction_tolerance
             )) {
             return 0;
         }
@@ -318,9 +390,17 @@ static int scps_run(double *prob, const double *spread, int N, int d,
     return 1;
 }
 
-SEXP C_scps(SEXP pik_sexp, SEXP spread_sexp, SEXP eps_sexp) {
+SEXP C_scps(SEXP pik_sexp, SEXP spread_sexp, SEXP eps_sexp, SEXP prn_sexp) {
     const int N = length(pik_sexp);
     const int d = spatial_check_spread(spread_sexp, N);
+
+    const double *prn = NULL;
+    if (!isNull(prn_sexp)) {
+        if (!isReal(prn_sexp) || length(prn_sexp) != N) {
+            error("'prn' must be a double vector of length %d", N);
+        }
+        prn = REAL(prn_sexp);
+    }
 
     const double eps = asReal(eps_sexp);
     double *prob = (double *)R_alloc(N, sizeof(double));
@@ -330,9 +410,9 @@ SEXP C_scps(SEXP pik_sexp, SEXP spread_sexp, SEXP eps_sexp) {
     ScpsWorkspace work;
     scps_workspace_init(&work, N);
 
-    GetRNGstate();
-    int feasible = scps_run(prob, REAL(spread_sexp), N, d, eps, &work);
-    PutRNGstate();
+    if (prn == NULL) GetRNGstate();
+    int feasible = scps_run(prob, REAL(spread_sexp), N, d, eps, prn, &work);
+    if (prn == NULL) PutRNGstate();
     if (!feasible) error("SCPS maximal weights are numerically infeasible");
 
     int n_selected = sampling_extract_selected(prob, N, 0.5, selected, N);
@@ -366,7 +446,7 @@ SEXP C_scps_batch(SEXP pik_sexp, SEXP spread_sexp, SEXP eps_sexp,
     for (int draw = 0; draw < nrep; draw++) {
         if ((draw & 31) == 0) R_CheckUserInterrupt();
         memcpy(prob, pik, (size_t)N * sizeof(double));
-        int feasible = scps_run(prob, spread, N, d, eps, &work);
+        int feasible = scps_run(prob, spread, N, d, eps, NULL, &work);
         if (!feasible) {
             PutRNGstate();
             UNPROTECT(1);

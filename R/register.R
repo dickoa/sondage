@@ -35,10 +35,8 @@
 #'   default) means undeclared: consumers fall back on inferring a
 #'   treatment from `type` and `fixed_size`.
 #' @param supports_prn Does this method support permanent random
-#'   numbers for sample coordination? Set to `TRUE` or `FALSE` for
-#'   `"wor"` and `"wr"` methods. `NULL` (the default) resolves to
-#'   `FALSE`. Leave `NULL` for `"balanced"` methods; [balanced_wor()]
-#'   has no `prn` argument.
+#'   numbers for sample coordination? `TRUE` or `FALSE`, for every
+#'   method type. `NULL` (the default) resolves to `FALSE`.
 #' @param supports_aux Does this method use auxiliary balancing
 #'   variables? Set to `TRUE` or `FALSE` for `type = "balanced"`.
 #'   `NULL` (the default) resolves to `TRUE` for balanced methods and
@@ -137,6 +135,10 @@
 #'     `supports_spread = TRUE` and the caller supplies `spread`:
 #'     a numeric matrix (N x d, double) of spatial coordinates (or
 #'     other spreading variables). Declare it as `spread = NULL` in
+#'     your function signature.}
+#'   \item{`prn`}{Only when registered with `supports_prn = TRUE` and
+#'     the caller supplies `prn`: permanent random numbers (numeric
+#'     vector length N, values in (0,1)). Declare it as `prn = NULL` in
 #'     your function signature.}
 #'   \item{Returns}{Integer vector of distinct selected unit indices
 #'     (1-based). The dispatcher validates the returned indices.}
@@ -340,13 +342,6 @@ register_method <- function(
   if (type == "wr" && !fixed_size) {
     stop(
       "type = \"wr\" methods require fixed_size = TRUE",
-      call. = FALSE
-    )
-  }
-  if (type == "balanced" && !is.null(supports_prn)) {
-    stop(
-      "'supports_prn' only applies to type = \"wor\" or \"wr\"; ",
-      "balanced_wor() has no 'prn' argument",
       call. = FALSE
     )
   }
@@ -665,14 +660,20 @@ unregister_method <- function(name) {
   spread,
   method,
   nrep,
+  prn = NULL,
   ...
 ) {
   reg <- .method_registry[[method]]
   .check_registered_type(reg, "balanced")
-  nrep <- .check_nrep_prn(nrep)
+  nrep <- .check_nrep_prn(
+    nrep, prn, method, supports_prn = reg$supports_prn
+  )
 
   .check_pik(pik, fixed_size = reg$fixed_size)
   N <- length(pik)
+  if (!is.null(prn)) {
+    .check_prn(prn, N)
+  }
 
   if (!is.null(aux)) {
     if (!reg$supports_aux) {
@@ -738,6 +739,9 @@ unregister_method <- function(name) {
   }
   if (!is.null(spread)) {
     sample_args$spread <- spread
+  }
+  if (!is.null(prn)) {
+    sample_args$prn <- prn
   }
   sample_args <- c(sample_args, list(...))
 

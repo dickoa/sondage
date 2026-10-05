@@ -456,18 +456,32 @@ test_that("random-size WOR batching uses the selected raw hook", {
 
 test_that("shared spatial C validation remains defensive", {
   pik <- rep(0.5, 4)
-  symbols <- list(sondage:::C_lpm2, sondage:::C_scps)
-  for (symbol in symbols) {
-    expect_error(.Call(symbol, as.double(pik), 1:4, 1e-10), "numeric matrix")
+  # C_scps takes a fourth argument, prn (NULL outside PRN mode)
+  calls <- list(
+    function(...) .Call(sondage:::C_lpm2, ...),
+    function(...) .Call(sondage:::C_scps, ..., NULL)
+  )
+  for (call in calls) {
+    expect_error(call(as.double(pik), 1:4, 1e-10), "numeric matrix")
     expect_error(
-      .Call(symbol, as.double(pik), matrix(as.double(1:6), nrow = 3), 1e-10),
+      call(as.double(pik), matrix(as.double(1:6), nrow = 3), 1e-10),
       "does not match"
     )
     expect_error(
-      .Call(symbol, as.double(pik), matrix(numeric(), nrow = 4), 1e-10),
+      call(as.double(pik), matrix(numeric(), nrow = 4), 1e-10),
       "at least one column"
     )
   }
+
+  spread <- matrix(as.double(1:4), ncol = 1)
+  expect_error(
+    .Call(sondage:::C_scps, as.double(pik), spread, 1e-10, c(0.1, 0.2)),
+    "'prn' must be a double vector of length 4"
+  )
+  expect_error(
+    .Call(sondage:::C_scps, as.double(pik), spread, 1e-10, 1:4),
+    "'prn' must be a double vector of length 4"
+  )
 })
 
 test_that("cube option validation agrees between single and batch paths", {

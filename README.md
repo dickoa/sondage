@@ -173,7 +173,9 @@ inclusion_prob(sim) # generics still work
   well-spread sampling with the local pivotal method 2 (Grafström,
   Lundström & Schelin, 2012)
 - `balanced_wor(pik, spread, method = "scps")` - Spatially correlated
-  Poisson sampling with Grafström’s (2012) maximal-weight strategy
+  Poisson sampling with Grafström’s (2012) maximal-weight strategy,
+  coordinated across surveys with permanent random numbers through `prn`
+  (Grafström & Matei, 2018)
 
 ## Design queries
 
@@ -218,7 +220,7 @@ indices as row and column names so their units remain identifiable.
 | `chromy` | `unequal_prob_wr` | yes | yes | simulated | no |
 | `cube` | `balanced_wor` | yes | yes | approx (HE) | no |
 | `lpm2` | `balanced_wor` | yes | yes | not available | no |
-| `scps` | `balanced_wor` | yes | yes | not available | no |
+| `scps` | `balanced_wor` | yes | yes | not available | yes |
 
 †For WOR methods, design marginals are first-order inclusion
 probabilities `\pi_k`. For WR methods, design marginals are expected
