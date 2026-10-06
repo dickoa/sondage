@@ -1,17 +1,24 @@
 ## Purpose of this submission
 
-This release fixes the undefined behavior reported by the CRAN gcc-UBSan
-check on 0.9.0. `src/joint_probs.c` allocated its `long double` scratch
-buffers with `R_alloc()`, which guarantees only the alignment required by
-`double`; on x86-64 `long double` requires 16-byte alignment, so the loads
-and stores in the Sampford joint-probability code were misaligned. They now
-use `R_allocLD()`. Computed values are unchanged.
+This release adds one feature and fixes two defects present in 0.9.1.
 
-The short interval since 0.9.0 is because this addresses that report.
+* `balanced_wor(method = "scps")` failed with "SCPS maximal weights are
+  numerically infeasible" whenever `sum(pik)` missed an integer by a residue
+  the input check accepts. `inclusion_prob()` output routinely carries such
+  residues, so draws from realistic strata failed, in some cases on every
+  draw. The tolerance now scales with the residue.
+* `unequal_prob_wor(method = "cps")` did not converge when drawing one unit
+  (or all but one) with two inclusion probabilities near 0.5, warned, and
+  drew off target by up to 7e-3. One draw now uses its exact closed form.
+* New: `balanced_wor()` gains `prn` for coordinating samples with permanent
+  random numbers, supported by `method = "scps"`, and registered balanced
+  methods may declare PRN support. `scps` is also faster when many units
+  share a spreading value.
 
-I reproduced all 33 reported locations locally with a `-fsanitize=undefined`
-build, confirmed the fix silences every one of them, and confirmed the full
-test suite is also clean under `-fsanitize=address`.
+The compiled code changed in `src/scps.c`, `src/cps_core.h` and
+`src/init.c`. The full test suite and a stress run of the new code paths are
+clean under gcc `-fsanitize=undefined` and `-fsanitize=address` builds of
+the package.
 
 ## R CMD check results
 
