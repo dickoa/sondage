@@ -1731,12 +1731,12 @@ test_that("registered random-size methods receive the fractional n", {
   )
   pik <- inclusion_prob(rep(1, 10), 2.6)
   s <- unequal_prob_wor(pik, method = "frac_rs")
-  expect_identical(seen, 2.6)
-  expect_identical(s$n, 2.6)
+  expect_identical(seen, sum(pik))
+  expect_identical(s$n, sum(pik))
   s <- unequal_prob_wor(pik, method = "frac_rs", nrep = 3)
   expect_type(s$sample, "list")
   expect_length(s$sample, 3)
-  expect_identical(s$n, 2.6)
+  expect_identical(s$n, sum(pik))
 })
 
 test_that("registered random-size balanced methods receive the fractional n", {
@@ -1752,7 +1752,8 @@ test_that("registered random-size balanced methods receive the fractional n", {
     fixed_size = FALSE,
     probabilities = "exact"
   )
-  s <- balanced_wor(inclusion_prob(rep(1, 10), 2.6), method = "frac_bal")
-  expect_identical(seen, 2.6)
-  expect_identical(s$n, 2.6)
+  pik <- inclusion_prob(rep(1, 10), 2.6)
+  s <- balanced_wor(pik, method = "frac_bal")
+  expect_identical(seen, sum(pik))
+  expect_identical(s$n, sum(pik))
 })
