@@ -122,7 +122,9 @@ deliberately replacing a method.
 \strong{\code{sample_fn(pik, n = NULL, prn = NULL, ...)}} (type \code{"wor"})
 \describe{
 \item{\code{pik}}{Inclusion probabilities, numeric vector of length N.}
-\item{\code{n}}{Target sample size, equal to \code{round(sum(pik))}.}
+\item{\code{n}}{Sample size: \code{round(sum(pik))} for a fixed-size method,
+and the expected size \code{sum(pik)}, a double, for a method registered
+with \code{fixed_size = FALSE}.}
 \item{\code{prn}}{Permanent random numbers (numeric vector length N,
 values in (0,1)), or \code{NULL}. Supplying \code{prn} is an error when the
 method is registered with \code{supports_prn = FALSE}, and \code{sample_fn}

@@ -12,8 +12,8 @@
 #'   \item{`$n`}{Sample size. For designs with `$fixed_size = TRUE`, an
 #'   integer equal to the realized sample size. For random-size designs
 #'   (`$fixed_size = FALSE`), a double equal to the expected sample size:
-#'   `sum(pik)` for `"poisson"`, the user-supplied target for
-#'   `"bernoulli"`.}
+#'   `sum(pik)` for `"poisson"` and for registered methods with
+#'   `fixed_size = FALSE`, the user-supplied target for `"bernoulli"`.}
 #'   \item{`$N`}{Population size.}
 #'   \item{`$method`}{Sampling method name.}
 #'   \item{`$fixed_size`}{Whether the sample size is fixed by design.}

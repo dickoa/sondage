@@ -1,3 +1,18 @@
+# sondage 0.11.0
+
+* `inclusion_prob()` accepts a fractional `n`, the expected size of a
+  random-size design, from 0 up to the number of units with positive size.
+  Fixed-size samplers still require probabilities that sum to a whole
+  number. A value near a whole number is no longer rounded to it, so
+  `inclusion_prob(x, 6.99995)` now sums to 6.99995, not 7.
+
+* `inclusion_prob()` returns the correct probabilities when the positive
+  sizes span 1e200 or more. Once the large units were certain, the small
+  ones could get `NaN`, all be made certain so that the probabilities summed
+  to more than `n`, or be treated as zero-size: `c(1e-300, 1e-300, 1e10)`
+  with `n = 2` gave `1 1 1` instead of `0.5 0.5 1`. Inputs with a smaller
+  span give the same results as before, bit for bit.
+
 # sondage 0.10.0
 
 * `balanced_wor()` gains `prn` for sample coordination with permanent

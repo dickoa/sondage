@@ -68,7 +68,7 @@
     if (abs(s - round(s)) > tol) {
       stop(
         sprintf(
-          "sum(pik) = %.4g is not close to an integer",
+          "sum(pik) = %.6g is not close to an integer",
           s
         ),
         call. = FALSE
@@ -213,7 +213,7 @@
   r <- round(x)
   if (abs(x - r) > tol) {
     stop(
-      sprintf("%s (%.4g) is not close to an integer", name, x),
+      sprintf("%s (%.6g) is not close to an integer", name, x),
       call. = FALSE
     )
   }

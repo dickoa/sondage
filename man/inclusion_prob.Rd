@@ -22,8 +22,9 @@ without-replacement design object (class \code{"wor"}).}
 \item{...}{Reserved for methods. The methods provided by sondage currently
 take no additional arguments.}
 
-\item{n}{The desired sample size. Required when \code{x} is a numeric vector;
-it must not be supplied when \code{x} is a design object.}
+\item{n}{The desired sample size, or the expected sample size of a
+random-size design, which may be fractional. Required when \code{x} is a
+numeric vector. It must not be supplied when \code{x} is a design object.}
 }
 \value{
 A numeric vector of inclusion probabilities. When applied to a
@@ -45,6 +46,12 @@ are recomputed with reduced \eqn{n}. The result sums to exactly
 \eqn{n}. This differs from \code{\link[=expected_hits]{expected_hits()}}, which does simple
 proportional allocation without capping. Negative values in \code{x}
 are treated as zero (with a warning).
+
+\code{n} may be any real number from 0 to the number of units with positive
+size. A fractional \code{n} is the expected size of a random-size design,
+such as Poisson sampling. Fixed-size samplers, \code{\link[=unequal_prob_wor]{unequal_prob_wor()}}
+among them, require probabilities that sum to a whole number and refuse
+others.
 }
 \section{With-replacement designs}{
 
@@ -68,6 +75,12 @@ inclusion_prob(s)
 size <- c(1, 1, 1, 100)
 pik <- inclusion_prob(size, n = 2)
 pik  # Unit 4 gets probability 1
+
+# The expected size of a random-size design need not be a whole number
+pik <- inclusion_prob(rep(1, 10), n = 2.6)
+sum(pik)  # 2.6
+unequal_prob_wor(pik, method = "poisson")       # valid
+try(unequal_prob_wor(pik, method = "sampford")) # refused: fixed size
 
 }
 \seealso{

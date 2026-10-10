@@ -86,8 +86,147 @@ test_that("inclusion_prob rejects non-numeric x", {
   expect_error(inclusion_prob(c("a", "b", "c"), n = 1), "numeric vector")
 })
 
-test_that("inclusion_prob rejects non-integer n", {
-  expect_error(inclusion_prob(1:10, n = 2.9), "not close to an integer")
+test_that("inclusion_prob accepts a fractional expected size", {
+  expect_equal(inclusion_prob(rep(1, 10), n = 2.6), rep(0.26, 10))
+  expect_equal(inclusion_prob(c(1, 2, 3), n = 1.2), c(0.2, 0.4, 0.6))
+  # Capping redistributes and the sum is still n.
+  expect_equal(inclusion_prob(c(100, 1, 1), n = 1.6), c(1, 0.3, 0.3))
+  expect_equal(
+    inclusion_prob(c(1, 1, 1, 100, 100), n = 2.6),
+    c(0.2, 0.2, 0.2, 1, 1)
+  )
+  # Several rounds of capping with a fractional remainder.
+  expect_equal(
+    inclusion_prob(c(1, 1, 1, 1, 10, 50, 100), n = 3.5),
+    c(rep(0.125, 4), 1, 1, 1)
+  )
+  expect_equal(inclusion_prob(c(0, 0, 0, 5, 5), n = 1.6), c(0, 0, 0, 0.8, 0.8))
+})
+
+test_that("inclusion_prob keeps small and near-integer targets", {
+  expect_equal(sum(inclusion_prob(1:5, n = 0.2)), 0.2)
+  expect_equal(sum(inclusion_prob(1:5, n = 1e-8)), 1e-8)
+  expect_equal(sum(inclusion_prob(1:5, n = 1e-12)), 1e-12)
+  expect_equal(sum(inclusion_prob(1:10, n = 2.5)), 2.5)
+  # No longer snapped to 7, and a fixed-size sampler refuses it.
+  p <- inclusion_prob(1:10, n = 6.99995)
+  expect_equal(sum(p), 6.99995)
+  expect_error(
+    unequal_prob_wor(p, method = "brewer"),
+    "sum\\(pik\\) = 6.99995 is not close to an integer"
+  )
+})
+
+test_that("inclusion_prob handles the ends of its domain", {
+  expect_identical(inclusion_prob(c(0, 0, 0), n = 0), c(0, 0, 0))
+  expect_identical(inclusion_prob(numeric(0), n = 0), numeric(0))
+  expect_equal(inclusion_prob(c(0, 3, 0, 5, 5), n = 3), c(0, 1, 0, 1, 1))
+  x <- c(3, 7, 1, 20, 9)
+  expect_equal(inclusion_prob(x * 1e-200, n = 2.6), inclusion_prob(x, 2.6))
+  expect_equal(inclusion_prob(x * 1e200, n = 2.6), inclusion_prob(x, 2.6))
+})
+
+test_that("a target above the positive sizes is refused", {
+  msg <- "exceeds the number of units with positive size"
+  expect_error(inclusion_prob(c(0, 0, 0, 5, 5), n = 2.4), paste(msg, "\\(2\\)"))
+  expect_error(
+    inclusion_prob(c(0, 0, 0, 5, 5), n = 2 + 1e-9),
+    paste(msg, "\\(2\\)")
+  )
+  expect_error(inclusion_prob(c(0, 0, 0), n = 0.3), paste(msg, "\\(0\\)"))
+  expect_error(inclusion_prob(c(0, 0, 0), n = 1e-12), paste(msg, "\\(0\\)"))
+  # The message reports n as given.
+  expect_error(inclusion_prob(c(0, 0, 0, 5, 5), n = 2.6), "'n' \\(2.6\\)")
+  expect_error(inclusion_prob(numeric(0), n = 1), "cannot exceed length")
+})
+
+test_that("inclusion_prob survives extreme size ratios", {
+  # Once the large units are certain, the rest are subnormal or 0 against
+  # the largest size. A zero-size unit used to get 0 * Inf = NaN, and the
+  # small units were all capped or all lost.
+  expect_identical(inclusion_prob(c(0, 1e-300, 1e10), n = 2), c(0, 1, 1))
+  expect_equal(inclusion_prob(c(0, 1e-300, 1e10), n = 1.6), c(0, 0.6, 1))
+  expect_equal(inclusion_prob(c(1e-300, 1e-300, 1e10), n = 2), c(0.5, 0.5, 1))
+  expect_equal(inclusion_prob(c(1e-300, 3e-300, 1e10), n = 2), c(0.25, 0.75, 1))
+  expect_equal(
+    inclusion_prob(c(1e-200, 1e-200, 1e200), n = 1.5),
+    c(0.25, 0.25, 1)
+  )
+  expect_equal(
+    inclusion_prob(c(1e-300, 1e-300, 1e-300, 1e10, 1e10), n = 2.7),
+    c(rep(0.7 / 3, 3), 1, 1)
+  )
+  # A size that underflows to 0 against the largest is still positive.
+  expect_equal(inclusion_prob(c(1e-320, 1e10), n = 1.5), c(0.5, 1))
+  expect_equal(inclusion_prob(c(1e-320, 1e10), n = 2), c(1, 1))
+  expect_equal(
+    inclusion_prob(c(1e-320, 3e-320, 1e10, 1e300), n = 2.5),
+    c(0.125, 0.375, 1, 1)
+  )
+  # The message reports n to 15 digits.
+  expect_error(inclusion_prob(c(0, 5, 5), n = 2 + 1e-9), "'n' \\(2.000000001\\)")
+})
+
+test_that("inclusion_prob matches an exact solution across extreme ratios", {
+  # The k largest units are certain and lambda = (n - k) / sum(rest),
+  # solved in log space so that no size ratio overflows.
+  ref_exact <- function(x, n) {
+    out <- numeric(length(x))
+    pos <- which(x > 0)
+    o <- pos[order(x[pos], decreasing = TRUE)]
+    lx <- log(x[o])
+    P <- length(o)
+    for (k in 0:(P - 1)) {
+      if (n - k <= 0) break
+      rest <- lx[(k + 1):P]
+      ll <- log(n - k) - (max(rest) + log(sum(exp(rest - max(rest)))))
+      if (ll + lx[k + 1] <= 0) {
+        out[o] <- c(rep(1, k), exp(ll + rest))
+        return(out)
+      }
+    }
+    out[o] <- 1
+    out
+  }
+  set.seed(20261011)
+  for (k in 1:300) {
+    N <- sample(2:30, 1)
+    x <- 10^runif(N, sample(c(-320, -250, -100), 1), 300)
+    x[sample(N, sample(0:(N - 1), 1))] <- 0
+    P <- sum(x > 0)
+    n <- switch(sample(3, 1), runif(1, 0, P), P, P - runif(1) * 1e-9)
+    expect_lt(max(abs(inclusion_prob(x, n) - ref_exact(x, n))), 1e-10)
+  }
+})
+
+test_that("inclusion_prob matches a bisection reference on random inputs", {
+  ref_pik <- function(x, n) {
+    f <- function(l) sum(pmin(1, l * x)) - n
+    hi <- 2 / min(x[x > 0])
+    pmin(1, stats::uniroot(f, c(0, hi), tol = 1e-15)$root * x)
+  }
+  set.seed(20261010)
+  for (k in 1:300) {
+    N <- sample(2:40, 1)
+    x <- rexp(N)^sample(c(1, 4), 1)
+    x[sample(N, sample(0:(N - 1), 1))] <- 0
+    n <- runif(1, 0.01, sum(x > 0) - 0.01)
+    expect_equal(inclusion_prob(x, n), ref_pik(x, n), tolerance = 1e-8)
+  }
+})
+
+test_that("fixed-size samplers refuse a fractional sum", {
+  p <- inclusion_prob(1:10, n = 2.6)
+  for (m in c("brewer", "sampford", "cps", "systematic")) {
+    expect_error(unequal_prob_wor(p, method = m), "not close to an integer")
+  }
+  s <- unequal_prob_wor(p, method = "poisson")
+  expect_equal(s$pik, p)
+  expect_equal(s$n, 2.6)
+})
+
+test_that("n near an integer is reported with six digits", {
+  expect_error(equal_prob_wor(10, 7.0002), "n \\(7.0002\\)")
 })
 
 test_that("inclusion_prob rejects Inf n", {

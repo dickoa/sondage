@@ -83,9 +83,10 @@ removed because it silently changed the design.}
 An object of class \code{c("unequal_prob", "wor", "sondage_sample")}.
 When \code{nrep = 1}, \verb{$sample} is an integer vector of selected unit indices.
 When \code{nrep > 1}, \verb{$sample} is a matrix (n x nrep) for fixed-size methods,
-or a list of integer vectors of varying lengths for random-size methods (\code{"poisson"}).
+or a list of integer vectors of varying lengths for random-size methods
+(\code{"poisson"} and registered methods with \code{fixed_size = FALSE}).
 \verb{$n} is an integer for fixed-size methods (realized size) and a
-double for \code{"poisson"} (expected size, \code{sum(pik)}). See
+double for random-size methods (expected size, \code{sum(pik)}). See
 \link{sondage_sample}.
 }
 \description{

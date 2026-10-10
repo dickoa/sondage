@@ -1715,3 +1715,44 @@ test_that("registered joint methods must return a valid matrix", {
     expect_error(joint_inclusion_prob(s), method, info = case)
   }
 })
+
+test_that("registered random-size methods receive the fractional n", {
+  seen <- NULL
+  on.exit(unregister_method("frac_rs"), add = TRUE)
+  register_method(
+    "frac_rs",
+    "wor",
+    sample_fn = function(pik, n = NULL, prn = NULL, ...) {
+      seen <<- n
+      which(stats::runif(length(pik)) < pik)
+    },
+    fixed_size = FALSE,
+    probabilities = "exact"
+  )
+  pik <- inclusion_prob(rep(1, 10), 2.6)
+  s <- unequal_prob_wor(pik, method = "frac_rs")
+  expect_identical(seen, 2.6)
+  expect_identical(s$n, 2.6)
+  s <- unequal_prob_wor(pik, method = "frac_rs", nrep = 3)
+  expect_type(s$sample, "list")
+  expect_length(s$sample, 3)
+  expect_identical(s$n, 2.6)
+})
+
+test_that("registered random-size balanced methods receive the fractional n", {
+  seen <- NULL
+  on.exit(unregister_method("frac_bal"), add = TRUE)
+  register_method(
+    "frac_bal",
+    "balanced",
+    sample_fn = function(pik, n = NULL, aux = NULL, ...) {
+      seen <<- n
+      which(stats::runif(length(pik)) < pik)
+    },
+    fixed_size = FALSE,
+    probabilities = "exact"
+  )
+  s <- balanced_wor(inclusion_prob(rep(1, 10), 2.6), method = "frac_bal")
+  expect_identical(seen, 2.6)
+  expect_identical(s$n, 2.6)
+})

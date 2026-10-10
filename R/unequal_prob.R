@@ -67,9 +67,10 @@
 #' @return An object of class `c("unequal_prob", "wor", "sondage_sample")`.
 #'   When `nrep = 1`, `$sample` is an integer vector of selected unit indices.
 #'   When `nrep > 1`, `$sample` is a matrix (n x nrep) for fixed-size methods,
-#'   or a list of integer vectors of varying lengths for random-size methods (`"poisson"`).
+#'   or a list of integer vectors of varying lengths for random-size methods
+#'   (`"poisson"` and registered methods with `fixed_size = FALSE`).
 #'   `$n` is an integer for fixed-size methods (realized size) and a
-#'   double for `"poisson"` (expected size, `sum(pik)`). See
+#'   double for random-size methods (expected size, `sum(pik)`). See
 #'   [sondage_sample].
 #'
 #' @references

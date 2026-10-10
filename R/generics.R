@@ -5,8 +5,9 @@
 #'
 #' @param x A numeric vector of positive size measures, or a
 #'   without-replacement design object (class `"wor"`).
-#' @param n The desired sample size. Required when `x` is a numeric vector;
-#'   it must not be supplied when `x` is a design object.
+#' @param n The desired sample size, or the expected sample size of a
+#'   random-size design, which may be fractional. Required when `x` is a
+#'   numeric vector. It must not be supplied when `x` is a design object.
 #' @param ... Reserved for methods. The methods provided by sondage currently
 #'   take no additional arguments.
 #'
@@ -72,11 +73,23 @@ inclusion_prob.wr <- function(x, ...) {
 #' proportional allocation without capping. Negative values in `x`
 #' are treated as zero (with a warning).
 #'
+#' `n` may be any real number from 0 to the number of units with positive
+#' size. A fractional `n` is the expected size of a random-size design,
+#' such as Poisson sampling. Fixed-size samplers, [unequal_prob_wor()]
+#' among them, require probabilities that sum to a whole number and refuse
+#' others.
+#'
 #' @examples
 #' # With certainty selections (large units)
 #' size <- c(1, 1, 1, 100)
 #' pik <- inclusion_prob(size, n = 2)
 #' pik  # Unit 4 gets probability 1
+#'
+#' # The expected size of a random-size design need not be a whole number
+#' pik <- inclusion_prob(rep(1, 10), n = 2.6)
+#' sum(pik)  # 2.6
+#' unequal_prob_wor(pik, method = "poisson")       # valid
+#' try(unequal_prob_wor(pik, method = "sampford")) # refused: fixed size
 #'
 #' @export
 inclusion_prob.default <- function(x, n, ...) {
@@ -86,7 +99,7 @@ inclusion_prob.default <- function(x, n, ...) {
   if (missing(n)) {
     stop("'n' is required when 'x' is not a design object", call. = FALSE)
   }
-  n <- .check_number(n, "n", integer = TRUE)
+  n <- .check_number(n, "n")
   if (n < 0) {
     stop("'n' must be non-negative", call. = FALSE)
   }

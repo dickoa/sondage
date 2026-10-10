@@ -91,7 +91,9 @@
 #' **`sample_fn(pik, n = NULL, prn = NULL, ...)`** (type `"wor"`)
 #' \describe{
 #'   \item{`pik`}{Inclusion probabilities, numeric vector of length N.}
-#'   \item{`n`}{Target sample size, equal to `round(sum(pik))`.}
+#'   \item{`n`}{Sample size: `round(sum(pik))` for a fixed-size method,
+#'     and the expected size `sum(pik)`, a double, for a method registered
+#'     with `fixed_size = FALSE`.}
 #'   \item{`prn`}{Permanent random numbers (numeric vector length N,
 #'     values in (0,1)), or `NULL`. Supplying `prn` is an error when the
 #'     method is registered with `supports_prn = FALSE`, and `sample_fn`
