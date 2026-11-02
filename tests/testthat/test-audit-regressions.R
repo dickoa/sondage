@@ -1,5 +1,4 @@
-# Regression tests for the 2026-07-10 algorithm audit
-# (dev/ALGORITHM_AUDIT.md, fix plan dev/ALGORITHM_FIX_PLAN.md).
+# Regression tests for the 2026-07-10 algorithm audit.
 #
 # These encode the post-fix contracts:
 #   - eps never modifies the design (only exact 0/1 are special),

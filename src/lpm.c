@@ -3,7 +3,7 @@
  *
  * Spatially balanced (well-spread) sampling with prescribed inclusion
  * probabilities. Repeatedly, a randomly chosen undecided unit and its
- * nearest undecided neighbour in the spreading space compete in a
+ * nearest undecided neighbor in the spreading space compete in a
  * pivotal step (Deville & Tillé, 1998), which resolves at least one of
  * the two to 0 or 1 while preserving E(s) = pik. Nearby units thus
  * tend to exclude each other, spreading the sample.
@@ -16,25 +16,34 @@
  *     without replacement through a splitting method. Biometrika,
  *     85(1), 89-101.
  *
- * Nearest-neighbour ties are broken uniformly at random (reservoir
+ * Nearest-neighbor ties are broken uniformly at random (reservoir
  * over tied candidates), which the design needs for E(s) = pik to
  * hold on gridded coordinates where exact distance ties are common.
  *
- * The neighbour search is a linear scan over undecided units, so a
- * draw is O(N^2 * d). Fine for typical design sizes; a k-d tree would
- * take this to O(N log N) if ever needed.
+ * With at most LPM_KDTREE_MAX_DIM spreading variables the neighbor
+ * search uses the static k-d tree of kdtree_core.h, so a draw costs
+ * about O(N log N). Above that the tree prunes too little and a linear
+ * scan over undecided units is used, O(N^2 * d) per draw. Both searches
+ * find the same set of nearest units. The tree replays its ties in pool
+ * order, so with no exact distance ties both consume the same random
+ * numbers. The scan also draws for transient ties at a distance that a
+ * later unit beats, so with exact ties a seed can select differently,
+ * always uniformly among the nearest units.
  */
 
 #include "sampling_core.h"
 #include "spatial_core.h"
+#include "kdtree_core.h"
 #include <R.h>
 #include <R_ext/Utils.h>
 #include <Rinternals.h>
 #include <string.h>
 
-/* Nearest undecided neighbour of id1 in the spreading space; exact
- * distance ties are broken uniformly at random. `z` is column-major
- * N x d. Requires pool->len >= 2. */
+#define LPM_KDTREE_MAX_DIM 8
+
+/* Nearest undecided neighbor of id1 in the spreading space by linear
+ * scan; exact distance ties are broken uniformly at random. `z` is
+ * column-major N x d. Requires pool->len >= 2. */
 static int lpm_nearest(const SpatialPool *pool, const double *z, int N, int d,
                        int id1) {
   int best = -1;
@@ -46,13 +55,7 @@ static int lpm_nearest(const SpatialPool *pool, const double *z, int N, int d,
     if (id == id1)
       continue;
 
-    double dist = 0.0;
-    for (int c = 0; c < d; c++) {
-      double diff = z[id + c * N] - z[id1 + c * N];
-      dist += diff * diff;
-      if (dist > best_dist)
-        break;
-    }
+    double dist = kd_dist(z, N, d, id, id1, best_dist);
 
     if (dist < best_dist) {
       best_dist = dist;
@@ -68,23 +71,89 @@ static int lpm_nearest(const SpatialPool *pool, const double *z, int N, int d,
   return best;
 }
 
+/* Nearest undecided neighbor of id1 through the k-d tree. The tied
+ * units are ordered by pool position and resolved with the reservoir of
+ * lpm_nearest(), one uniform draw per tie after the first. */
+static int lpm_nearest_tree(KdTree *tree, const SpatialPool *pool, int id1) {
+  int n_ties = kd_nearest(tree, id1);
+  int *ties = tree->ties;
+
+#ifdef SONDAGE_KDTREE_CHECK
+  {
+    /* Debug builds only: the tree must find exactly the units at the
+     * minimum distance that a full scan finds. */
+    double best = R_PosInf;
+    int n_scan = 0;
+    for (int k = 0; k < pool->len; k++) {
+      int id = pool->list[k];
+      if (id == id1)
+        continue;
+      double dist = kd_dist(tree->z, tree->N, tree->d, id, id1, R_PosInf);
+      if (dist < best) {
+        best = dist;
+        n_scan = 1;
+      } else if (dist == best) {
+        n_scan++;
+      }
+    }
+    int found = 0;
+    for (int i = 0; i < n_ties; i++) {
+      double dist =
+          kd_dist(tree->z, tree->N, tree->d, ties[i], id1, R_PosInf);
+      if (dist == best && pool->reverse[ties[i]] < pool->len)
+        found++;
+    }
+    if (found != n_scan || n_ties != n_scan)
+      error("k-d tree check failed for unit %d: tree %d ties, scan %d",
+            id1 + 1, n_ties, n_scan);
+  }
+#endif
+
+  if (n_ties == 1)
+    return ties[0];
+
+  for (int i = 1; i < n_ties; i++) {
+    int id = ties[i];
+    int pos = pool->reverse[id];
+    int j = i - 1;
+    while (j >= 0 && pool->reverse[ties[j]] > pos) {
+      ties[j + 1] = ties[j];
+      j--;
+    }
+    ties[j + 1] = id;
+  }
+  int best = ties[0];
+  for (int i = 1; i < n_ties; i++) {
+    if (unif_rand() * (i + 1) < 1.0)
+      best = ties[i];
+  }
+  return best;
+}
+
 /* Move prob[id] out of the pool once it has numerically reached a
  * boundary; snaps to exactly 0 or 1 so extraction is unambiguous. */
-static void lpm_settle(SpatialPool *pool, double *prob, int id, double eps) {
+static void lpm_settle(SpatialPool *pool, KdTree *tree, double *prob, int id,
+                       double eps) {
   if (prob[id] <= eps) {
     prob[id] = 0.0;
-    spatial_pool_remove(pool, id);
   } else if (prob[id] >= 1.0 - eps) {
     prob[id] = 1.0;
-    spatial_pool_remove(pool, id);
+  } else {
+    return;
   }
+  spatial_pool_remove(pool, id);
+  if (tree)
+    kd_remove(tree, id);
 }
 
 /* One LPM2 draw over the working probabilities in `prob`. On return
- * every prob[i] is exactly 0 or 1. */
+ * every prob[i] is exactly 0 or 1. `tree`, when not NULL, was built from
+ * the same starting probabilities and is reset here. */
 static void lpm2_run(double *prob, const double *z, int N, int d, double eps,
-                     SpatialPool *pool) {
+                     SpatialPool *pool, KdTree *tree) {
   spatial_pool_fill(pool, prob, N);
+  if (tree)
+    kd_reset(tree);
 
   int steps = 0;
   while (pool->len > 1) {
@@ -95,7 +164,8 @@ static void lpm2_run(double *prob, const double *z, int N, int d, double eps,
     if (k1 >= pool->len)
       k1 = pool->len - 1; /* Safety clamp */
     int id1 = pool->list[k1];
-    int id2 = lpm_nearest(pool, z, N, d, id1);
+    int id2 = tree ? lpm_nearest_tree(tree, pool, id1)
+                   : lpm_nearest(pool, z, N, d, id1);
 
     /* Pivotal step (Deville & Tillé, 1998): the pair's total
      * probability mass is preserved, one unit reaches 0 or 1. */
@@ -124,8 +194,8 @@ static void lpm2_run(double *prob, const double *z, int N, int d, double eps,
       }
     }
 
-    lpm_settle(pool, prob, id1, eps);
-    lpm_settle(pool, prob, id2, eps);
+    lpm_settle(pool, tree, prob, id1, eps);
+    lpm_settle(pool, tree, prob, id2, eps);
   }
 
   /* A leftover unit only carries the rounding residue of an integer
@@ -148,9 +218,10 @@ SEXP C_lpm2(SEXP pik_sexp, SEXP z_sexp, SEXP eps_sexp) {
   memcpy(prob, REAL(pik_sexp), (size_t)N * sizeof(double));
 
   SpatialPool *pool = spatial_pool_alloc(N);
+  KdTree *tree = (d <= LPM_KDTREE_MAX_DIM) ? kd_build(z, N, d, prob) : NULL;
 
   GetRNGstate();
-  lpm2_run(prob, z, N, d, eps, pool);
+  lpm2_run(prob, z, N, d, eps, pool, tree);
   PutRNGstate();
 
   int n_selected = sampling_extract_selected(prob, N, 0.5, selected, N);
@@ -185,6 +256,7 @@ SEXP C_lpm2_batch(SEXP pik_sexp, SEXP z_sexp, SEXP eps_sexp, SEXP nrep_sexp) {
 
   double *prob = (double *)R_alloc(N, sizeof(double));
   SpatialPool *pool = spatial_pool_alloc(N);
+  KdTree *tree = (d <= LPM_KDTREE_MAX_DIM) ? kd_build(z, N, d, pik) : NULL;
 
   GetRNGstate();
   for (int s = 0; s < nrep; s++) {
@@ -192,7 +264,7 @@ SEXP C_lpm2_batch(SEXP pik_sexp, SEXP z_sexp, SEXP eps_sexp, SEXP nrep_sexp) {
       R_CheckUserInterrupt();
 
     memcpy(prob, pik, (size_t)N * sizeof(double));
-    lpm2_run(prob, z, N, d, eps, pool);
+    lpm2_run(prob, z, N, d, eps, pool, tree);
 
     int *col = res + (R_xlen_t)s * n_target;
     int n_selected = sampling_extract_selected(prob, N, 0.5, col, n_target);

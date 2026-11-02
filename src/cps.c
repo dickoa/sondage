@@ -32,6 +32,15 @@ static int cps_complement_to_selected(const int *comp_idx, int m, int N,
     return 0;
 }
 
+/*
+ * Certainty units are written before the drawn units, and each group is
+ * ascending. Sort a mixed sample so it comes out in ascending unit order
+ * like the other without-replacement methods.
+ */
+static void cps_sort_mixed(int *out, int n_total, int N_certain) {
+    if (N_certain > 0 && N_certain < n_total) R_isort(out, n_total);
+}
+
 SEXP C_cps_single(SEXP pik_sexp) {
     const double *pik_full = REAL(pik_sexp);
     const int N_full = LENGTH(pik_sexp);
@@ -89,6 +98,7 @@ SEXP C_cps_single(SEXP pik_sexp) {
         for (int i = 0; i < N; i++) {
             out[out_idx++] = idx_map[i] + 1;
         }
+        cps_sort_mixed(out, n_total, N_certain);
         UNPROTECT(1);
         return result;
     }
@@ -144,6 +154,7 @@ SEXP C_cps_single(SEXP pik_sexp) {
         }
         out[out_idx++] = idx_map[selected_idx[i]] + 1;
     }
+    cps_sort_mixed(out, n_total, N_certain);
 
     UNPROTECT(1);
     return result;
@@ -317,6 +328,7 @@ SEXP C_cps_draw_batch(SEXP design, SEXP n_samples_sexp) {
             for (int i = 0; i < N; i++) {
                 col[i] = idx_map[i];
             }
+            cps_sort_mixed(col - N_certain, n_total, N_certain);
         }
         UNPROTECT(1);
         return result;
@@ -367,6 +379,7 @@ SEXP C_cps_draw_batch(SEXP design, SEXP n_samples_sexp) {
             }
             col[i] = idx_map[selected_idx[i]];
         }
+        cps_sort_mixed(col - N_certain, n_total, N_certain);
     }
 
     PutRNGstate();

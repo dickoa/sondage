@@ -40,7 +40,7 @@
 #include <float.h>
 #include <limits.h>
 
-/* Row-major indexing (for RREF working matrix) */
+/* Row-major indexing (for the row reduction working matrix) */
 #define IDX_RM(row, col, ncols) ((row) * (ncols) + (col))
 
 /* Column-major indexing (for R matrices) */
@@ -51,8 +51,8 @@
 #define PROB_IS_ONE(p, eps)  ((p) > 1.0 - (eps))
 #define PROB_IS_INT(p, eps)  (PROB_IS_ZERO(p, eps) || PROB_IS_ONE(p, eps))
 
-/* Tolerance for RREF pivoting (relative to eps) */
-#define RREF_TOL(eps) ((eps) * 0.01)
+/* Tolerance for pivoting in the row reduction (relative to eps) */
+#define PIVOT_TOL(eps) ((eps) * 0.01)
 
 /* Inequality row states (cube with bounds) */
 #define ROW_INACTIVE 0  /* strict inequality: slack > 0, caps the step */
@@ -78,7 +78,8 @@ typedef struct {
     double eps;         /* Numerical tolerance */
     double *prob;       /* Working probabilities [N] */
     double *amat;       /* A = X / pi, column-major [N x p] */
-    double *bmat;       /* Working matrix, row-major, for RREF */
+    double *bmat;       /* Working matrix, row-major, for row reduction */
+    int *pivcol;        /* Pivot column of each reduced row [p+q+1] */
     double *uvec;       /* Null space vector [p+q+1] */
     int *candidates;    /* Current candidate indices [p+q+1] */
     IndexList *idx;     /* Active index list */
@@ -150,8 +151,17 @@ static void indexlist_shuffle(IndexList *il) {
     }
 }
 
-/* Returns the rank (number of pivots placed). */
-static int cube_rref(double *mat, int nrows, int ncols, double tol) {
+/* Reduce mat (nrows x ncols, row-major) to row echelon form by Gaussian
+ * elimination with partial pivoting. Each pivot is scaled to 1 and
+ * eliminated from the rows below it only. pivcol[i] receives the pivot
+ * column of row i. Returns the rank (number of pivots placed).
+ *
+ * The pivot rows and the rows below them see the same operations as in
+ * a full Gauss-Jordan reduction, so pivots and rank are the same. Back
+ * substitution in cube_null_vector() replaces the upward elimination,
+ * which saves about a third of the work. */
+static int cube_echelon(double *mat, int nrows, int ncols, double tol,
+                     int *pivcol) {
     int lead = 0;
     int rank = 0;
 
@@ -177,7 +187,7 @@ static int cube_rref(double *mat, int nrows, int ncols, double tol) {
         }
 
         if (best != r) {
-            for (int k = 0; k < ncols; k++) {
+            for (int k = lead; k < ncols; k++) {
                 double tmp = mat[IDX_RM(best, k, ncols)];
                 mat[IDX_RM(best, k, ncols)] = mat[IDX_RM(r, k, ncols)];
                 mat[IDX_RM(r, k, ncols)] = tmp;
@@ -190,9 +200,7 @@ static int cube_rref(double *mat, int nrows, int ncols, double tol) {
             mat[IDX_RM(r, k, ncols)] /= pivot;
         }
 
-        for (int j = 0; j < nrows; j++) {
-            if (j == r) continue;
-
+        for (int j = r + 1; j < nrows; j++) {
             double factor = mat[IDX_RM(j, lead, ncols)];
             if (fabs(factor) < tol) {
                 mat[IDX_RM(j, lead, ncols)] = 0.0;
@@ -204,6 +212,7 @@ static int cube_rref(double *mat, int nrows, int ncols, double tol) {
             }
         }
 
+        pivcol[rank] = lead;
         lead++;
         rank++;
     }
@@ -211,8 +220,12 @@ static int cube_rref(double *mat, int nrows, int ncols, double tol) {
     return rank;
 }
 
+/* A vector u with mat u = 0, from the echelon form of cube_echelon().
+ * Free entries are set to alternating -1, +1, then the pivot entries are
+ * solved from the last pivot row upward. When the only free column is
+ * the last one, it is set to +1. Requires rank < ncols. */
 static void cube_null_vector(double *uvec, const double *mat, int nrows,
-                             int ncols, double tol) {
+                             int ncols, const int *pivcol, int rank) {
     if (nrows <= 0) {
         for (int k = 0; k < ncols; k++) {
             uvec[k] = 0.0;
@@ -221,32 +234,22 @@ static void cube_null_vector(double *uvec, const double *mat, int nrows,
         return;
     }
 
-    if (nrows == ncols - 1 &&
-        fabs(mat[IDX_RM(nrows - 1, nrows - 1, ncols)] - 1.0) < tol) {
+    if (nrows == ncols - 1 && rank == nrows && rank > 0 &&
+        pivcol[rank - 1] == rank - 1) {
         uvec[ncols - 1] = 1.0;
-        for (int i = 0; i < nrows; i++) {
-            uvec[i] = -mat[IDX_RM(i, ncols - 1, ncols)];
+    } else {
+        for (int k = 0; k < ncols; k++) {
+            uvec[k] = (k % 2 == 0) ? -1.0 : 1.0;
         }
-        return;
     }
 
-    for (int k = 0; k < ncols; k++) {
-        uvec[k] = (k % 2 == 0) ? -1.0 : 1.0;
-    }
-
-    for (int i = 0; i < nrows; i++) {
-        int lead = 0;
-
-        for (; lead < ncols; lead++) {
-            if (fabs(mat[IDX_RM(i, lead, ncols)] - 1.0) < tol) break;
-        }
-
-        if (lead >= ncols) continue;
-
-        uvec[lead] = 0.0;
+    for (int i = rank - 1; i >= 0; i--) {
+        int lead = pivcol[i];
+        double v = 0.0;
         for (int k = lead + 1; k < ncols; k++) {
-            uvec[lead] -= uvec[k] * mat[IDX_RM(i, k, ncols)];
+            v -= uvec[k] * mat[IDX_RM(i, k, ncols)];
         }
+        uvec[lead] = v;
     }
 }
 
@@ -263,6 +266,7 @@ static CubeWorkspace *cube_workspace_alloc(int N, int p, int q, double eps) {
     ws->amat = (double *)R_alloc((size_t)N * p, sizeof(double));
     ws->bmat = (double *)R_alloc((size_t)(pq + 1) * (pq + 1), sizeof(double));
     ws->uvec = (double *)R_alloc(pq + 1, sizeof(double));
+    ws->pivcol = (int *)R_alloc(pq + 1, sizeof(int));
     ws->candidates = (int *)R_alloc(pq + 1, sizeof(int));
 
     ws->idx = indexlist_alloc(N);
@@ -389,7 +393,7 @@ static void cube_ineq_reset(CubeWorkspace *ws) {
 static int cube_update(CubeWorkspace *ws, int n_cand,
                        const int *cons_ids, int ncons) {
     double eps = ws->eps;
-    double tol = RREF_TOL(eps);
+    double tol = PIVOT_TOL(eps);
 
     int nrows = ncons;
     int ncols = n_cand;
@@ -407,11 +411,11 @@ static int cube_update(CubeWorkspace *ws, int n_cand,
         }
     }
 
-    int rank = cube_rref(ws->bmat, nrows, ncols, tol);
+    int rank = cube_echelon(ws->bmat, nrows, ncols, tol, ws->pivcol);
     if (rank >= ncols) {
         return -1;
     }
-    cube_null_vector(ws->uvec, ws->bmat, nrows, ncols, tol);
+    cube_null_vector(ws->uvec, ws->bmat, nrows, ncols, ws->pivcol, rank);
 
     if (ws->q > 0) {
         /* Max-norm normalization so the inequality caps and the stall
@@ -569,9 +573,19 @@ static void cube_flight(CubeWorkspace *ws) {
         ws->n_eq = ws->p;
     }
 
-    /* The window grows as inequality rows become equalities. */
+    /* The window grows as inequality rows become equalities. A step
+     * costs about m^3 / 2 flops for a window of m units, so the
+     * interrupt check runs every 1024 steps for small windows and about
+     * every 2^24 / m^3 steps above m = 25, a few milliseconds apart. */
+    int until_check = 0;
     while (ws->idx->len >= ws->n_eq + 1) {
-        R_CheckUserInterrupt();
+        if (--until_check <= 0) {
+            R_CheckUserInterrupt();
+            double m = (double)(ws->n_eq + 1);
+            double stride = 16777216.0 / (m * m * m);
+            until_check = (stride >= 1024.0) ? 1024
+                : (stride < 1.0) ? 1 : (int)stride;
+        }
         if (++iter > max_iter) {
             error("cube flight phase did not converge after %d iterations. "
                   "This usually indicates collinear balancing variables.",

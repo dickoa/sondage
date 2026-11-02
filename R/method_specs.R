@@ -178,8 +178,8 @@
 #'   `type` (`"wor"`, `"wr"`, or `"balanced"`), `fixed_size` (logical),
 #'   `variance_family` (one of
 #'   `"srs"`, `"pps_brewer"`, `"poisson"`, `"wr"`, `"unsupported"`, or
-#'   `NULL` for a registered method that did not declare one; see
-#'   [register_method()]), `supports_prn` (logical), `supports_aux`
+#'   `NULL` for a registered method that did not declare one, as
+#'   [register_method()] describes), `supports_prn` (logical), `supports_aux`
 #'   (logical), `supports_strata` (logical), `supports_spread`
 #'   (logical), and `probabilities` (where the method sits in the
 #'   first-order probability taxonomy: `"exact"` for every built-in

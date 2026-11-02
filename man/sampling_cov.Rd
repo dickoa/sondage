@@ -34,7 +34,7 @@ A symmetric N x N matrix (or n x n if \code{sampled_only = TRUE}).
 For WOR designs with \code{weighted = FALSE}, off-diagonal entries are
 typically negative for well-behaved designs. With \code{weighted = TRUE},
 off-diagonal entries are typically non-positive (entries where
-\eqn{\pi_{ij} = 0} are set to \code{NA}). Unit labels are inherited from
+\eqn{\pi_{ij} = 0}{pi_ij = 0} are set to \code{NA}). Unit labels are inherited from
 the underlying joint matrix.
 }
 \description{
@@ -42,25 +42,26 @@ Computes the sampling covariance matrix used in variance estimation.
 }
 \details{
 For without-replacement designs:
-\eqn{\Delta_{ij} = \pi_{ij} - \pi_i \pi_j}.
+\eqn{\Delta_{ij} = \pi_{ij} - \pi_i \pi_j}{Delta_ij = pi_ij - pi_i pi_j}.
 
 For with-replacement designs:
 \eqn{E(n_i n_j) - E(n_i) E(n_j)}.
 
 When \code{weighted = TRUE}, returns the Sen-Yates-Grundy check quantities:
-\eqn{1 - \pi_i \pi_j / \pi_{ij}} for WOR,
+\eqn{1 - \pi_i \pi_j / \pi_{ij}}{1 - pi_i pi_j / pi_ij} for WOR,
 \eqn{1 - E(n_i) E(n_j) / E(n_i n_j)} for WR.
 
 Accuracy depends on the underlying joint probabilities. For \code{cps},
-\code{systematic}, \code{poisson}, \code{srs}, and \code{bernoulli}, joint probabilities
-are exact and so is the covariance. For \code{brewer}, \code{sps}, \code{pareto},
-and \code{cube}, they use the high-entropy approximation. For \code{chromy},
-they are simulation-based (see \code{nsim}). See \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}
-and \code{\link[=joint_expected_hits]{joint_expected_hits()}}.
+\code{sampford}, \code{systematic}, \code{poisson}, \code{srs}, and \code{bernoulli}, joint
+probabilities are exact and so is the covariance. For \code{brewer}, \code{sps},
+\code{pareto}, and \code{cube}, they use the high-entropy approximation. For
+\code{chromy}, they are simulation-based (see \code{nsim}). \code{lpm2} and \code{scps}
+expose no joint probabilities, so \code{sampling_cov()} stops with an error
+for them. See \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} and \code{\link[=joint_expected_hits]{joint_expected_hits()}}.
 
-Some designs (notably systematic PPS) produce \eqn{\pi_{ij} = 0} for
+Some designs (notably systematic PPS) produce \eqn{\pi_{ij} = 0}{pi_ij = 0} for
 pairs that never co-occur. When \code{weighted = TRUE}, the SYG quantity
-\eqn{1 - \pi_i \pi_j / \pi_{ij}} is undefined for such pairs and
+\eqn{1 - \pi_i \pi_j / \pi_{ij}}{1 - pi_i pi_j / pi_ij} is undefined for such pairs and
 set to \code{NA} with a warning. The raw covariance (\code{weighted = FALSE})
 is unaffected. The Sen-Yates-Grundy estimator is not applicable
 for these designs (\enc{Tillé}{Tille}, 2006, Ch. 5).

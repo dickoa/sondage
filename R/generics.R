@@ -15,8 +15,8 @@
 #'   design object, returns the stored `pik` vector. For most methods
 #'   this equals the true first-order inclusion probabilities. For
 #'   order-sampling methods (`sps`, `pareto`), it is the target used
-#'   to define the design; the true probabilities are approximately
-#'   equal and converge as N grows. Names on a numeric `x` are preserved.
+#'   to define the design. The true probabilities are approximately
+#'   equal to it and converge as N grows. Names on a numeric `x` are preserved.
 #'
 #' @seealso [expected_hits()] for the with-replacement analogue,
 #'   [unequal_prob_wor()] for sampling with these probabilities.
@@ -223,7 +223,7 @@ expected_hits.wor <- function(x, ...) {
 #' Joint Inclusion Probabilities
 #'
 #' Computes the matrix of joint inclusion probabilities
-#' \eqn{\pi_{ij} = P(i \in S \text{ and } j \in S)} for a
+#' \eqn{\pi_{ij} = P(i \in S \text{ and } j \in S)}{pi_ij = P(i in S and j in S)} for a
 #' without-replacement sampling design.
 #'
 #' @param x A without-replacement design object (class `"wor"`).
@@ -240,16 +240,16 @@ expected_hits.wor <- function(x, ...) {
 #'   \item{Exact}{`cps` (probability-domain Poisson-binomial
 #'     recurrences), `sampford` (elementary-symmetric recurrences),
 #'     `systematic` (circular interval overlap), `poisson`
-#'     (\eqn{\pi_{ij} = \pi_i \pi_j}), `srs`, and `bernoulli`.}
+#'     (\eqn{\pi_{ij} = \pi_i \pi_j}{pi_ij = pi_i pi_j}), `srs`, and `bernoulli`.}
 #'   \item{Approximate}{`brewer`, `sps`, `pareto`, and `cube` use the
 #'     high-entropy approximation (Brewer & Donadio, 2003, eq. 18):
-#'     \eqn{\pi_{ij} \approx \pi_i \pi_j (c_i + c_j) / 2}.
+#'     \eqn{\pi_{ij} \approx \pi_i \pi_j (c_i + c_j) / 2}{pi_ij ~ pi_i pi_j (c_i + c_j) / 2}.
 #'     This guarantees symmetry,
-#'     \eqn{0 \leq \pi_{ij} \leq \min(\pi_i, \pi_j)}, and correct
+#'     \eqn{0 \leq \pi_{ij} \leq \min(\pi_i, \pi_j)}{0 <= pi_ij <= min(pi_i, pi_j)}, and correct
 #'     diagonal, but \strong{not} the marginal identity
-#'     \eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}. The defect is
+#'     \eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}{sum_(j != i) pi_ij = (n - 1) pi_i}. The defect is
 #'     typically small but grows with skewed \eqn{\pi_k} and small
-#'     \eqn{n}. A warning is issued when it exceeds 5\% of \eqn{n}.
+#'     \eqn{n}. A warning is issued when it exceeds 5% of \eqn{n}.
 #'     Use `method = "cps"` when exact second-order probabilities are
 #'     needed. For `sps` and `pareto`, the approximation uses the
 #'     stored target `pik`, not the exact finite-population
@@ -298,8 +298,8 @@ joint_inclusion_prob <- function(x, ...) {
 #' @rdname joint_inclusion_prob
 #' @param eps High-entropy approximation boundary tolerance (default
 #'   1e-6), used only by the HE-approximate methods (`brewer`, `sps`,
-#'   `pareto`, `cube`). See [he_jip()]. The exact `cps` and
-#'   `systematic` methods ignore it and treat only exact 0/1 as
+#'   `pareto`, `cube`). See [he_jip()]. The exact `cps`, `sampford`,
+#'   and `systematic` methods ignore it and treat only exact 0/1 as
 #'   excluded/certainty units.
 #' @export
 joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
@@ -482,7 +482,7 @@ joint_inclusion_prob.wr <- function(x, ...) {
 joint_inclusion_prob.default <- function(x, ...) {
   stop(
     "'joint_inclusion_prob()' requires a WOR design object created by ",
-    "'equal_prob_wor()' or 'unequal_prob_wor()'.",
+    "'equal_prob_wor()', 'unequal_prob_wor()', or 'balanced_wor()'.",
     call. = FALSE
   )
 }
@@ -707,13 +707,13 @@ joint_expected_hits.default <- function(x, ...) {
 #' Computes the sampling covariance matrix used in variance estimation.
 #'
 #' For without-replacement designs:
-#' \eqn{\Delta_{ij} = \pi_{ij} - \pi_i \pi_j}.
+#' \eqn{\Delta_{ij} = \pi_{ij} - \pi_i \pi_j}{Delta_ij = pi_ij - pi_i pi_j}.
 #'
 #' For with-replacement designs:
 #' \eqn{E(n_i n_j) - E(n_i) E(n_j)}.
 #'
 #' When `weighted = TRUE`, returns the Sen-Yates-Grundy check quantities:
-#' \eqn{1 - \pi_i \pi_j / \pi_{ij}} for WOR,
+#' \eqn{1 - \pi_i \pi_j / \pi_{ij}}{1 - pi_i pi_j / pi_ij} for WOR,
 #' \eqn{1 - E(n_i) E(n_j) / E(n_i n_j)} for WR.
 #'
 #' @param x A sampling design object (class `"sondage_sample"`).
@@ -728,15 +728,16 @@ joint_expected_hits.default <- function(x, ...) {
 #'
 #' @details
 #' Accuracy depends on the underlying joint probabilities. For `cps`,
-#' `systematic`, `poisson`, `srs`, and `bernoulli`, joint probabilities
-#' are exact and so is the covariance. For `brewer`, `sps`, `pareto`,
-#' and `cube`, they use the high-entropy approximation. For `chromy`,
-#' they are simulation-based (see `nsim`). See [joint_inclusion_prob()]
-#' and [joint_expected_hits()].
+#' `sampford`, `systematic`, `poisson`, `srs`, and `bernoulli`, joint
+#' probabilities are exact and so is the covariance. For `brewer`, `sps`,
+#' `pareto`, and `cube`, they use the high-entropy approximation. For
+#' `chromy`, they are simulation-based (see `nsim`). `lpm2` and `scps`
+#' expose no joint probabilities, so `sampling_cov()` stops with an error
+#' for them. See [joint_inclusion_prob()] and [joint_expected_hits()].
 #'
-#' Some designs (notably systematic PPS) produce \eqn{\pi_{ij} = 0} for
+#' Some designs (notably systematic PPS) produce \eqn{\pi_{ij} = 0}{pi_ij = 0} for
 #' pairs that never co-occur. When `weighted = TRUE`, the SYG quantity
-#' \eqn{1 - \pi_i \pi_j / \pi_{ij}} is undefined for such pairs and
+#' \eqn{1 - \pi_i \pi_j / \pi_{ij}}{1 - pi_i pi_j / pi_ij} is undefined for such pairs and
 #' set to `NA` with a warning. The raw covariance (`weighted = FALSE`)
 #' is unaffected. The Sen-Yates-Grundy estimator is not applicable
 #' for these designs (\enc{Tillé}{Tille}, 2006, Ch. 5).
@@ -745,7 +746,7 @@ joint_expected_hits.default <- function(x, ...) {
 #'   For WOR designs with `weighted = FALSE`, off-diagonal entries are
 #'   typically negative for well-behaved designs. With `weighted = TRUE`,
 #'   off-diagonal entries are typically non-positive (entries where
-#'   \eqn{\pi_{ij} = 0} are set to `NA`). Unit labels are inherited from
+#'   \eqn{\pi_{ij} = 0}{pi_ij = 0} are set to `NA`). Unit labels are inherited from
 #'   the underlying joint matrix.
 #'
 #' @references
@@ -854,7 +855,7 @@ sampling_cov.default <- function(x, ...) {
   stop(
     "'sampling_cov()' requires a design object created by one of the ",
     "sampling functions ('equal_prob_wor()', 'equal_prob_wr()', ",
-    "'unequal_prob_wor()', or 'unequal_prob_wr()').",
+    "'unequal_prob_wor()', 'unequal_prob_wr()', or 'balanced_wor()').",
     call. = FALSE
   )
 }

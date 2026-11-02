@@ -1,3 +1,7 @@
+# The @author section below is written by hand and must follow Authors@R in
+# DESCRIPTION. The generated one sets roles in square brackets, which the
+# markdown (llms.txt) copy of the page escapes into a display-math pair.
+
 #' @section Unequal Probability Sampling:
 #' \itemize{
 #'   \item [unequal_prob_wor()] - Without replacement: CPS (maximum entropy),
@@ -71,6 +75,18 @@
 #' Chromy, J.R. (2009). Some generalizations of the Horvitz-Thompson
 #'   estimator. \emph{Proceedings of the Survey Research Methods Section,
 #'   American Statistical Association}.
+#'
+#' @author
+#' \strong{Maintainer}: Ahmadou Dicko \email{mail@ahmadoudicko.com}
+#' (\href{https://orcid.org/0000-0002-9654-7582}{ORCID})
+#'
+#' Other contributors:
+#' \itemize{
+#'   \item Thomas Lumley \email{t.lumley@auckland.ac.nz} (contributor)
+#'   \item Wilmer Prentius (contributor and copyright holder), author of the
+#'     BalancedSampling 2.0.6 (GPL >= 2) cube implementation from which
+#'     src/cube.c was ported
+#' }
 #'
 #' @importFrom stats runif rbinom
 #'

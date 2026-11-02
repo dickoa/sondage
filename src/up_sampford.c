@@ -76,7 +76,7 @@ static void sampford_nonrejective(const double *p, const double *odds, int N,
   const int r = m - 1;
   double *f = (double *)R_alloc(CPS_TABLE_SIZE(N, r), sizeof(double));
   double *alpha = (double *)R_alloc(N, sizeof(double));
-  double *pro = (double *)R_alloc((size_t)N * r, sizeof(double));
+  double *pro = (double *)R_alloc(2 * (size_t)r, sizeof(double));
   double *anchor_cum = (double *)R_alloc(N, sizeof(double));
 
   cps_compute_f(odds, N, r, f);

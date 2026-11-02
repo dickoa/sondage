@@ -227,7 +227,7 @@ probabilities `\pi_k`. For WR methods, design marginals are expected
 hits `E(N_k)`.
 
 \*For `sps` and `pareto`, `inclusion_prob(s)` returns the stored
-design-defining target vector; the true finite-population first-order
+design-defining target vector. The true finite-population first-order
 inclusion probabilities are only approximately equal to that target,
 with the discrepancy vanishing asymptotically.
 
@@ -273,7 +273,7 @@ they declare which design inputs they use (`supports_aux`,
 
 Here `type = "balanced"` names the dispatcher family, which includes
 spatially balanced designs. Spread-only methods such as LPM2 and SCPS do
-not exactly balance auxiliary totals; their `supports_aux = FALSE`
+not exactly balance auxiliary totals. Their `supports_aux = FALSE`
 metadata makes that distinction enforceable rather than silently
 ignoring `aux`.
 

@@ -100,7 +100,7 @@ unknown, and downstream packages that weight estimation by
 weights. Sampling through sondage itself is unaffected: the
 declaration describes the method, it never disables it. Like
 \code{variance_family}, the declaration is an assertion by the method
-author that sondage cannot verify; the package vignette shows
+author that sondage cannot verify. The package vignette shows
 how to check a first-order contract by simulation.}
 }
 \value{
@@ -113,7 +113,7 @@ their associated generics.
 }
 \details{
 Registrations last for the current R session. Registering an existing
-custom method name is an error; call \code{\link[=unregister_method]{unregister_method()}} first when
+custom method name is an error. Call \code{\link[=unregister_method]{unregister_method()}} first when
 deliberately replacing a method.
 }
 \section{Contracts}{
@@ -156,7 +156,7 @@ size, and replacement rules before constructing the sample object.}
 otherwise \code{sum(pik)}).}
 \item{\code{aux}}{Auxiliary balancing matrix (N x p, double), or
 \code{NULL}. Passed through as supplied to \code{\link[=balanced_wor]{balanced_wor()}} after
-validation; the sample-size constraint is \strong{not}
+validation. The sample-size constraint is \strong{not}
 prepended, so add it yourself if your algorithm needs it
 (e.g. \code{cbind(pik, aux)}). Methods registered with
 \code{supports_aux = FALSE} always receive \code{aux = NULL}.}
@@ -177,7 +177,7 @@ your function signature.}
 (1-based). The dispatcher validates the returned indices.}
 }
 
-\strong{\code{joint_fn(pik, sample_idx = NULL, ...)}} (optional; types \code{"wor"}
+\strong{\code{joint_fn(pik, sample_idx = NULL, ...)}} (optional, types \code{"wor"}
 and \code{"balanced"})
 \describe{
 \item{\code{pik}}{Inclusion probabilities, numeric vector of length N.}
@@ -192,7 +192,7 @@ the matrix has the required dimensions and contains finite,
 symmetric numeric values.}
 }
 
-\strong{\code{joint_fn(hits, sample_idx = NULL, ...)}} (optional; type \code{"wr"})
+\strong{\code{joint_fn(hits, sample_idx = NULL, ...)}} (optional, type \code{"wr"})
 \describe{
 \item{\code{hits}}{Expected hits, numeric vector of length N, renormalized
 to sum exactly to the integer sample size \code{n}.}
@@ -233,8 +233,8 @@ Requires \code{type = "wor"} and \code{fixed_size = FALSE}.}
 \item{\code{"wr"}}{With-replacement (or minimum-replacement)
 selection. Hansen-Hurwitz variance, no finite population
 correction. Requires \code{type = "wr"}.}
-\item{\code{"unsupported"}}{No linearization treatment is valid;
-consumers should refuse to linearize and point to replicate
+\item{\code{"unsupported"}}{No linearization treatment is valid.
+Consumers should refuse to linearize and point to replicate
 methods instead. The correct declaration for correlated
 random-size schemes. Always allowed.}
 }
@@ -244,7 +244,7 @@ balancing constraints couple selections across units, so
 \code{"poisson"} can never hold for them.
 
 The declaration is an assertion by the method author, not
-something sondage can verify; \code{"poisson"} in particular asserts
+something sondage can verify. \code{"poisson"} in particular asserts
 that units are selected independently, and a wrong declaration
 produces silently wrong variance estimates for every user of the
 method. The package vignette
@@ -281,6 +281,7 @@ unregister_method("toy_bal")
 
 }
 \seealso{
-\code{\link[=registered_methods]{registered_methods()}}, \code{\link[=method_spec]{method_spec()}},
-\code{\link[=unequal_prob_wor]{unequal_prob_wor()}}, \code{\link[=unequal_prob_wr]{unequal_prob_wr()}}, \code{\link[=balanced_wor]{balanced_wor()}}
+\code{\link[=registered_methods]{registered_methods()}}, \code{\link[=is_registered_method]{is_registered_method()}},
+\code{\link[=unregister_method]{unregister_method()}}, \code{\link[=method_spec]{method_spec()}}, \code{\link[=unequal_prob_wor]{unequal_prob_wor()}},
+\code{\link[=unequal_prob_wr]{unequal_prob_wr()}}, \code{\link[=balanced_wor]{balanced_wor()}}
 }

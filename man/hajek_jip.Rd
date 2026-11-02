@@ -16,9 +16,9 @@ When non-\code{NULL}, returns the submatrix for those units only, without
 allocating the full N x N matrix.}
 
 \item{eps}{Boundary tolerance (default 1e-6). Units with
-\eqn{\pi_k \ge 1 - \varepsilon} are treated as certainty
-selections; units with \eqn{\pi_k \le \varepsilon} are
-treated as zero.}
+\eqn{\pi_k \ge 1 - \varepsilon}{pi_k >= 1 - eps} are treated as certainty
+selections, and units with \eqn{\pi_k \le \varepsilon}{pi_k <= eps}
+are treated as zero.}
 
 \item{...}{Additional arguments (ignored). Present so that the
 function matches the \code{joint_fn} signature required by
@@ -35,7 +35,7 @@ Computes the joint inclusion probability matrix using the
 Hajek (1964) approximation based on conditional Poisson
 (rejective) sampling theory:
 \deqn{\pi_{ij} \approx \pi_i \pi_j
-  \left[1 - \frac{(1-\pi_i)(1-\pi_j)}{D}\right]}
+  \left[1 - \frac{(1-\pi_i)(1-\pi_j)}{D}\right]}{pi_ij ~ pi_i pi_j (1 - (1 - pi_i)(1 - pi_j) / D)}
 where \eqn{D = \sum_k \pi_k (1 - \pi_k)}.
 }
 \details{
@@ -62,13 +62,13 @@ signature required by \code{\link[=register_method]{register_method()}}:
 \section{Properties}{
 
 \itemize{
-\item Symmetric: \eqn{\pi_{ij} = \pi_{ji}}
-\item Diagonal: \eqn{\pi_{ii} = \pi_i} (set directly)
-\item Bounded: \eqn{0 \le \pi_{ij} \le \min(\pi_i, \pi_j)}
+\item Symmetric: \eqn{\pi_{ij} = \pi_{ji}}{pi_ij = pi_ji}
+\item Diagonal: \eqn{\pi_{ii} = \pi_i}{pi_ii = pi_i} (set directly)
+\item Bounded: \eqn{0 \le \pi_{ij} \le \min(\pi_i, \pi_j)}{0 <= pi_ij <= min(pi_i, pi_j)}
 (clamped)
 \item Marginal defect:
 \eqn{|\sum_{j \ne i} \pi_{ij} - (n-1)\pi_i| =
-    O(1/N)} for well-spread \eqn{\pi_k}
+    O(1/N)}{|sum_(j != i) pi_ij - (n - 1) pi_i| = O(1/N)} for well-spread \eqn{\pi_k}
 }
 }
 

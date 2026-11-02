@@ -336,12 +336,15 @@ test_that("registered WR joint_fn receives normalized hits and nsim", {
     "toy_wr_nsim", "wr", sample_fn = sample_fn, joint_fn = joint_fn
   )
 
-  raw_hits <- c(0.5, 1, 0.50005)
+  # The sum misses 2 by 5e-11, inside the whole-number tolerance, so the
+  # normalized marginals differ from the raw hits in the last digits.
+  raw_hits <- c(0.5, 1, 0.5 + 5e-11)
   s <- unequal_prob_wr(raw_hits, method = "toy_wr_nsim")
   joint_expected_hits(s, nsim = 37)
 
-  expect_equal(seen$hits, 2 * raw_hits / sum(raw_hits))
-  expect_identical(sum(seen$hits), 2)
+  expect_identical(seen$hits, 2 * raw_hits / sum(raw_hits))
+  expect_false(identical(seen$hits, raw_hits))
+  expect_equal(sum(seen$hits), 2)
   expect_identical(seen$nsim, 37)
   joint_expected_hits(s, sampled_only = TRUE, nsim = 41)
   expect_identical(seen$nsim, 41)

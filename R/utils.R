@@ -61,30 +61,50 @@
     stop("'pik' values of exactly 1 are not allowed", call. = FALSE)
   }
   if (fixed_size) {
-    s <- sum(pik)
-    if (is.null(tol)) {
-      tol <- max(1e-10, 64 * .Machine$double.eps * (length(pik) + s))
-    }
-    if (abs(s - round(s)) > tol) {
-      stop(
-        sprintf(
-          "sum(pik) = %.6g is not close to an integer",
-          s
-        ),
-        call. = FALSE
-      )
-    }
-    if (round(s) < 1L) {
-      stop(
-        sprintf(
-          "sum(pik) = %.4g rounds to 0; need at least n = 1 for fixed-size sampling",
-          s
-        ),
-        call. = FALSE
-      )
-    }
+    .check_whole_sum(pik, "pik", tol = tol)
   }
   invisible(TRUE)
+}
+
+#' Validate that a vector sums to a whole number of at least 1
+#'
+#' Shared by `.check_pik()` (fixed-size designs) and `.check_hits()`. The
+#' sum is the sample size, so it must be a whole number to floating-point
+#' accuracy. A sum further away is rejected rather than rounded.
+#'
+#' @param x Numeric vector, already validated as finite and non-negative.
+#' @param name Name used in error messages, as in `sum(name)`.
+#' @param tol Tolerance for the whole-number check. The default (`NULL`)
+#'   scales with the number and magnitude of the terms: large enough to
+#'   absorb the accumulation error of `inclusion_prob()` or
+#'   `expected_hits()` at large N, far below any meaningful deviation.
+#'
+#' @return The sample size, `round(sum(x))`, as an integer.
+#'
+#' @keywords internal
+#' @noRd
+.check_whole_sum <- function(x, name, tol = NULL) {
+  s <- sum(x)
+  if (is.null(tol)) {
+    tol <- max(1e-10, 64 * .Machine$double.eps * (length(x) + s))
+  }
+  if (abs(s - round(s)) > tol) {
+    stop(
+      sprintf("sum(%s) = %.6g is not close to an integer", name, s),
+      call. = FALSE
+    )
+  }
+  if (round(s) < 1L) {
+    stop(
+      sprintf(
+        "sum(%s) = %.4g rounds to 0; need at least n = 1 for fixed-size sampling",
+        name,
+        s
+      ),
+      call. = FALSE
+    )
+  }
+  as.integer(round(s))
 }
 
 #' Validate permanent random numbers
@@ -373,11 +393,12 @@
 
 #' Validate expected hits vector
 #'
-#' Checks that hits is a valid vector of expected hits for WR sampling.
+#' Checks that hits is a valid vector of expected hits for WR sampling and
+#' that `sum(hits)`, the sample size, is a whole number of at least 1.
 #'
 #' @param hits Vector to validate.
 #'
-#' @return Invisibly returns TRUE if valid, otherwise stops with error.
+#' @return The sample size `n = round(sum(hits))`, as an integer.
 #'
 #' @keywords internal
 #' @noRd
@@ -392,5 +413,5 @@
   if (sum(hits) == 0) {
     stop("sum of 'hits' must be positive", call. = FALSE)
   }
-  invisible(TRUE)
+  .check_whole_sum(hits, "hits")
 }

@@ -15,7 +15,9 @@ unequal_prob_wr(
 \arguments{
 \item{hits}{A numeric vector of expected hits (expected number of
 selections per unit). Typically computed via \code{\link[=expected_hits]{expected_hits()}}.
-\code{sum(hits)} must be close to a positive integer.}
+\code{sum(hits)} is the sample size, so it must be a whole number of at
+least 1 to floating-point accuracy. Looser sums are rejected rather
+than silently rounded.}
 
 \item{method}{The sampling method:
 \describe{

@@ -40,7 +40,7 @@ warning is issued and \code{fixed_size} is set to \code{FALSE}.}
 coordinates (or other spreading variables) for well-spread,
 spatially balanced sampling. Required by the built-in \code{"lpm2"}
 and \code{"scps"} methods, and supported by methods registered via
-\code{\link[=register_method]{register_method()}} with \code{supports_spread = TRUE}; the built-in
+\code{\link[=register_method]{register_method()}} with \code{supports_spread = TRUE}. The built-in
 \code{"cube"} method does not use it and will error. A non-matrix
 vector is treated as a single spreading variable.}
 
@@ -49,17 +49,18 @@ vector is treated as a single spreading variable.}
 sample (Tripet & \enc{Tillé}{Tille}, 2026): \code{B} is a numeric
 matrix (N x q) whose columns are constraint variables, and the
 sample \code{s} is drawn so that
-\eqn{lower_j \le \sum_{k \in s} B_{kj} \le upper_j} for every
+\eqn{lower_j \le \sum_{k \in s} B_{kj} \le upper_j}{lower_j <= sum_s B_kj <= upper_j} for every
 constraint \code{j}. \code{-Inf} / \code{Inf} entries make a constraint
-one-sided; \code{lower[j] == upper[j]} enforces an exact equality.
+one-sided, and \code{lower[j] == upper[j]} enforces an exact equality.
 The starting probabilities must be feasible:
 \verb{lower <= colSums(B * pik) <= upper}. Only supported by the
 built-in \code{"cube"} method. See \strong{Inequality constraints} below.}
 
 \item{method}{The sampling method. \code{"cube"} (the default) balances
-on \code{aux}; \code{"lpm2"} (local pivotal method 2) and \code{"scps"}
-(spatially correlated Poisson sampling) spread on \code{spread}; or the
-name of a balanced method added via \code{\link[=register_method]{register_method()}}.}
+on \code{aux}. \code{"lpm2"} (local pivotal method 2) and \code{"scps"}
+(spatially correlated Poisson sampling) spread on \code{spread}. The
+name of a balanced method added via \code{\link[=register_method]{register_method()}} is also
+accepted.}
 
 \item{nrep}{Number of replicate samples (default 1). When \code{nrep > 1},
 \verb{$sample} holds a matrix (n x nrep) for fixed-size designs, or a
@@ -77,18 +78,17 @@ coordination} below. Cannot be combined with \code{nrep > 1}.}
 \item{\code{eps}}{Boundary tolerance (default \code{1e-10}): decides when
 an updated \emph{working} probability has numerically reached
 0 or 1 (during the cube flight phase, or during the pivotal
-steps of \code{"lpm2"} or \code{"scps"}). It never reclassifies the input;
-supplied
-\code{pik} inside \verb{(0, eps]} or \verb{[1 - eps, 1)} are rejected. Only
+steps of \code{"lpm2"} or \code{"scps"}). It never reclassifies the input.
+Supplied \code{pik} inside \verb{(0, eps]} or \verb{[1 - eps, 1)} are rejected. Only
 \code{pik} of exactly 0 or exactly 1 enter the algorithm as
 already-resolved units.}
-\item{\code{condition_aux}}{Logical; if \code{TRUE}, pre-conditions \code{aux} by
+\item{\code{condition_aux}}{Logical. If \code{TRUE}, pre-conditions \code{aux} by
 weighted centering/scaling and QR-pivot rank pruning to improve
 numerical stability with ill-conditioned or collinear auxiliary
 variables (default \code{FALSE}).}
 \item{\code{qr_tol}}{Tolerance for QR rank detection when
-\code{condition_aux = TRUE}; must be one finite, non-negative number
-(default \code{sqrt(.Machine$double.eps)}).}
+\code{condition_aux = TRUE}. It must be one finite, non-negative
+number (default \code{sqrt(.Machine$double.eps)}).}
 }}
 }
 \value{
@@ -106,8 +106,8 @@ method (\enc{Grafström}{Grafstrom}, \enc{Lundström}{Lundstrom} & Schelin,
 2012) or spatially correlated Poisson sampling
 (\enc{Grafström}{Grafstrom}, 2012).
 A balanced sample satisfies (approximately) the balancing equations
-\eqn{\sum_{k \in S} x_k / \pi_k \approx \sum_{k \in U} x_k} for each
-auxiliary variable \eqn{x}; a well-spread sample selects units that
+\eqn{\sum_{k \in S} x_k / \pi_k \approx \sum_{k \in U} x_k}{sum_S x_k / pi_k ~ sum_U x_k} for each
+auxiliary variable \eqn{x}. A well-spread sample selects units that
 are far apart in the space spanned by the spreading variables.
 }
 \details{
@@ -141,8 +141,8 @@ whose slack reaches zero becomes an equality from then on. The
 inclusion probabilities are respected exactly (\code{E(s) = pik}),
 unlike rejective procedures.
 
-\code{B} applies to the realized sample directly (counts / raw sums);
-it is \strong{not} divided by \code{pik}. To bound a Horvitz-Thompson
+\code{B} applies to the realized sample directly (counts or raw sums),
+so it is \strong{not} divided by \code{pik}. To bound a Horvitz-Thompson
 estimator, pass \code{x / pik} as the constraint column.
 
 One application is controlled selection with bounding
@@ -156,13 +156,13 @@ satisfied exactly. For structures with no exact integer solution,
 some three-way controlled rounding problems, or continuous-valued
 constraints that end the flight phase tight against a boundary,
 bounds that provably block the landing phase are relaxed one at a
-time, with a warning; \code{E(s) = pik} still holds. In other words,
+time, with a warning, and \code{E(s) = pik} still holds. In other words,
 the bounds are guaranteed whenever no relaxation warning is
 raised.
 
 The high-entropy approximation used by \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} is
 less accurate under tight bounds, which distort the design away
-from maximum entropy; Tripet & \enc{Tillé}{Tille} (2026) recommend
+from maximum entropy. Tripet & \enc{Tillé}{Tille} (2026) recommend
 Monte Carlo estimation of joint inclusion probabilities in that
 case.
 }
@@ -173,17 +173,17 @@ case.
 \code{method = "lpm2"} implements the local pivotal method 2 of
 \enc{Grafström}{Grafstrom}, \enc{Lundström}{Lundstrom} & Schelin
 (2012). Repeatedly, a randomly chosen undecided unit and its
-nearest undecided neighbour in the \code{spread} space compete in a
+nearest undecided neighbor in the \code{spread} space compete in a
 pivotal step (Deville & \enc{Tillé}{Tille}, 1998) that resolves at
 least one of them to 0 or 1 while preserving the inclusion
 probabilities exactly (\code{E(s) = pik}). Nearby units thereby tend to
 exclude each other, spreading the sample over the population.
-Nearest-neighbour distance ties (common on gridded coordinates)
+Nearest-neighbor distance ties (common on gridded coordinates)
 are broken uniformly at random.
 
 Spreading variables should be on comparable scales, since
-nearness is plain Euclidean distance in the \code{spread} columns;
-rescale them (e.g. with \code{\link[=scale]{scale()}}) when they are not. \code{"lpm2"} and
+nearness is plain Euclidean distance in the \code{spread} columns.
+Rescale them (e.g. with \code{\link[=scale]{scale()}}) when they are not. \code{"lpm2"} and
 \code{"scps"} use \code{spread} only: they do not accept \code{aux}, \code{strata}, or
 \code{bounds}. To exactly balance covariate totals \emph{and} spread
 spatially, register a method that supports both \code{aux} and \code{spread}
@@ -206,7 +206,7 @@ Both spatial methods deliberately drive joint inclusion probabilities of
 nearby units toward zero, so the design is \emph{not} high
 entropy and no joint-probability approximation is provided:
 \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} errors for these designs. Variance for
-well-spread samples is usually estimated with local-neighbourhood
+well-spread samples is usually estimated with local-neighborhood
 estimators (e.g. \enc{Grafström}{Grafstrom} & Schelin, 2014).
 
 Both methods are \emph{spread-only}: neither exactly balances the totals
@@ -217,9 +217,12 @@ that combine exact balancing with spread. Capability metadata keeps the
 distinction explicit: both report \code{supports_aux = FALSE} and
 \code{supports_spread = TRUE} through \code{\link[=method_spec]{method_spec()}}.
 
-LPM2 costs O(N^2 * d) time per draw. SCPS uses weighted quickselect to
+LPM2 finds nearest neighbors with a k-d tree (Friedman et al., 1977) when \code{spread} has at most
+eight columns, so a draw costs about O(N log N) time. With more columns
+a tree prunes too little and LPM2 scans the undecided units instead, at
+O(N^2 * d) per draw. SCPS uses weighted quickselect to
 find the distance at which its maximal weights sum to one, avoiding a
-full sort of the remaining units at each step. Its expected cost is also
+full sort of the remaining units at each step. Its expected cost is
 O(N^2 * d). Both implementations use O(N) workspace and store no
 distance matrix. Units at the cutoff distance share their weight
 equally, up to their feasibility bounds, and SCPS sorts that group only
@@ -331,6 +334,11 @@ Chauvet, G. and \enc{Tillé}{Tille}, Y. (2006). A fast algorithm for balanced sa
 
 Chauvet, G. (2009). Stratified balanced sampling. \emph{Survey
 Methodology}, 35, 115-119.
+
+Friedman, J.H., Bentley, J.L. and Finkel, R.A. (1977). An algorithm for
+finding best matches in logarithmic expected time. \emph{ACM
+Transactions on Mathematical Software}, 3(3), 209-226.
+\doi{10.1145/355744.355745}
 
 \enc{Grafström}{Grafstrom}, A., \enc{Lundström}{Lundstrom}, N.L.P.
 and Schelin, L. (2012). Spatially balanced sampling through the

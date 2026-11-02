@@ -13,6 +13,37 @@
   with `n = 2` gave `1 1 1` instead of `0.5 0.5 1`. Inputs with a smaller
   span give the same results as before, bit for bit.
 
+* CPS calibration is about 2.5 times faster and needs O(n) workspace
+  instead of O(Nn). Sampford draws that use the non-rejective fallback get
+  the same speed-up. Samples and joint inclusion probabilities are
+  unchanged, bit for bit.
+
+* `unequal_prob_wr()` requires `sum(hits)` to be a whole number of at least
+  1 to floating-point accuracy, as `unequal_prob_wor()` already does for
+  `sum(pik)`. It used to accept sums up to 1e-4 away from a whole number
+  and round them, so `c(1e-6, 1e-6)` gave an empty sample with `n = 0`.
+  Methods registered with `type = "wr"` get the same check.
+
+* `unequal_prob_wor()` returns `$sample` in ascending unit order for
+  `method = "brewer"`, and for `method = "cps"` when some `pik` equal 1, as
+  the other built-in without-replacement methods already did. The selected
+  units and the random number stream are unchanged.
+
+* `balanced_wor(method = "lpm2")` finds nearest neighbors with a k-d tree
+  when `spread` has at most eight columns. A draw from 100,000 units with
+  two spreading variables takes 0.06 s instead of 4 s, and one from 50,000
+  units with six takes 0.3 s instead of 6.5 s. Samples are unchanged
+  unless `spread` has tied distances, as with grid coordinates, duplicated
+  points or a 0/1 variable. A seed can then give a different sample of the
+  same design.
+
+* `balanced_wor(method = "cube")` computes the direction of each step by
+  Gaussian elimination and back substitution instead of a full Gauss-Jordan
+  reduction. Draws are about 1.15 times faster with 15 to 30 balancing
+  variables and 1.4 times faster with 100. The direction is computed with
+  different rounding, so a seed can in rare cases give a different sample.
+  None of 600 seeded test draws changed.
+
 # sondage 0.10.0
 
 * `balanced_wor()` gains `prn` for sample coordination with permanent
@@ -74,13 +105,13 @@ Five dispatchers, 16 built-in methods:
   `"multinomial"`.
 * `balanced_wor(pik, aux, strata, spread, bounds, method=)`: `"cube"`
   with optional stratification, and optional linear inequality
-  constraints on the realized sample (`bounds = list(B, lower, upper)`;
+  constraints on the realized sample (`bounds = list(B, lower, upper)`,
   Tripet & Tillé 2026). Inequality bounds enable controlled selection à
   la Goodman & Kish: category counts, possibly overlapping (e.g. the
   margins of a two-way control table), are kept within the integers
   adjacent to their expectations while `E(s) = pik` holds exactly.
   They also support controlled matrix rounding and minimum group sizes.
-  `"lpm2"` (local pivotal method 2; Grafström, Lundström & Schelin
+  `"lpm2"` (local pivotal method 2 of Grafström, Lundström & Schelin,
   2012) draws spatially balanced, well-spread samples on the
   coordinates in `spread`. `"scps"` implements Grafström's (2012)
   maximal-weight spatially correlated Poisson sampling. Its C core
@@ -104,7 +135,7 @@ additionally carry `"balanced"`).
   rather than suggesting a high-entropy PPS variance treatment.
 * `joint_expected_hits()`: exact analytic for `multinomial` / `srs`,
   simulation-based for `chromy`.
-* `sampling_cov()`: sampling covariance; `weighted = TRUE` returns
+* `sampling_cov()`: sampling covariance. `weighted = TRUE` returns
   Sen-Yates-Grundy check quantities.
 
 ## Extensibility
@@ -128,7 +159,7 @@ additionally carry `"balanced"`).
 * Registered methods can declare a `variance_family` (`"srs"`,
   `"pps_brewer"`, `"poisson"`, `"wr"`, `"unsupported"`) describing
   the design-based variance treatment downstream packages should
-  apply; `method_spec()` reports it for built-in and registered
+  apply, and `method_spec()` reports it for built-in and registered
   methods.
 * Registered methods declare where they sit in the first-order
   probability taxonomy with `probabilities`: `"exact"` (realized
@@ -137,7 +168,7 @@ additionally carry `"balanced"`).
   documented approximation, as Pareto and sequential Poisson order
   sampling do), or `"unknown"` (the default: `pik` is a selection
   weight only, so design weights `1/pik` would be biased). The
-  default is deliberately strict; downstream packages may refuse to
+  default is deliberately strict. Downstream packages may refuse to
   draw with an `"unknown"` method, while sampling through sondage
   itself is never affected. `method_spec()` reports the tier for
   every method: built-ins are `"exact"` except `"sps"` and
@@ -165,7 +196,7 @@ additionally carry `"balanced"`).
 ## Other features
 
 * Batch sampling via `nrep` for Monte Carlo simulations. Fixed-size
-  designs return a matrix; random-size designs return a list.
+  designs return a matrix, and random-size designs return a list.
 * Permanent random numbers (`prn`) for sample coordination (Bernoulli,
   Poisson, SPS, Pareto).
 * C implementations for all built-in sampling algorithms.

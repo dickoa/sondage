@@ -105,6 +105,12 @@ SEXP C_up_brewer(SEXP pik) {
     }
 
     PutRNGstate();
+
+    /* Certainty units come first and the draws follow in draw order.
+     * Return the sample in ascending unit order like the other
+     * without-replacement methods. */
+    R_isort(s_ptr, s_idx);
+
     UNPROTECT(1);
     return s;
 }

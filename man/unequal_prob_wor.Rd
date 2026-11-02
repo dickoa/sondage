@@ -24,9 +24,9 @@ are sampled as given.}
 
 \item{method}{The sampling method:
 \describe{
-\item{\code{"cps"}}{Conditional Poisson Sampling (maximum entropy;
+\item{\code{"cps"}}{Conditional Poisson Sampling (maximum entropy,
 Chen et al., 1994). Fixed size, exact joint probabilities
-with all \eqn{\pi_{ij} > 0}. Calibration and the conditional
+with all \eqn{\pi_{ij} > 0}{pi_ij > 0}. Calibration and the conditional
 probability table are O(Nn) (probability-domain
 Poisson-binomial recurrence), each draw is O(N) thereafter.
 Equal \code{pik} are drawn directly as SRS.}
@@ -35,21 +35,21 @@ Gives the supplied first-order inclusion probabilities exactly
 and has exact joint inclusion probabilities. A native C kernel
 combines the fast rejection construction with Grafstrom's
 non-rejective conditional-Poisson fallback and draws the smaller
-of the sample and its complement. Typical O(N + n); O(Nn) in the
+of the sample and its complement. Typical O(N + n), and O(Nn) in the
 fallback.}
 \item{\code{"brewer"}}{Brewer's (1975) draw-by-draw method. Fixed
 size, approximate joint probabilities (high-entropy
-approximation; see \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}). O(Nn).}
+approximation, see \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}). O(Nn).}
 \item{\code{"systematic"}}{Systematic PPS. Fixed size, exact joint
 probabilities but \strong{some may be zero} (pairs that never
 co-occur), making the SYG estimator inapplicable. See
 \code{\link[=sampling_cov]{sampling_cov()}}. O(N).}
 \item{\code{"poisson"}}{Poisson sampling. \strong{Random} sample
 size (expected \eqn{n = \sum \pi_k}). Units selected
-independently, so \eqn{\pi_{ij} = \pi_i \pi_j}. Supports
+independently, so \eqn{\pi_{ij} = \pi_i \pi_j}{pi_ij = pi_i pi_j}. Supports
 PRN. O(N).}
 \item{\code{"sps"}}{Sequential Poisson Sampling (Ohlsson, 1998).
-Order sampling with key \eqn{\xi_k = u_k / \pi_k}; the
+Order sampling with key \eqn{\xi_k = u_k / \pi_k}, where the
 \eqn{n} smallest are selected. Fixed size, high-entropy.
 Supports PRN. Approximate joint probabilities. The true
 first-order inclusion probabilities are approximately equal
@@ -76,7 +76,7 @@ for coordinated repeated sampling.}
 
 \item{...}{Additional arguments passed to methods registered via
 \code{\link[=register_method]{register_method()}}. Built-in methods take no additional
-arguments; the former \code{eps} boundary-trimming argument was
+arguments. The former \code{eps} boundary-trimming argument was
 removed because it silently changed the design.}
 }
 \value{

@@ -70,7 +70,7 @@ test_that("lpm2 respects marginals on tie-heavy grid coordinates", {
 test_that("lpm2 spreads: coincident pairs yield exactly one unit each", {
   # K far-apart locations, two units at each, pik = 0.5: while both
   # units of a pair are undecided each is the other's nearest
-  # neighbour, so the first pivotal step touching a pair resolves it
+  # neighbor, so the first pivotal step touching a pair resolves it
   # to exactly one selected unit.
   set.seed(44)
   K <- 10
@@ -83,6 +83,65 @@ test_that("lpm2 spreads: coincident pairs yield exactly one unit each", {
     expect_length(idx, K)
     expect_equal(sort(pair_of), 1:K)
   }
+})
+
+test_that("lpm2 finds the coincident partner in every replicate", {
+  # 200 random locations with two units each, so the neighbor search
+  # works on a tree several levels deep. A wrong nearest neighbor, or a
+  # tree not reset between replicates, would select both or neither
+  # unit of some pair. Two columns use the k-d tree; padding to nine
+  # columns with zeros keeps the distances and uses the linear scan.
+  set.seed(46)
+  K <- 200
+  centers <- matrix(runif(2 * K), ncol = 2)
+  z2 <- centers[rep(seq_len(K), each = 2), ]
+  z9 <- cbind(z2, matrix(0, 2 * K, 7))
+  pik <- rep(0.5, 2 * K)
+  for (z in list(z2, z9)) {
+    s <- balanced_wor(pik, spread = z, method = "lpm2", nrep = 20)$sample
+    for (j in seq_len(ncol(s))) {
+      expect_equal(sort((s[, j] + 1L) %/% 2L), seq_len(K))
+    }
+  }
+})
+
+test_that("lpm2 tree and linear scan give the same sample", {
+  # Without exact distance ties both searches find the same neighbor and
+  # consume the same random numbers, so a seed must give the same sample.
+  # Marginal checks cannot see a search that returns a farther unit, since
+  # the pivotal step keeps E(s) = pik for any partner. Padding with zero
+  # columns keeps the distances and moves the search to the linear scan.
+  set.seed(48)
+  N <- 400
+  pik <- inclusion_prob(runif(N), 40)
+  pad <- function(z) cbind(z, matrix(0, N, 9 - ncol(z)))
+  for (d in c(2, 6)) {
+    z <- matrix(runif(d * N), ncol = d)
+    for (seed in 1:5) {
+      set.seed(seed)
+      a <- balanced_wor(pik, spread = z, method = "lpm2")$sample
+      set.seed(seed)
+      b <- balanced_wor(pik, spread = pad(z), method = "lpm2")$sample
+      expect_identical(a, b)
+    }
+    set.seed(9)
+    a <- balanced_wor(pik, spread = z, method = "lpm2", nrep = 10)$sample
+    set.seed(9)
+    b <- balanced_wor(pik, spread = pad(z), method = "lpm2", nrep = 10)$sample
+    expect_identical(a, b)
+  }
+})
+
+test_that("lpm2 respects marginals on a large tie-heavy grid", {
+  # 400 grid points: exact ties at every scale of a multi-level tree.
+  set.seed(47)
+  z <- as.matrix(expand.grid(x = 1:20, y = 1:20))
+  storage.mode(z) <- "double"
+  pik <- rep(0.2, 400)
+  nrep <- 4000
+  s <- balanced_wor(pik, spread = z, method = "lpm2", nrep = nrep)
+  emp <- tabulate(as.integer(s$sample), nbins = 400) / nrep
+  expect_true(max(abs(emp - pik)) < 0.03)
 })
 
 test_that("lpm2 is better spread than srs on random coordinates", {

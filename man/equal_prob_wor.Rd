@@ -19,8 +19,8 @@ equal_prob_wor(
 \item{n}{Sample size. For \code{"srs"} and \code{"systematic"}, a non-negative
 integer not exceeding \code{N} (exact realized size). For \code{"bernoulli"},
 a non-negative number (not required to be an integer) interpreted
-as the expected sample size; \code{p = n / N} is used as the selection
-probability.}
+as the expected sample size, and \code{p = n / N} is used as the
+selection probability.}
 
 \item{method}{The sampling method:
 \describe{

@@ -76,35 +76,42 @@ static inline double cps_compute_q(const double *w, const double *f,
     return q;
 }
 
-/* pro[i*n+z] = P(z+1 needed at unit i), pik[i] = sum_z pro[i,z]*q(i,z) */
+/*
+ * First-order inclusion probabilities implied by w, given its suffix
+ * table f. pro[z] holds P(z+1 selections still needed on reaching unit
+ * i), and pik[i] = sum_z pro[z] * q(i, z).
+ *
+ * Workspace: pro must hold 2 * n doubles. The first n carry the current
+ * row of the forward recurrence, updated in place in ascending z (the new
+ * pro[z] reads only the old pro[z] and pro[z + 1]). The last n cache
+ * q(i, .), so each conditional is computed once. Entries below
+ * z = n - 1 - i are exactly zero, since no more than i units can precede
+ * unit i, and are skipped. Each sum keeps the order and terms of the
+ * full N x n recurrence, so the result is the same to the last bit.
+ */
 static void cps_compute_pik(const double *w, const double *f,
                              int N, int n, double *pik, double *pro) {
-    memset(pro, 0, (size_t)N * n * sizeof(double));
+    double *qrow = pro + n;
+    memset(pro, 0, (size_t)n * sizeof(double));
+    pro[n - 1] = 1.0;
 
-    pro[0 * n + (n - 1)] = 1.0;
+    for (int i = 0; i < N; i++) {
+        int zlo = n - 1 - i;
+        if (zlo < 0) zlo = 0;
 
-    pik[0] = 0.0;
-    for (int z = 0; z < n; z++) {
-        double q_0z = cps_compute_q(w, f, N, n, 0, z);
-        pik[0] += pro[0 * n + z] * q_0z;
-    }
-
-    for (int i = 1; i < N; i++) {
-        for (int z = n - 1; z >= 0; z--) {
-            double q_prev = cps_compute_q(w, f, N, n, i - 1, z);
-
-            pro[i * n + z] += pro[(i - 1) * n + z] * (1.0 - q_prev);
-
-            if (z + 1 < n) {
-                double q_prev_zp1 = cps_compute_q(w, f, N, n, i - 1, z + 1);
-                pro[i * n + z] += pro[(i - 1) * n + (z + 1)] * q_prev_zp1;
-            }
+        double s = 0.0;
+        for (int z = zlo; z < n; z++) {
+            double q = cps_compute_q(w, f, N, n, i, z);
+            qrow[z] = q;
+            s += pro[z] * q;
         }
+        pik[i] = s;
 
-        pik[i] = 0.0;
-        for (int z = 0; z < n; z++) {
-            double q_iz = cps_compute_q(w, f, N, n, i, z);
-            pik[i] += pro[i * n + z] * q_iz;
+        if (i + 1 == N) break;
+        for (int z = (zlo > 0 ? zlo - 1 : 0); z < n; z++) {
+            double v = (z >= zlo) ? pro[z] * (1.0 - qrow[z]) : 0.0;
+            if (z + 1 < n) v += pro[z + 1] * qrow[z + 1];
+            pro[z] = v;
         }
     }
 }
@@ -181,7 +188,7 @@ static int cps_calibrate(const double *pik_target, int N, int n,
 
     double *piktilde = (double *) R_alloc(N, sizeof(double));
     double *pik_implied = (double *) R_alloc(N, sizeof(double));
-    double *pro = (double *) R_alloc((size_t)N * n, sizeof(double));
+    double *pro = (double *) R_alloc(2 * (size_t)n, sizeof(double));
 
     memcpy(piktilde, pik_target, N * sizeof(double));
 

@@ -31,8 +31,8 @@ A numeric vector of inclusion probabilities. When applied to a
 design object, returns the stored \code{pik} vector. For most methods
 this equals the true first-order inclusion probabilities. For
 order-sampling methods (\code{sps}, \code{pareto}), it is the target used
-to define the design; the true probabilities are approximately
-equal and converge as N grows. Names on a numeric \code{x} are preserved.
+to define the design. The true probabilities are approximately
+equal to it and converge as N grows. Names on a numeric \code{x} are preserved.
 }
 \description{
 Compute inclusion probabilities from a size measure, or extract them

@@ -6,8 +6,8 @@
 #' @param n Sample size. For `"srs"` and `"systematic"`, a non-negative
 #'   integer not exceeding `N` (exact realized size). For `"bernoulli"`,
 #'   a non-negative number (not required to be an integer) interpreted
-#'   as the expected sample size; `p = n / N` is used as the selection
-#'   probability.
+#'   as the expected sample size, and `p = n / N` is used as the
+#'   selection probability.
 #' @param method The sampling method:
 #'   \describe{
 #'     \item{`"srs"`}{Simple Random Sampling. Each possible sample of size n

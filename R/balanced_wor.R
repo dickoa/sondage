@@ -6,8 +6,8 @@
 #' 2012) or spatially correlated Poisson sampling
 #' (\enc{Grafström}{Grafstrom}, 2012).
 #' A balanced sample satisfies (approximately) the balancing equations
-#' \eqn{\sum_{k \in S} x_k / \pi_k \approx \sum_{k \in U} x_k} for each
-#' auxiliary variable \eqn{x}; a well-spread sample selects units that
+#' \eqn{\sum_{k \in S} x_k / \pi_k \approx \sum_{k \in U} x_k}{sum_S x_k / pi_k ~ sum_U x_k} for each
+#' auxiliary variable \eqn{x}. A well-spread sample selects units that
 #' are far apart in the space spanned by the spreading variables.
 #'
 #' @param pik A numeric vector of inclusion probabilities (length N).
@@ -30,7 +30,7 @@
 #'   coordinates (or other spreading variables) for well-spread,
 #'   spatially balanced sampling. Required by the built-in `"lpm2"`
 #'   and `"scps"` methods, and supported by methods registered via
-#'   [register_method()] with `supports_spread = TRUE`; the built-in
+#'   [register_method()] with `supports_spread = TRUE`. The built-in
 #'   `"cube"` method does not use it and will error. A non-matrix
 #'   vector is treated as a single spreading variable.
 #' @param bounds An optional list with elements `B`, `lower`, and
@@ -38,16 +38,17 @@
 #'   sample (Tripet & \enc{Tillé}{Tille}, 2026): `B` is a numeric
 #'   matrix (N x q) whose columns are constraint variables, and the
 #'   sample `s` is drawn so that
-#'   \eqn{lower_j \le \sum_{k \in s} B_{kj} \le upper_j} for every
+#'   \eqn{lower_j \le \sum_{k \in s} B_{kj} \le upper_j}{lower_j <= sum_s B_kj <= upper_j} for every
 #'   constraint `j`. `-Inf` / `Inf` entries make a constraint
-#'   one-sided; `lower[j] == upper[j]` enforces an exact equality.
+#'   one-sided, and `lower[j] == upper[j]` enforces an exact equality.
 #'   The starting probabilities must be feasible:
 #'   `lower <= colSums(B * pik) <= upper`. Only supported by the
 #'   built-in `"cube"` method. See **Inequality constraints** below.
 #' @param method The sampling method. `"cube"` (the default) balances
-#'   on `aux`; `"lpm2"` (local pivotal method 2) and `"scps"`
-#'   (spatially correlated Poisson sampling) spread on `spread`; or the
-#'   name of a balanced method added via [register_method()].
+#'   on `aux`. `"lpm2"` (local pivotal method 2) and `"scps"`
+#'   (spatially correlated Poisson sampling) spread on `spread`. The
+#'   name of a balanced method added via [register_method()] is also
+#'   accepted.
 #' @param nrep Number of replicate samples (default 1). When `nrep > 1`,
 #'   `$sample` holds a matrix (n x nrep) for fixed-size designs, or a
 #'   list of integer vectors when within-stratum sizes are not exact.
@@ -62,18 +63,17 @@
 #'     \item{`eps`}{Boundary tolerance (default `1e-10`): decides when
 #'       an updated \emph{working} probability has numerically reached
 #'       0 or 1 (during the cube flight phase, or during the pivotal
-#'       steps of `"lpm2"` or `"scps"`). It never reclassifies the input;
-#'       supplied
-#'       `pik` inside `(0, eps]` or `[1 - eps, 1)` are rejected. Only
+#'       steps of `"lpm2"` or `"scps"`). It never reclassifies the input.
+#'       Supplied `pik` inside `(0, eps]` or `[1 - eps, 1)` are rejected. Only
 #'       `pik` of exactly 0 or exactly 1 enter the algorithm as
 #'       already-resolved units.}
-#'     \item{`condition_aux`}{Logical; if `TRUE`, pre-conditions `aux` by
+#'     \item{`condition_aux`}{Logical. If `TRUE`, pre-conditions `aux` by
 #'       weighted centering/scaling and QR-pivot rank pruning to improve
 #'       numerical stability with ill-conditioned or collinear auxiliary
 #'       variables (default `FALSE`).}
 #'     \item{`qr_tol`}{Tolerance for QR rank detection when
-#'       `condition_aux = TRUE`; must be one finite, non-negative number
-#'       (default `sqrt(.Machine$double.eps)`).}
+#'       `condition_aux = TRUE`. It must be one finite, non-negative
+#'       number (default `sqrt(.Machine$double.eps)`).}
 #'   }
 #'
 #' @details
@@ -106,8 +106,8 @@
 #' inclusion probabilities are respected exactly (`E(s) = pik`),
 #' unlike rejective procedures.
 #'
-#' `B` applies to the realized sample directly (counts / raw sums);
-#' it is \strong{not} divided by `pik`. To bound a Horvitz-Thompson
+#' `B` applies to the realized sample directly (counts or raw sums),
+#' so it is \strong{not} divided by `pik`. To bound a Horvitz-Thompson
 #' estimator, pass `x / pik` as the constraint column.
 #'
 #' One application is controlled selection with bounding
@@ -121,13 +121,13 @@
 #' some three-way controlled rounding problems, or continuous-valued
 #' constraints that end the flight phase tight against a boundary,
 #' bounds that provably block the landing phase are relaxed one at a
-#' time, with a warning; `E(s) = pik` still holds. In other words,
+#' time, with a warning, and `E(s) = pik` still holds. In other words,
 #' the bounds are guaranteed whenever no relaxation warning is
 #' raised.
 #'
 #' The high-entropy approximation used by [joint_inclusion_prob()] is
 #' less accurate under tight bounds, which distort the design away
-#' from maximum entropy; Tripet & \enc{Tillé}{Tille} (2026) recommend
+#' from maximum entropy. Tripet & \enc{Tillé}{Tille} (2026) recommend
 #' Monte Carlo estimation of joint inclusion probabilities in that
 #' case.
 #'
@@ -136,17 +136,17 @@
 #' `method = "lpm2"` implements the local pivotal method 2 of
 #' \enc{Grafström}{Grafstrom}, \enc{Lundström}{Lundstrom} & Schelin
 #' (2012). Repeatedly, a randomly chosen undecided unit and its
-#' nearest undecided neighbour in the `spread` space compete in a
+#' nearest undecided neighbor in the `spread` space compete in a
 #' pivotal step (Deville & \enc{Tillé}{Tille}, 1998) that resolves at
 #' least one of them to 0 or 1 while preserving the inclusion
 #' probabilities exactly (`E(s) = pik`). Nearby units thereby tend to
 #' exclude each other, spreading the sample over the population.
-#' Nearest-neighbour distance ties (common on gridded coordinates)
+#' Nearest-neighbor distance ties (common on gridded coordinates)
 #' are broken uniformly at random.
 #'
 #' Spreading variables should be on comparable scales, since
-#' nearness is plain Euclidean distance in the `spread` columns;
-#' rescale them (e.g. with [scale()]) when they are not. `"lpm2"` and
+#' nearness is plain Euclidean distance in the `spread` columns.
+#' Rescale them (e.g. with [scale()]) when they are not. `"lpm2"` and
 #' `"scps"` use `spread` only: they do not accept `aux`, `strata`, or
 #' `bounds`. To exactly balance covariate totals \emph{and} spread
 #' spatially, register a method that supports both `aux` and `spread`
@@ -169,7 +169,7 @@
 #' nearby units toward zero, so the design is \emph{not} high
 #' entropy and no joint-probability approximation is provided:
 #' [joint_inclusion_prob()] errors for these designs. Variance for
-#' well-spread samples is usually estimated with local-neighbourhood
+#' well-spread samples is usually estimated with local-neighborhood
 #' estimators (e.g. \enc{Grafström}{Grafstrom} & Schelin, 2014).
 #'
 #' Both methods are \emph{spread-only}: neither exactly balances the totals
@@ -180,9 +180,12 @@
 #' distinction explicit: both report `supports_aux = FALSE` and
 #' `supports_spread = TRUE` through [method_spec()].
 #'
-#' LPM2 costs O(N^2 * d) time per draw. SCPS uses weighted quickselect to
+#' LPM2 finds nearest neighbors with a k-d tree (Friedman et al., 1977) when `spread` has at most
+#' eight columns, so a draw costs about O(N log N) time. With more columns
+#' a tree prunes too little and LPM2 scans the undecided units instead, at
+#' O(N^2 * d) per draw. SCPS uses weighted quickselect to
 #' find the distance at which its maximal weights sum to one, avoiding a
-#' full sort of the remaining units at each step. Its expected cost is also
+#' full sort of the remaining units at each step. Its expected cost is
 #' O(N^2 * d). Both implementations use O(N) workspace and store no
 #' distance matrix. Units at the cutoff distance share their weight
 #' equally, up to their feasibility bounds, and SCPS sorts that group only
@@ -241,6 +244,11 @@
 #'
 #' Chauvet, G. (2009). Stratified balanced sampling. \emph{Survey
 #'   Methodology}, 35, 115-119.
+#'
+#' Friedman, J.H., Bentley, J.L. and Finkel, R.A. (1977). An algorithm for
+#'   finding best matches in logarithmic expected time. \emph{ACM
+#'   Transactions on Mathematical Software}, 3(3), 209-226.
+#'   \doi{10.1145/355744.355745}
 #'
 #' \enc{Grafström}{Grafstrom}, A., \enc{Lundström}{Lundstrom}, N.L.P.
 #'   and Schelin, L. (2012). Spatially balanced sampling through the

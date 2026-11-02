@@ -104,17 +104,14 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Ahmadou Dicko \email{mail@ahmadoudicko.com} (\href{https://orcid.org/0000-0002-9654-7582}{ORCID})
-
-Authors:
-\itemize{
-  \item Ahmadou Dicko \email{mail@ahmadoudicko.com} (\href{https://orcid.org/0000-0002-9654-7582}{ORCID})
-}
+\strong{Maintainer}: Ahmadou Dicko \email{mail@ahmadoudicko.com}
+(\href{https://orcid.org/0000-0002-9654-7582}{ORCID})
 
 Other contributors:
 \itemize{
-  \item Thomas Lumley \email{t.lumley@auckland.ac.nz} [contributor]
-  \item Wilmer Prentius (Author of the BalancedSampling 2.0.6 (GPL >= 2) cube implementation from which src/cube.c was ported) [contributor, copyright holder]
+\item Thomas Lumley \email{t.lumley@auckland.ac.nz} (contributor)
+\item Wilmer Prentius (contributor and copyright holder), author of the
+BalancedSampling 2.0.6 (GPL >= 2) cube implementation from which
+src/cube.c was ported
 }
-
 }

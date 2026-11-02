@@ -11,6 +11,7 @@ test_that("joint_inclusion_prob errors on WR design", {
 test_that("joint_inclusion_prob.default errors on non-design object", {
   expect_error(joint_inclusion_prob(list()), "WOR design")
   expect_error(joint_inclusion_prob(1:5), "WOR design")
+  expect_error(joint_inclusion_prob(list()), "'balanced_wor\\(\\)'")
 })
 
 test_that("joint_expected_hits errors on WOR design", {
@@ -24,4 +25,5 @@ test_that("joint_expected_hits.default errors on non-design object", {
 
 test_that("sampling_cov.default errors on non-design object", {
   expect_error(sampling_cov(list()), "sampling functions")
+  expect_error(sampling_cov(list()), "'balanced_wor\\(\\)'")
 })

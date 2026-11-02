@@ -16,9 +16,9 @@ When non-\code{NULL}, returns the submatrix for those units only, without
 allocating the full N x N matrix.}
 
 \item{eps}{Boundary tolerance (default 1e-6). Units with
-\eqn{\pi_k \ge 1 - \varepsilon} are treated as certainty
-selections; units with \eqn{\pi_k \le \varepsilon} are
-treated as zero.}
+\eqn{\pi_k \ge 1 - \varepsilon}{pi_k >= 1 - eps} are treated as certainty
+selections, and units with \eqn{\pi_k \le \varepsilon}{pi_k <= eps}
+are treated as zero.}
 
 \item{...}{Additional arguments (ignored). Present so that the
 function matches the \code{joint_fn} signature required by
@@ -33,9 +33,9 @@ Diagonal entries are \eqn{\pi_i}.
 \description{
 Computes the joint inclusion probability matrix using the
 high-entropy approximation of Brewer & Donadio (2003, eq. 18):
-\deqn{\pi_{ij} \approx \pi_i \pi_j \frac{c_i + c_j}{2}}
+\deqn{\pi_{ij} \approx \pi_i \pi_j \frac{c_i + c_j}{2}}{pi_ij ~ pi_i pi_j (c_i + c_j) / 2}
 where \eqn{c_k = \frac{n-1}{n - \frac{2n-1}{n-1}\pi_k +
-\frac{\sum_\ell \pi_\ell^2}{n-1}}} and \eqn{n = \sum_k \pi_k}.
+\frac{\sum_\ell \pi_\ell^2}{n-1}}}{c_k = (n - 1) / (n - (2n - 1) pi_k / (n - 1) + sum_l pi_l^2 / (n - 1))} and \eqn{n = \sum_k \pi_k}.
 }
 \details{
 The high-entropy (HE) approximation is the recommended default
@@ -44,10 +44,10 @@ most common unequal-probability without-replacement designs:
 Brewer, Sampford, \enc{Tillé}{Tille}, SPS, Pareto, cube, and CPS itself.
 
 The approximation guarantees symmetry,
-\eqn{0 \le \pi_{ij} \le \min(\pi_i, \pi_j)}, and correct
-diagonal (\eqn{\pi_{ii} = \pi_i}), but does not exactly
+\eqn{0 \le \pi_{ij} \le \min(\pi_i, \pi_j)}{0 <= pi_ij <= min(pi_i, pi_j)}, and correct
+diagonal (\eqn{\pi_{ii} = \pi_i}{pi_ii = pi_i}), but does not exactly
 satisfy the marginal identity
-\eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}. The defect is
+\eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}{sum_(j != i) pi_ij = (n - 1) pi_i}. The defect is
 typically small but grows with skewed \eqn{\pi_k} and small
 \eqn{n}.
 

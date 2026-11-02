@@ -263,6 +263,54 @@ test_that("multinomial silently accepts integer-like sum(hits)", {
   expect_no_error(unequal_prob_wr(hits, method = "multinomial"))
 })
 
+test_that("WR methods reject hits that sum to less than 1", {
+  for (m in c("chromy", "multinomial")) {
+    for (nrep in c(1L, 3L)) {
+      # Used to give an empty sample with n = 0.
+      expect_error(
+        unequal_prob_wr(c(1e-6, 1e-6), method = m, nrep = nrep),
+        "sum\\(hits\\) = 2e-06 is not close to an integer"
+      )
+      expect_error(
+        unequal_prob_wr(c(1e-12, 1e-12), method = m, nrep = nrep),
+        "sum\\(hits\\) = 2e-12 rounds to 0"
+      )
+    }
+  }
+  wr_fn <- function(hits, n = NULL, prn = NULL, ...) {
+    sample.int(length(hits), size = n, replace = TRUE, prob = hits)
+  }
+  register_method("strict_hits_wr", "wr", sample_fn = wr_fn)
+  on.exit(unregister_method("strict_hits_wr"), add = TRUE)
+  expect_error(
+    unequal_prob_wr(c(1e-12, 1e-12), method = "strict_hits_wr"),
+    "rounds to 0"
+  )
+  expect_error(
+    unequal_prob_wr(c(0.5, 0.5 + 5e-5), method = "strict_hits_wr"),
+    "not close to an integer"
+  )
+})
+
+test_that("WR methods reject sums a small distance from a whole number", {
+  for (m in c("chromy", "multinomial")) {
+    expect_error(
+      unequal_prob_wr(c(0.5, 0.5 + 5e-5), method = m),
+      "sum\\(hits\\) = 1.00005 is not close to an integer"
+    )
+  }
+})
+
+test_that("hits from expected_hits() pass at large N", {
+  set.seed(7)
+  hits <- expected_hits(rexp(10000), n = 300)
+  for (m in c("chromy", "multinomial")) {
+    s <- unequal_prob_wr(hits, method = m)
+    expect_identical(s$n, 300L)
+    expect_equal(expected_hits(s), hits, tolerance = 1e-12)
+  }
+})
+
 test_that("multinomial rejects Inf in hits", {
   expect_error(
     unequal_prob_wr(c(10, Inf, 30), method = "multinomial"),

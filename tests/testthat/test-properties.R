@@ -343,3 +343,45 @@ test_that("sampled_only errors for batch designs with subsetting instructions", 
     "pikl\\[s\\$sample\\[, i\\]"
   )
 })
+
+# Property 18: built-in WOR samples come in ascending unit order
+test_that("built-in WOR methods return ascending unit indices", {
+  is_sorted <- function(x) {
+    if (is.list(x)) {
+      return(all(!vapply(x, is.unsorted, logical(1L))))
+    }
+    if (is.matrix(x)) {
+      return(all(!apply(x, 2L, is.unsorted)))
+    }
+    !is.unsorted(x)
+  }
+  # Certainty units placed after uncertain ones, so writing them first
+  # would leave the sample out of order.
+  set.seed(11)
+  pik <- inclusion_prob(c(rexp(40), 500, 600), 10)
+  pik <- pik[c(1:20, 41, 21:40, 42)]
+  expect_gte(sum(pik == 1), 2L)
+  aux <- cbind(1, runif(42))
+  spread <- matrix(runif(84), 42)
+  up_methods <- c(
+    "cps", "sampford", "brewer", "systematic", "poisson", "sps", "pareto"
+  )
+  for (r in c(1L, 3L)) {
+    for (m in up_methods) {
+      s <- unequal_prob_wor(pik, method = m, nrep = r)$sample
+      expect_true(is_sorted(s), info = paste(m, "nrep =", r))
+    }
+    s <- unequal_prob_wor(c(0.4, 1, 0.6), method = "cps", nrep = r)$sample
+    expect_true(is_sorted(s), info = paste("cps c(0.4, 1, 0.6) nrep =", r))
+    for (m in c("systematic", "bernoulli")) {
+      s <- equal_prob_wor(42, 10, method = m, nrep = r)$sample
+      expect_true(is_sorted(s), info = paste("equal", m, "nrep =", r))
+    }
+    s <- balanced_wor(pik, aux = aux, method = "cube", nrep = r)$sample
+    expect_true(is_sorted(s), info = paste("cube nrep =", r))
+    for (m in c("lpm2", "scps")) {
+      s <- balanced_wor(pik, spread = spread, method = m, nrep = r)$sample
+      expect_true(is_sorted(s), info = paste(m, "nrep =", r))
+    }
+  }
+})

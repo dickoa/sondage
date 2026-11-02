@@ -27,8 +27,8 @@ but n is manageable. Default \code{FALSE}.}
 
 \item{eps}{High-entropy approximation boundary tolerance (default
 1e-6), used only by the HE-approximate methods (\code{brewer}, \code{sps},
-\code{pareto}, \code{cube}). See \code{\link[=he_jip]{he_jip()}}. The exact \code{cps} and
-\code{systematic} methods ignore it and treat only exact 0/1 as
+\code{pareto}, \code{cube}). See \code{\link[=he_jip]{he_jip()}}. The exact \code{cps}, \code{sampford},
+and \code{systematic} methods ignore it and treat only exact 0/1 as
 excluded/certainty units.}
 }
 \value{
@@ -41,7 +41,7 @@ sampled population indices.
 }
 \description{
 Computes the matrix of joint inclusion probabilities
-\eqn{\pi_{ij} = P(i \in S \text{ and } j \in S)} for a
+\eqn{\pi_{ij} = P(i \in S \text{ and } j \in S)}{pi_ij = P(i in S and j in S)} for a
 without-replacement sampling design.
 }
 \details{
@@ -51,16 +51,16 @@ The computation depends on the method stored in the design object:
 \item{Exact}{\code{cps} (probability-domain Poisson-binomial
 recurrences), \code{sampford} (elementary-symmetric recurrences),
 \code{systematic} (circular interval overlap), \code{poisson}
-(\eqn{\pi_{ij} = \pi_i \pi_j}), \code{srs}, and \code{bernoulli}.}
+(\eqn{\pi_{ij} = \pi_i \pi_j}{pi_ij = pi_i pi_j}), \code{srs}, and \code{bernoulli}.}
 \item{Approximate}{\code{brewer}, \code{sps}, \code{pareto}, and \code{cube} use the
 high-entropy approximation (Brewer & Donadio, 2003, eq. 18):
-\eqn{\pi_{ij} \approx \pi_i \pi_j (c_i + c_j) / 2}.
+\eqn{\pi_{ij} \approx \pi_i \pi_j (c_i + c_j) / 2}{pi_ij ~ pi_i pi_j (c_i + c_j) / 2}.
 This guarantees symmetry,
-\eqn{0 \leq \pi_{ij} \leq \min(\pi_i, \pi_j)}, and correct
+\eqn{0 \leq \pi_{ij} \leq \min(\pi_i, \pi_j)}{0 <= pi_ij <= min(pi_i, pi_j)}, and correct
 diagonal, but \strong{not} the marginal identity
-\eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}. The defect is
+\eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}{sum_(j != i) pi_ij = (n - 1) pi_i}. The defect is
 typically small but grows with skewed \eqn{\pi_k} and small
-\eqn{n}. A warning is issued when it exceeds 5\\% of \eqn{n}.
+\eqn{n}. A warning is issued when it exceeds 5\% of \eqn{n}.
 Use \code{method = "cps"} when exact second-order probabilities are
 needed. For \code{sps} and \code{pareto}, the approximation uses the
 stored target \code{pik}, not the exact finite-population

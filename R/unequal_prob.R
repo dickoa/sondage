@@ -12,9 +12,9 @@
 #'   are sampled as given.
 #' @param method The sampling method:
 #'   \describe{
-#'     \item{`"cps"`}{Conditional Poisson Sampling (maximum entropy;
+#'     \item{`"cps"`}{Conditional Poisson Sampling (maximum entropy,
 #'       Chen et al., 1994). Fixed size, exact joint probabilities
-#'       with all \eqn{\pi_{ij} > 0}. Calibration and the conditional
+#'       with all \eqn{\pi_{ij} > 0}{pi_ij > 0}. Calibration and the conditional
 #'       probability table are O(Nn) (probability-domain
 #'       Poisson-binomial recurrence), each draw is O(N) thereafter.
 #'       Equal `pik` are drawn directly as SRS.}
@@ -23,21 +23,21 @@
 #'       and has exact joint inclusion probabilities. A native C kernel
 #'       combines the fast rejection construction with Grafstrom's
 #'       non-rejective conditional-Poisson fallback and draws the smaller
-#'       of the sample and its complement. Typical O(N + n); O(Nn) in the
+#'       of the sample and its complement. Typical O(N + n), and O(Nn) in the
 #'       fallback.}
 #'     \item{`"brewer"`}{Brewer's (1975) draw-by-draw method. Fixed
 #'       size, approximate joint probabilities (high-entropy
-#'       approximation; see [joint_inclusion_prob()]). O(Nn).}
+#'       approximation, see [joint_inclusion_prob()]). O(Nn).}
 #'     \item{`"systematic"`}{Systematic PPS. Fixed size, exact joint
 #'       probabilities but \strong{some may be zero} (pairs that never
 #'       co-occur), making the SYG estimator inapplicable. See
 #'       [sampling_cov()]. O(N).}
 #'     \item{`"poisson"`}{Poisson sampling. \strong{Random} sample
 #'       size (expected \eqn{n = \sum \pi_k}). Units selected
-#'       independently, so \eqn{\pi_{ij} = \pi_i \pi_j}. Supports
+#'       independently, so \eqn{\pi_{ij} = \pi_i \pi_j}{pi_ij = pi_i pi_j}. Supports
 #'       PRN. O(N).}
 #'     \item{`"sps"`}{Sequential Poisson Sampling (Ohlsson, 1998).
-#'       Order sampling with key \eqn{\xi_k = u_k / \pi_k}; the
+#'       Order sampling with key \eqn{\xi_k = u_k / \pi_k}, where the
 #'       \eqn{n} smallest are selected. Fixed size, high-entropy.
 #'       Supports PRN. Approximate joint probabilities. The true
 #'       first-order inclusion probabilities are approximately equal
@@ -61,7 +61,7 @@
 #'   for coordinated repeated sampling.
 #' @param ... Additional arguments passed to methods registered via
 #'   [register_method()]. Built-in methods take no additional
-#'   arguments; the former `eps` boundary-trimming argument was
+#'   arguments. The former `eps` boundary-trimming argument was
 #'   removed because it silently changed the design.
 #'
 #' @return An object of class `c("unequal_prob", "wor", "sondage_sample")`.
@@ -185,7 +185,9 @@ unequal_prob_wor <- function(
 #'
 #' @param hits A numeric vector of expected hits (expected number of
 #'   selections per unit). Typically computed via [expected_hits()].
-#'   `sum(hits)` must be close to a positive integer.
+#'   `sum(hits)` is the sample size, so it must be a whole number of at
+#'   least 1 to floating-point accuracy. Looser sums are rejected rather
+#'   than silently rounded.
 #' @param method The sampling method:
 #'   \describe{
 #'     \item{`"chromy"`}{Chromy's (1979) sequential PPS with minimum
@@ -323,8 +325,7 @@ unequal_prob_wr <- function(
 
 #' @noRd
 .chromy_sample <- function(hits) {
-  .check_hits(hits)
-  n <- .check_number(sum(hits), "sum(hits)", integer = TRUE)
+  n <- .check_hits(hits)
   N <- length(hits)
   prob <- hits / sum(hits)
 
@@ -345,16 +346,11 @@ unequal_prob_wr <- function(
 
 #' @noRd
 .multinomial_sample <- function(hits) {
-  .check_hits(hits)
-  n <- .check_number(sum(hits), "sum(hits)", integer = TRUE)
+  n <- .check_hits(hits)
   N <- length(hits)
   prob <- hits / sum(hits)
 
-  if (n == 0L) {
-    idx <- integer(0L)
-  } else {
-    idx <- sample.int(N, n, replace = TRUE, prob = prob)
-  }
+  idx <- sample.int(N, n, replace = TRUE, prob = prob)
   realized_hits <- tabulate(idx, nbins = N)
 
   .new_wr_sample(
@@ -420,8 +416,7 @@ unequal_prob_wr <- function(
 .batch_wr <- function(hits, method, nrep) {
   # prn is rejected upstream in unequal_prob_wr (WR methods do not support
   # PRN); no prn forwarding here.
-  .check_hits(hits)
-  n <- .check_number(sum(hits), "sum(hits)", integer = TRUE)
+  n <- .check_hits(hits)
   N <- length(hits)
   prob <- hits / sum(hits)
 
@@ -438,11 +433,7 @@ unequal_prob_wr <- function(
     sample_mat <- matrix(0L, n, nrep)
     hits_mat <- matrix(0L, N, nrep)
     for (i in seq_len(nrep)) {
-      idx <- if (n == 0L) {
-        integer(0L)
-      } else {
-        sample.int(N, n, replace = TRUE, prob = prob)
-      }
+      idx <- sample.int(N, n, replace = TRUE, prob = prob)
       sample_mat[, i] <- idx
       hits_mat[, i] <- tabulate(idx, nbins = N)
     }

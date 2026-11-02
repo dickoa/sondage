@@ -8,7 +8,11 @@
 #' All `sondage_sample` objects contain:
 #' \describe{
 #'   \item{`$sample`}{Sample indices (integer vector, or matrix/list
-#'   when `nrep > 1`).}
+#'   when `nrep > 1`). Built-in without-replacement methods return the
+#'   indices in ascending order, except `equal_prob_wor(method = "srs")`,
+#'   which keeps the order drawn by [sample.int()]. With-replacement
+#'   methods and registered methods keep the order in which their
+#'   sampler returns the units.}
 #'   \item{`$n`}{Sample size. For designs with `$fixed_size = TRUE`, an
 #'   integer equal to the realized sample size. For random-size designs
 #'   (`$fixed_size = FALSE`), a double equal to the expected sample size:
@@ -40,8 +44,8 @@
 #'   \item{`c("unequal_prob", "wor", "sondage_sample")`}{Unequal probability, without replacement.}
 #'   \item{`c("balanced", "unequal_prob", "wor", "sondage_sample")`}{Balanced
 #'   or spatially balanced sampling, including cube, LPM2, SCPS, and
-#'   registered methods; dispatches to `unequal_prob` / `wor` methods
-#'   unless a `balanced`-specific method is defined.}
+#'   registered methods. Dispatch falls through to `unequal_prob` /
+#'   `wor` methods unless a `balanced`-specific method is defined.}
 #'   \item{`c("unequal_prob", "wr", "sondage_sample")`}{Unequal probability, with replacement.}
 #' }
 #'

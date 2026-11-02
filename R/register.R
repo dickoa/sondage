@@ -11,7 +11,7 @@
 #' their associated generics.
 #'
 #' Registrations last for the current R session. Registering an existing
-#' custom method name is an error; call [unregister_method()] first when
+#' custom method name is an error. Call [unregister_method()] first when
 #' deliberately replacing a method.
 #'
 #' @param name A unique method name (character string). Must not
@@ -83,7 +83,7 @@
 #'   weights. Sampling through sondage itself is unaffected: the
 #'   declaration describes the method, it never disables it. Like
 #'   `variance_family`, the declaration is an assertion by the method
-#'   author that sondage cannot verify; the package vignette shows
+#'   author that sondage cannot verify. The package vignette shows
 #'   how to check a first-order contract by simulation.
 #'
 #' @section Contracts:
@@ -125,7 +125,7 @@
 #'     otherwise `sum(pik)`).}
 #'   \item{`aux`}{Auxiliary balancing matrix (N x p, double), or
 #'     `NULL`. Passed through as supplied to [balanced_wor()] after
-#'     validation; the sample-size constraint is \strong{not}
+#'     validation. The sample-size constraint is \strong{not}
 #'     prepended, so add it yourself if your algorithm needs it
 #'     (e.g. `cbind(pik, aux)`). Methods registered with
 #'     `supports_aux = FALSE` always receive `aux = NULL`.}
@@ -146,7 +146,7 @@
 #'     (1-based). The dispatcher validates the returned indices.}
 #' }
 #'
-#' **`joint_fn(pik, sample_idx = NULL, ...)`** (optional; types `"wor"`
+#' **`joint_fn(pik, sample_idx = NULL, ...)`** (optional, types `"wor"`
 #' and `"balanced"`)
 #' \describe{
 #'   \item{`pik`}{Inclusion probabilities, numeric vector of length N.}
@@ -161,7 +161,7 @@
 #'     symmetric numeric values.}
 #' }
 #'
-#' **`joint_fn(hits, sample_idx = NULL, ...)`** (optional; type `"wr"`)
+#' **`joint_fn(hits, sample_idx = NULL, ...)`** (optional, type `"wr"`)
 #' \describe{
 #'   \item{`hits`}{Expected hits, numeric vector of length N, renormalized
 #'     to sum exactly to the integer sample size `n`.}
@@ -200,8 +200,8 @@
 #'   \item{`"wr"`}{With-replacement (or minimum-replacement)
 #'     selection. Hansen-Hurwitz variance, no finite population
 #'     correction. Requires `type = "wr"`.}
-#'   \item{`"unsupported"`}{No linearization treatment is valid;
-#'     consumers should refuse to linearize and point to replicate
+#'   \item{`"unsupported"`}{No linearization treatment is valid.
+#'     Consumers should refuse to linearize and point to replicate
 #'     methods instead. The correct declaration for correlated
 #'     random-size schemes. Always allowed.}
 #' }
@@ -211,7 +211,7 @@
 #' `"poisson"` can never hold for them.
 #'
 #' The declaration is an assertion by the method author, not
-#' something sondage can verify; `"poisson"` in particular asserts
+#' something sondage can verify. `"poisson"` in particular asserts
 #' that units are selected independently, and a wrong declaration
 #' produces silently wrong variance estimates for every user of the
 #' method. The package vignette
@@ -220,8 +220,9 @@
 #'
 #' @return Invisible `NULL`, called for its side effect.
 #'
-#' @seealso [registered_methods()], [method_spec()],
-#'   [unequal_prob_wor()], [unequal_prob_wr()], [balanced_wor()]
+#' @seealso [registered_methods()], [is_registered_method()],
+#'   [unregister_method()], [method_spec()], [unequal_prob_wor()],
+#'   [unequal_prob_wr()], [balanced_wor()]
 #'
 #' @examples
 #' # Register a toy random sampler. Successive sampling with
@@ -601,8 +602,7 @@ unregister_method <- function(name) {
     nrep, prn, method, supports_prn = reg$supports_prn
   )
 
-  .check_hits(hits)
-  n <- .check_number(sum(hits), "sum(hits)", integer = TRUE)
+  n <- .check_hits(hits)
   N <- length(hits)
   if (!is.null(prn)) {
     .check_prn(prn, N)

@@ -21,8 +21,8 @@ A list with elements \code{dispatcher} (the sampling entry point),
 \code{type} (\code{"wor"}, \code{"wr"}, or \code{"balanced"}), \code{fixed_size} (logical),
 \code{variance_family} (one of
 \code{"srs"}, \code{"pps_brewer"}, \code{"poisson"}, \code{"wr"}, \code{"unsupported"}, or
-\code{NULL} for a registered method that did not declare one; see
-\code{\link[=register_method]{register_method()}}), \code{supports_prn} (logical), \code{supports_aux}
+\code{NULL} for a registered method that did not declare one, as
+\code{\link[=register_method]{register_method()}} describes), \code{supports_prn} (logical), \code{supports_aux}
 (logical), \code{supports_strata} (logical), \code{supports_spread}
 (logical), and \code{probabilities} (where the method sits in the
 first-order probability taxonomy: \code{"exact"} for every built-in
