@@ -82,8 +82,8 @@ test_that("scps spreads samples better than srs", {
 test_that("scps preserves separated coincident-pair sample sizes", {
   set.seed(105)
   groups <- 10L
-  centres <- cbind(10 * seq_len(groups), 10 * seq_len(groups))
-  spread <- centres[rep(seq_len(groups), each = 2L), ]
+  centers <- cbind(10 * seq_len(groups), 10 * seq_len(groups))
+  spread <- centers[rep(seq_len(groups), each = 2L), ]
   pik <- rep(0.5, 2L * groups)
 
   for (draw in seq_len(20L)) {
@@ -354,7 +354,7 @@ test_that("scps validates prn and rejects it where unsupported", {
 })
 
 test_that("scps shares tied weight equally up to each unit's bound", {
-  # All units share one point, so every step's neighbours tie. With prn the
+  # All units share one point, so every step's neighbors tie. With prn the
   # thresholds follow by hand, and a prn 1e-9 either side of one flips it.
   draw <- function(pik, u) {
     balanced_wor(pik, spread = rep(0, 4), method = "scps", prn = u)$sample

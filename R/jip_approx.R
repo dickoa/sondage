@@ -186,10 +186,11 @@ hajek_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
     } else {
       cert_s <- cert
     }
+    # A pair takes its smaller probability, so two near-certainty units do
+    # not depend on the processing order.
     for (ci in cert_s) {
-      pikl[ci, ] <- pik_out
-      pikl[, ci] <- pik_out
-      pikl[ci, ci] <- pik_out[ci]
+      pikl[ci, ] <- pmin(pik_out, pik_out[ci])
+      pikl[, ci] <- pmin(pik_out, pik_out[ci])
     }
   }
 

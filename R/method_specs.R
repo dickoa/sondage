@@ -138,8 +138,8 @@
 # Spans wor + balanced; used in joint_inclusion_prob.wor marginal defect check.
 .he_jip_methods <- c("brewer", "sps", "pareto", "cube")
 
-# Methods with C-level batch optimisation (workspace reuse).
-.batch_optimised_methods <- "cps"
+# Methods with C-level batch optimization (workspace reuse).
+.batch_optimized_methods <- "cps"
 
 #' Look up the spec for a built-in method.
 #'

@@ -20,7 +20,7 @@
  * with p_k = w_k / (1 + w_k). The numerator is a fresh forward
  * Poisson-binomial recurrence excluding units i and j: O(N * n) time,
  * O(n) workspace, and no subtraction of near-equal quantities. (The
- * previous leave-one/two-out polynomial division cancelled
+ * previous leave-one/two-out polynomial division canceled
  * catastrophically for repeated weights and produced NaN at N ~ 800.)
  *
  * buf must hold n + 1 doubles. f_n = P(W selects n) from the
@@ -163,6 +163,23 @@ SEXP C_cps_jip(SEXP pik_sexp) {
      * O(N * min(n, N - n)). */
     const int use_complement = (n_valid > N_valid - n_valid);
     const int n_work = use_complement ? (N_valid - n_valid) : n_valid;
+
+    /* The active units sum to their count within the input tolerance, so
+     * the complement design is empty and there is nothing to calibrate. */
+    if (n_work == 0) {
+        for (int i = 0; i < N_valid; i++) {
+            for (int jj = i + 1; jj < N_valid; jj++) {
+                const double pi_ij = cps_pair_finalize(
+                    0.0, pik_valid[i], pik_valid[jj], use_complement);
+                int k = valid_idx[i];
+                int l = valid_idx[jj];
+                pikl[(size_t)l * N_full + k] = pi_ij;
+                pikl[(size_t)k * N_full + l] = pi_ij;
+            }
+        }
+        UNPROTECT(1);
+        return result;
+    }
 
     double *pik_work = (double *) R_alloc(N_valid, sizeof(double));
     for (int i = 0; i < N_valid; i++) {
@@ -366,6 +383,24 @@ SEXP C_cps_jip_sub(SEXP pik_sexp, SEXP idx_sexp) {
     const int use_complement = (n_valid > N_valid - n_valid);
     const int n_work = use_complement ? (N_valid - n_valid) : n_valid;
 
+    /* Empty complement design (see C_cps_jip). */
+    if (n_work == 0) {
+        for (int i = 0; i < n_s; i++) {
+            const int vi_i = pop_to_valid[idx_r[i] - 1];
+            if (vi_i < 0) continue;
+            for (int j = i + 1; j < n_s; j++) {
+                const int vi_j = pop_to_valid[idx_r[j] - 1];
+                if (vi_j < 0) continue;
+                const double pi_ij = cps_pair_finalize(
+                    0.0, pik_valid[vi_i], pik_valid[vi_j], use_complement);
+                pikl[(size_t)j * n_s + i] = pi_ij;
+                pikl[(size_t)i * n_s + j] = pi_ij;
+            }
+        }
+        UNPROTECT(1);
+        return result;
+    }
+
     double *pik_work = (double *) R_alloc(N_valid, sizeof(double));
     for (int i = 0; i < N_valid; i++) {
         pik_work[i] = use_complement ? (1.0 - pik_valid[i]) : pik_valid[i];
@@ -516,6 +551,15 @@ SEXP C_cps_jip_sub(SEXP pik_sexp, SEXP idx_sexp) {
     return result;
 }
 
+/* Snap a pair value that rounding left just outside its valid bounds. */
+static double sampford_clamp_pair(double value, double pi, double pj) {
+    const double lo = fmax(0.0, pi + pj - 1.0);
+    const double hi = fmin(pi, pj);
+    if (value < lo && value > lo - 2e-12) return lo;
+    if (value > hi && value < hi + 2e-12) return hi;
+    return value;
+}
+
 /*
  * Exact Sampford joint probability for one pair, computed with an
  * elementary-symmetric-polynomial recurrence excluding that pair.
@@ -541,64 +585,94 @@ static double sampford_pair_direct(const double *p, const long double *q,
     }
     const long double raw = q[ii] * q[jj] *
         (((long double)m - p[ii] - p[jj]) * e[d] - g[d]);
-    return (double)(raw / normalizer);
+    return sampford_clamp_pair((double)(raw / normalizer), p[ii], p[jj]);
 }
 
-/* Exact pair value from a quadratic deletion of units i and j. */
+/*
+ * Build the polynomials E and G of all active units up to degree top, where
+ * E[r] sums prod(q) and G[r] sums prod(q) * sum(p) over subsets of size r.
+ * Returns 0 when a coefficient leaves the floating-point range.
+ */
+static int sampford_build_poly(const double *p, const long double *q, int N,
+                               int top, long double *E, long double *G) {
+    memset(E, 0, (size_t)(top + 1) * sizeof(long double));
+    memset(G, 0, (size_t)(top + 1) * sizeof(long double));
+    E[0] = 1.0L;
+    for (int i = 0; i < N; i++) {
+        const int t = (i + 1 < top) ? i + 1 : top;
+        for (int r = t; r >= 1; r--) {
+            G[r] += q[i] * (G[r - 1] + (long double)p[i] * E[r - 1]);
+            E[r] += q[i] * E[r - 1];
+        }
+    }
+    for (int r = 0; r <= top; r++) {
+        if (!isfinite(E[r]) || !isfinite(G[r])) return 0;
+    }
+    return 1;
+}
+
+/*
+ * Remove the factor of one unit from (E, G), returning degrees 0..upto.
+ * Deleting forward subtracts q * e[r - 1] from E[r], which cancels once that
+ * term dominates E[r], so forward deletion stops there. The remaining degrees
+ * come from degree top downward, where the same step does not cancel. A
+ * negative top means the polynomials stop short of their full degree, and the
+ * function then returns 0 if forward deletion could not reach upto.
+ */
+static int sampford_deflate(const long double *E, const long double *G,
+                            int top, long double qk, long double pk,
+                            long double *e, long double *g, int upto) {
+    e[0] = 1.0L;
+    g[0] = 0.0L;
+    int c = 0;
+    while (c < upto) {
+        const int r = c + 1;
+        const long double sub = qk * e[r - 1];
+        if (sub > 0.5L * E[r]) break;
+        e[r] = E[r] - sub;
+        g[r] = G[r] - qk * (g[r - 1] + pk * e[r - 1]);
+        c = r;
+    }
+    if (c < upto) {
+        if (top < 0) return 0;
+        long double en = 0.0L, gn = 0.0L;
+        for (int r = top; r >= c + 2; r--) {
+            const long double ep = (E[r] - en) / qk;
+            const long double gp = (G[r] - gn) / qk - pk * ep;
+            if (r - 1 <= upto) {
+                e[r - 1] = ep;
+                g[r - 1] = gp;
+            }
+            en = ep;
+            gn = gp;
+        }
+    }
+    return 1;
+}
+
+/*
+ * Pair value from (E1, G1), the polynomials that already exclude unit ii.
+ * top1 is their full degree, or negative when they stop short of it. Returns
+ * NAN when the deletion could not finish or the value is outside its bounds,
+ * and the caller then uses a slower route.
+ */
 static double sampford_pair_fast(const double *p, const long double *q,
-                                 const long double *E, const long double *G,
-                                 int N, int m, int ii, int jj,
+                                 const long double *E1, const long double *G1,
+                                 int top1, int m, int ii, int jj,
                                  long double normalizer,
                                  long double *e, long double *g) {
     const int d = m - 2;
-    e[0] = 1.0L;
-    g[0] = 0.0L;
-    const long double qi = q[ii], qj = q[jj];
-    const long double s1 = qi + qj;
-    const long double s2 = qi * qj;
-    const long double h1 = (long double)p[ii] * qi +
-                           (long double)p[jj] * qj;
-    const long double h2 = s2 * ((long double)p[ii] + p[jj]);
-
-    int bad = 0;
-    for (int r = 1; r <= d; r++) {
-        const long double em1 = e[r - 1];
-        const long double em2 = (r >= 2) ? e[r - 2] : 0.0L;
-        const long double gm1 = g[r - 1];
-        const long double gm2 = (r >= 2) ? g[r - 2] : 0.0L;
-        e[r] = E[r] - s1 * em1 - s2 * em2;
-        g[r] = G[r] - s1 * gm1 - s2 * gm2 - h1 * em1 - h2 * em2;
-        if (!isfinite(e[r]) || !isfinite(g[r]) ||
-            e[r] < -64.0L * LDBL_EPSILON * fabsl(E[r])) {
-            bad = 1;
-            break;
-        }
-        if (e[r] < 0.0L) e[r] = 0.0L;
-        if (g[r] < 0.0L &&
-            g[r] > -64.0L * LDBL_EPSILON * fmaxl(1.0L, fabsl(G[r]))) {
-            g[r] = 0.0L;
-        }
+    if (!sampford_deflate(E1, G1, top1, q[jj], (long double)p[jj], e, g, d)) {
+        return NAN;
     }
-
-    double value = NAN;
-    if (!bad) {
-        const long double raw = qi * qj *
-            (((long double)m - p[ii] - p[jj]) * e[d] - g[d]);
-        value = (double)(raw / normalizer);
-        const double lo = fmax(0.0, p[ii] + p[jj] - 1.0);
-        const double hi = fmin(p[ii], p[jj]);
-        const double tol = 2e-10 * fmax(1.0, hi);
-        if (!R_FINITE(value) || value < lo - tol || value > hi + tol) bad = 1;
-    }
-    if (bad) {
-        value = sampford_pair_direct(p, q, N, m, ii, jj, normalizer, e, g);
-    }
-
+    const long double raw = q[ii] * q[jj] *
+        (((long double)m - p[ii] - p[jj]) * e[d] - g[d]);
+    const double value = (double)(raw / normalizer);
     const double lo = fmax(0.0, p[ii] + p[jj] - 1.0);
     const double hi = fmin(p[ii], p[jj]);
-    if (value < lo && value > lo - 2e-12) value = lo;
-    if (value > hi && value < hi + 2e-12) value = hi;
-    return value;
+    const double tol = 2e-10 * fmax(1.0, hi);
+    if (!R_FINITE(value) || value < lo - tol || value > hi + tol) return NAN;
+    return sampford_clamp_pair(value, p[ii], p[jj]);
 }
 
 /*
@@ -736,20 +810,21 @@ static SEXP sampford_jip_impl(SEXP pik_sexp, const int *idx, int n_out) {
                (long double)m / scaled_sum;
     }
 
-    long double *E = R_allocLD((size_t) m + 1);
-    long double *G = R_allocLD((size_t) m + 1);
-    memset(E, 0, (size_t)(m + 1) * sizeof(long double));
-    memset(G, 0, (size_t)(m + 1) * sizeof(long double));
-    E[0] = 1.0L;
-    int seen = 0;
-    for (int i = 0; i < N; i++) {
-        int top = seen + 1;
-        if (top > m) top = m;
-        for (int r = top; r >= 1; r--) {
-            G[r] += q[i] * (G[r - 1] + (long double)p[i] * E[r - 1]);
-            E[r] += q[i] * E[r - 1];
-        }
-        seen++;
+    /*
+     * Degree m is enough while forward deletion stays stable, which keeps the
+     * cost at O(N * m) for a small sample from a large population. Degree N is
+     * built once, the first time a pair needs the backward path, unless the
+     * O(N^2) build would cost more than recomputing every pair directly.
+     */
+    const int d = m - 2;
+    const int can_extend = (double)N <= 0.5 * (double)n_out * n_out * d;
+    const size_t poly_len = (size_t)(can_extend ? N : m) + 1;
+    long double *E = R_allocLD(poly_len);
+    long double *G = R_allocLD(poly_len);
+    if (!sampford_build_poly(p, q, N, m, E, G)) {
+        UNPROTECT(1);
+        error("Sampford joint probabilities exceed the floating-point range "
+              "of this platform");
     }
     const long double normalizer = (long double)m * E[m] - G[m];
     if (!(normalizer > 0.0L) || !isfinite(normalizer)) {
@@ -757,21 +832,43 @@ static SEXP sampford_jip_impl(SEXP pik_sexp, const int *idx, int n_out) {
         error("Sampford joint-probability normalizer is non-finite");
     }
 
-    const int d = m - 2;
-    long double *e = R_allocLD((size_t) d + 1);
-    long double *g = R_allocLD((size_t) d + 1);
+    int full = 0;
+    long double *e = R_allocLD(poly_len);
+    long double *g = R_allocLD(poly_len);
+    long double *E1 = R_allocLD(poly_len);
+    long double *G1 = R_allocLD(poly_len);
 
     for (int a = 0; a < n_out; a++) {
         if ((a & 127) == 0) R_CheckUserInterrupt();
         const int ka = idx ? idx[a] - 1 : a;
         const int iact = pop_to_active[ka];
         if (iact < 0) continue;
+        int have1 = sampford_deflate(E, G, full ? N : -1, q[iact],
+                                     (long double)p[iact], E1, G1,
+                                     full ? N - 1 : d);
         for (int b = 0; b < a; b++) {
             const int kb = idx ? idx[b] - 1 : b;
             const int jact = pop_to_active[kb];
             if (jact < 0) continue;
-            double work_v = sampford_pair_fast(p, q, E, G, N, m,
-                                                iact, jact, normalizer, e, g);
+            double work_v = have1 ?
+                sampford_pair_fast(p, q, E1, G1, full ? N - 1 : -1, m,
+                                   iact, jact, normalizer, e, g) : NAN;
+            if (ISNAN(work_v) && !full && can_extend) {
+                if (!sampford_build_poly(p, q, N, N, E, G)) {
+                    UNPROTECT(1);
+                    error("Sampford joint probabilities exceed the "
+                          "floating-point range of this platform");
+                }
+                full = 1;
+                have1 = sampford_deflate(E, G, N, q[iact],
+                                         (long double)p[iact], E1, G1, N - 1);
+                work_v = sampford_pair_fast(p, q, E1, G1, N - 1, m,
+                                            iact, jact, normalizer, e, g);
+            }
+            if (ISNAN(work_v)) {
+                work_v = sampford_pair_direct(p, q, N, m, iact, jact,
+                                              normalizer, e, g);
+            }
             double v = work_v;
             if (use_complement) {
                 v = p_orig[iact] + p_orig[jact] - 1.0 + work_v;
@@ -978,14 +1075,15 @@ SEXP C_high_entropy_jip(SEXP pik_sexp, SEXP eps_sexp) {
         pikl[(size_t)k * N_full + k] = pik_full[k];
     }
 
-    /* Handle certainty units: pi_ij = pik[other] */
+    /* Certainty units: pi_ij is the smaller probability of the pair, so
+     * two near-certainty units do not depend on the processing order. */
     for (int k = 0; k < N_full; k++) {
         if (pik_full[k] >= 1.0 - eps) {
             for (int l = 0; l < N_full; l++) {
-                pikl[(size_t)k * N_full + l] = pik_full[l];
-                pikl[(size_t)l * N_full + k] = pik_full[l];
+                const double v = fmin(pik_full[k], pik_full[l]);
+                pikl[(size_t)k * N_full + l] = v;
+                pikl[(size_t)l * N_full + k] = v;
             }
-            pikl[(size_t)k * N_full + k] = pik_full[k];
         }
     }
 

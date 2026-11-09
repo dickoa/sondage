@@ -1,7 +1,15 @@
 ## Purpose of this submission
 
-This release adds two features and fixes three defects present in 0.9.1.
+This release follows 0.9.1 on CRAN and includes the changes of the unreleased
+0.10.0. It fixes defects present in 0.9.1, adds two features, and speeds up
+several samplers. The defects are listed first.
 
+* `joint_inclusion_prob()` and `sampling_cov()` returned wrong joint inclusion
+  probabilities for `unequal_prob_wor(method = "sampford")` with moderate
+  populations and samples of about a third to a half of the eligible units.
+  Cancellation in a polynomial deletion gave values inside the valid bounds,
+  so no warning was issued. The computation no longer cancels, and it agrees
+  with a 500-digit evaluation of the design definition.
 * `balanced_wor(method = "scps")` failed with "SCPS maximal weights are
   numerically infeasible" whenever `sum(pik)` missed an integer by a residue
   the input check accepts. `inclusion_prob()` output routinely carries such
@@ -16,20 +24,52 @@ This release adds two features and fixes three defects present in 0.9.1.
   now recomputed from the raw sizes in that case, and the result is checked
   to sum to `n` before it is returned. Inputs with a smaller span give the
   same results as before, bit for bit.
-* New: `balanced_wor()` gains `prn` for coordinating samples with permanent
+* `unequal_prob_wr()` accepted sums up to 1e-4 away from a whole number and
+  rounded them, so `c(1e-6, 1e-6)` gave an empty sample. It now requires
+  `sum(hits)` to be a whole number of at least 1 to floating-point accuracy,
+  as `unequal_prob_wor()` already did for `sum(pik)`.
+* Arguments passed through `...` could be misread on their way to a method
+  registered with `register_method()`, which gave a wrong value without an
+  error or stopped with a confusing message.
+* `joint_inclusion_prob()` with `method = "cps"` read uninitialized memory
+  when every unit below certainty was so close to 1 that the probabilities
+  still summed to their count within the input tolerance.
+* The high-entropy and Hajek approximations gave a pair of near-certainty
+  units a value that depended on the unit order and could exceed the smaller
+  marginal probability.
+
+Two features are new.
+
+* `balanced_wor()` gains `prn` for coordinating samples with permanent
   random numbers, supported by `method = "scps"`, and registered balanced
-  methods may declare PRN support. `scps` is also faster when many units
-  share a spreading value.
-* New: `inclusion_prob()` accepts a fractional `n`, the expected size of a
+  methods may declare PRN support.
+* `inclusion_prob()` accepts a fractional `n`, the expected size of a
   random-size design such as Poisson sampling, from 0 up to the number of
   units with positive size. Fixed-size samplers still refuse probabilities
   that do not sum to a whole number. A value near a whole number is no
   longer rounded to it.
 
-The compiled code changed in `src/scps.c`, `src/cps_core.h`,
-`src/inclusion_prob.c` and `src/init.c`. The full test suite and a stress
-run of the new code paths are clean under gcc `-fsanitize=undefined` and
-`-fsanitize=address` builds of the package.
+The remaining changes concern speed and output order.
+
+* CPS calibration is about 2.5 times faster and uses O(n) workspace instead
+  of O(Nn). Sampford draws that use the non-rejective fallback get the same
+  speed-up. This change leaves samples and CPS joint inclusion probabilities
+  as they were.
+* `balanced_wor(method = "lpm2")` uses a k-d tree when `spread` has at most
+  eight columns, `method = "cube"` uses Gaussian elimination and back
+  substitution, and `method = "scps"` is faster when many units share a
+  spreading value. A seed can give a different sample of the same design for
+  `lpm2` and `scps` when many units are tied and, in rare cases, for `cube`.
+* `unequal_prob_wor()` returns `$sample` in ascending unit order for
+  `method = "brewer"`, and for `method = "cps"` when some `pik` equal 1, as
+  its other built-in methods do. The selected units are unchanged.
+
+The compiled code changed in `src/cps.c`, `src/cps_core.h`, `src/cube.c`,
+`src/inclusion_prob.c`, `src/init.c`, `src/joint_probs.c`,
+`src/kdtree_core.h`, `src/lpm.c`, `src/scps.c`, `src/up_brewer.c` and
+`src/up_sampford.c`. The full test suite and a stress run of the new code
+paths are clean under gcc `-fsanitize=undefined` and `-fsanitize=address`
+builds of the package.
 
 ## R CMD check results
 
@@ -42,7 +82,7 @@ run of the new code paths are clean under gcc `-fsanitize=undefined` and
 
 ## Test environments
 
-* Local: Arch Linux, R 4.6.1 Patched
+* Local: Arch Linux, R 4.6.2 Patched
 * Local: gcc UBSan and ASan builds of the package's compiled code
 * GitLab CI: Linux (rocker/r-ver:4.6.0, R-release)
 * GitLab CI: Linux (rocker/r-devel, R-devel)

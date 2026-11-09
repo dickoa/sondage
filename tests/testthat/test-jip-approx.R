@@ -368,3 +368,32 @@ test_that("eps passes through registered joint_fn dispatch", {
   expect_equal(dim(pikl_default), c(8, 8))
   expect_equal(dim(pikl_custom), c(8, 8))
 })
+
+## Pairs of near-certainty units
+
+test_that("near-certainty pairs take the smaller probability in any order", {
+  pik <- c(0.9999999, 0.9999998, 0.0000003)
+  perm <- c(2L, 3L, 1L)
+
+  for (f in list(he_jip, hajek_jip)) {
+    J <- f(pik)
+    expect_true(all(J <= outer(pik, pik, pmin)))
+    expect_identical(J[1, 2], min(pik[1:2]))
+    expect_equal(f(pik, sample_idx = 3:1), J[3:1, 3:1], tolerance = 1e-12)
+    expect_equal(f(pik[perm]), J[perm, perm], tolerance = 1e-12)
+
+    wide <- f(c(0.99, 0.91, 0.1), eps = 0.1)
+    expect_identical(wide[1, 2], 0.91)
+  }
+})
+
+test_that("near-certainty pairs are bounded through joint_inclusion_prob", {
+  pik <- c(1 - 1e-7, 1 - 2e-7, 0.5, 0.5, 0.5, 0.5 + 3e-7)
+  s <- unequal_prob_wor(pik, method = "brewer")
+  full <- suppressWarnings(joint_inclusion_prob(s))
+  expect_identical(full[1, 2], min(pik[1:2]))
+
+  s$sample <- 2:1
+  sub <- suppressWarnings(joint_inclusion_prob(s, sampled_only = TRUE))
+  expect_identical(sub[1, 2], min(pik[1:2]))
+})

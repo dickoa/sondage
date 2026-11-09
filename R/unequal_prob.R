@@ -13,18 +13,20 @@
 #' @param method The sampling method:
 #'   \describe{
 #'     \item{`"cps"`}{Conditional Poisson Sampling (maximum entropy,
-#'       Chen et al., 1994). Fixed size, exact joint probabilities
-#'       with all \eqn{\pi_{ij} > 0}{pi_ij > 0}. Calibration and the conditional
+#'       Chen et al., 1994). Fixed size, exact joint probabilities.
+#'       Two units with probabilities strictly between 0 and 1 have
+#'       \eqn{\pi_{ij} > 0}{pi_ij > 0} when the design selects at least two
+#'       such units. Calibration and the conditional
 #'       probability table are O(Nn) (probability-domain
 #'       Poisson-binomial recurrence), each draw is O(N) thereafter.
 #'       Equal `pik` are drawn directly as SRS.}
 #'     \item{`"sampford"`}{Sampford's (1967) fixed-size PPS design.
 #'       Gives the supplied first-order inclusion probabilities exactly
 #'       and has exact joint inclusion probabilities. A native C kernel
-#'       combines the fast rejection construction with Grafstrom's
-#'       non-rejective conditional-Poisson fallback and draws the smaller
-#'       of the sample and its complement. Typical O(N + n), and O(Nn) in the
-#'       fallback.}
+#'       combines the fast rejection construction with
+#'       \enc{Grafström}{Grafstrom}'s non-rejective conditional-Poisson
+#'       fallback and draws the smaller of the sample and its complement.
+#'       Typical O(N + n), and O(Nn) in the fallback.}
 #'     \item{`"brewer"`}{Brewer's (1975) draw-by-draw method. Fixed
 #'       size, approximate joint probabilities (high-entropy
 #'       approximation, see [joint_inclusion_prob()]). O(Nn).}
@@ -155,8 +157,9 @@ unequal_prob_wor <- function(
   prn = NULL,
   ...
 ) {
+  .stop_if_n_arg(sys.call(), "unequal_prob_wor", "sum(pik)")
   if (.is_method_name(method) && is_registered_method(method)) {
-    return(.dispatch_registered_wor(pik, method, nrep, prn, ...))
+    return(.dispatch_registered_wor(pik, method, nrep, prn, list(...)))
   }
   method <- .match_choice(
     method,
@@ -239,8 +242,9 @@ unequal_prob_wr <- function(
   prn = NULL,
   ...
 ) {
+  .stop_if_n_arg(sys.call(), "unequal_prob_wr", "sum(hits)")
   if (.is_method_name(method) && is_registered_method(method)) {
-    return(.dispatch_registered_wr(hits, method, nrep, prn, ...))
+    return(.dispatch_registered_wr(hits, method, nrep, prn, list(...)))
   }
   method <- .match_choice(method, c("chromy", "multinomial"), "method")
   nrep <- .check_nrep_prn(nrep, prn, method, supports_prn = FALSE)
@@ -380,7 +384,7 @@ unequal_prob_wr <- function(
   n <- sum(pik)
   n_out <- if (fixed_size) as.integer(round(n)) else n
 
-  if (method %in% .batch_optimised_methods) {
+  if (method %in% .batch_optimized_methods) {
     sample_data <- .cps_equal_fast_path(pik, nrep)
     if (is.null(sample_data)) {
       design <- .Call(C_cps_design, as.double(pik))

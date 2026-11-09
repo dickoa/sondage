@@ -250,6 +250,8 @@ expected_hits.wor <- function(x, ...) {
 #'     \eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}{sum_(j != i) pi_ij = (n - 1) pi_i}. The defect is
 #'     typically small but grows with skewed \eqn{\pi_k} and small
 #'     \eqn{n}. A warning is issued when it exceeds 5% of \eqn{n}.
+#'     For `cube`, the approximation ignores strata and balancing
+#'     constraints, see [balanced_wor()].
 #'     Use `method = "cps"` when exact second-order probabilities are
 #'     needed. For `sps` and `pareto`, the approximation uses the
 #'     stored target `pik`, not the exact finite-population
@@ -276,7 +278,7 @@ expected_hits.wor <- function(x, ...) {
 #'   of joint inclusion probabilities. Diagonal entries are the
 #'   first-order inclusion probabilities \eqn{\pi_i}. When the stored
 #'   probability vector is named, those names are used as row and column
-#'   names. An otherwise unnamed sampled-only matrix is labelled with the
+#'   names. An otherwise unnamed sampled-only matrix is labeled with the
 #'   sampled population indices.
 #'
 #' @seealso [joint_expected_hits()] for the with-replacement analogue,
@@ -402,7 +404,7 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
         sample_idx,
         "joint_inclusion_prob",
         list(eps = eps),
-        ...
+        list(...)
       )
     )
   } else {
@@ -433,7 +435,7 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
         NULL,
         "joint_inclusion_prob",
         list(eps = eps),
-        ...
+        list(...)
       )
     )
 
@@ -526,7 +528,7 @@ joint_inclusion_prob.default <- function(x, ...) {
 #'   selected units). Diagonal entries are \eqn{E(n_i^2)} and
 #'   off-diagonal entries are \eqn{E(n_i n_j)}. When the stored probability
 #'   vector is named, those names are used as row and column names. An
-#'   otherwise unnamed sampled-only matrix is labelled with the selected
+#'   otherwise unnamed sampled-only matrix is labeled with the selected
 #'   population indices.
 #'
 #' @seealso [joint_inclusion_prob()] for the without-replacement analogue,
@@ -639,7 +641,7 @@ joint_expected_hits.wr <- function(
         sample_idx,
         "joint_expected_hits",
         list(nsim = nsim),
-        ...
+        list(...)
       )
     )
   } else {
@@ -669,7 +671,7 @@ joint_expected_hits.wr <- function(
         NULL,
         "joint_expected_hits",
         list(nsim = nsim),
-        ...
+        list(...)
       )
     )
   }
@@ -881,13 +883,13 @@ sampling_cov.default <- function(x, ...) {
   pikl <- matrix(0, n_s, n_s)
   diag(pikl) <- pik_s
 
-  # Handle certainty units in sample
+  # Handle certainty units in sample. A pair takes its smaller probability,
+  # so two near-certainty units do not depend on the processing order.
   cert_s <- which(pik_s >= 1 - eps)
   if (length(cert_s) > 0) {
     for (ci in cert_s) {
-      pikl[ci, ] <- pik_s
-      pikl[, ci] <- pik_s
-      pikl[ci, ci] <- pik_s[ci]
+      pikl[ci, ] <- pmin(pik_s, pik_s[ci])
+      pikl[, ci] <- pmin(pik_s, pik_s[ci])
     }
   }
 

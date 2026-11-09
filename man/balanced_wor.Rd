@@ -128,8 +128,15 @@ during landing). For stratified designs, within-stratum size
 constraints are also placed first.
 
 Joint inclusion probabilities are approximated via the high-entropy
-approximation (Brewer & Donadio, 2003), which is appropriate since
-the cube produces a near-maximum-entropy design.
+approximation (Brewer & Donadio, 2003). It uses only \code{pik}, so it ignores
+\code{aux}, \code{strata}, and \code{bounds}, and it returns the same matrix as for an
+unconstrained design. It can give a positive probability to a pair the
+design excludes. For example, with strata of two units and one selection
+in each, two units of the same stratum never occur together. The
+marginal-defect warning of \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} does not detect this.
+For a stratified or strongly constrained design, prefer Monte Carlo
+estimates of the joint probabilities or a variance method suited to
+balanced sampling.
 }
 \section{Inequality constraints}{
 

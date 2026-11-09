@@ -10,7 +10,7 @@
  * outcome is fixed by a Bernoulli draw with its current conditional
  * probability p_i.  The resulting probability displacement is distributed
  * to nearby undecided units with non-negative weights that sum to one.
- * Each neighbour receives as much weight as its feasibility bound allows,
+ * Each neighbor receives as much weight as its feasibility bound allows,
  * beginning with the closest distance group.  Equal-distance units share
  * the remaining weight as evenly as their bounds permit.
  *
@@ -228,7 +228,7 @@ static void scps_settle(SpatialPool *pool, double *prob, int id, double eps) {
 
 /* Restore the probability mass lost or gained through floating-point
  * arithmetic and boundary snapping in one update.  In exact arithmetic the
- * step-unit displacement and the weighted neighbour displacements cancel.
+ * step-unit displacement and the weighted neighbor displacements cancel.
  * Keeping that invariant numerically prevents tiny errors from accumulating
  * until a later maximal-weight system appears infeasible. */
 static int scps_correct_mass(SpatialPool *pool, double *prob, double correction,
@@ -299,7 +299,7 @@ static int scps_run(double *prob, const double *spread, int N, int d,
     /* A fixed-size design cannot honor a pik that misses an integer total,
      * and the input check admits such a residue.  It stays in the pool
      * until the last step, where it shortens the capacity of the final
-     * neighbour by about residue / min(p, 1 - p), and where it is dropped. */
+     * neighbor by about residue / min(p, 1 - p), and where it is dropped. */
     double pool_mass = 0.0;
     for (int k = 0; k < work->pool.len; k++) {
         pool_mass += prob[work->pool.list[k]];

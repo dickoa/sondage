@@ -1760,3 +1760,242 @@ test_that("registered random-size balanced methods receive the fractional n", {
   expect_identical(seen, sum(pik))
   expect_identical(s$n, sum(pik))
 })
+
+## Extra arguments reach registered callbacks unchanged
+
+# The names below are prefixes of, or equal to, formals of the internal
+# helpers. They used to bind those formals and shift the positional arguments.
+
+test_that("extra arguments reach sample_fn for every registered type", {
+  on.exit(
+    {
+      unregister_method("dots_wor")
+      unregister_method("dots_wr")
+      unregister_method("dots_bal")
+    },
+    add = TRUE
+  )
+  seen <- NULL
+  register_method(
+    "dots_wor",
+    "wor",
+    sample_fn = function(pik, n = NULL, prn = NULL, q = NULL, m = NULL, ...) {
+      seen <<- list(q = q, m = m)
+      1:2
+    }
+  )
+  register_method(
+    "dots_wr",
+    "wr",
+    sample_fn = function(hits, n = NULL, prn = NULL, q = NULL, m = NULL, ...) {
+      seen <<- list(q = q, m = m)
+      c(1L, 1L, 2L, 3L, 4L)
+    }
+  )
+  register_method(
+    "dots_bal",
+    "balanced",
+    sample_fn = function(pik, n = NULL, aux = NULL, q = NULL, m = NULL, ...) {
+      seen <<- list(q = q, m = m)
+      1:2
+    }
+  )
+  pik <- rep(0.5, 4)
+  expected <- list(q = 0.5, m = 7)
+
+  unequal_prob_wor(pik, method = "dots_wor", q = 0.5, m = 7)
+  expect_identical(seen, expected)
+
+  seen <- NULL
+  unequal_prob_wr(c(1, 2, 1, 1), method = "dots_wr", q = 0.5, m = 7)
+  expect_identical(seen, expected)
+
+  seen <- NULL
+  balanced_wor(pik, method = "dots_bal", q = 0.5, m = 7)
+  expect_identical(seen, expected)
+})
+
+test_that("extra arguments reach joint_fn from every generic", {
+  on.exit(
+    {
+      unregister_method("dots_jip")
+      unregister_method("dots_jeh")
+    },
+    add = TRUE
+  )
+  seen <- NULL
+  joint_fn <- function(x, sample_idx = NULL, q = NULL, method = NULL, ...) {
+    seen <<- list(q = q, method = method)
+    J <- outer(x, x)
+    diag(J) <- x
+    if (!is.null(sample_idx)) {
+      J <- J[sample_idx, sample_idx, drop = FALSE]
+    }
+    J
+  }
+  register_method(
+    "dots_jip",
+    "wor",
+    sample_fn = function(pik, n = NULL, prn = NULL, ...) 1:2,
+    joint_fn = joint_fn
+  )
+  register_method(
+    "dots_jeh",
+    "wr",
+    sample_fn = function(hits, n = NULL, prn = NULL, ...) c(1L, 2L, 3L, 4L, 4L),
+    joint_fn = joint_fn
+  )
+  wor <- unequal_prob_wor(rep(0.5, 4), method = "dots_jip")
+  wr <- unequal_prob_wr(c(1, 1, 1, 2), method = "dots_jeh")
+  expected <- list(q = 0.5, method = "x")
+
+  joint_inclusion_prob(wor, q = 0.5, method = "x")
+  expect_identical(seen, expected)
+
+  seen <- NULL
+  joint_inclusion_prob(wor, sampled_only = TRUE, q = 0.5, method = "x")
+  expect_identical(seen, expected)
+
+  seen <- NULL
+  joint_expected_hits(wr, q = 0.5, method = "x")
+  expect_identical(seen, expected)
+
+  seen <- NULL
+  joint_expected_hits(wr, sampled_only = TRUE, q = 0.5, method = "x")
+  expect_identical(seen, expected)
+
+  seen <- NULL
+  sampling_cov(wor, q = 0.5, method = "x")
+  expect_identical(seen, expected)
+})
+
+test_that("sample_idx in ... is rejected by the joint generics", {
+  on.exit(
+    {
+      unregister_method("dots_idx_wor")
+      unregister_method("dots_idx_wr")
+    },
+    add = TRUE
+  )
+  joint_fn <- function(x, sample_idx = NULL, ...) {
+    J <- outer(x, x)
+    diag(J) <- x
+    if (!is.null(sample_idx)) {
+      J <- J[sample_idx, sample_idx, drop = FALSE]
+    }
+    J
+  }
+  register_method(
+    "dots_idx_wor",
+    "wor",
+    sample_fn = function(pik, n = NULL, prn = NULL, ...) 1:2,
+    joint_fn = joint_fn
+  )
+  register_method(
+    "dots_idx_wr",
+    "wr",
+    sample_fn = function(hits, n = NULL, prn = NULL, ...) c(1L, 2L, 3L, 4L, 4L),
+    joint_fn = joint_fn
+  )
+  wor <- unequal_prob_wor(rep(0.5, 4), method = "dots_idx_wor")
+  wr <- unequal_prob_wr(c(1, 1, 1, 2), method = "dots_idx_wr")
+  msg <- "'sample_idx' cannot be passed in '\\.\\.\\.'.*sampled_only = TRUE"
+
+  expect_error(joint_inclusion_prob(wor, sample_idx = 1:2), msg)
+  expect_error(
+    joint_inclusion_prob(wor, sampled_only = TRUE, sample_idx = 1:2),
+    msg
+  )
+  expect_error(joint_expected_hits(wr, sample_idx = 1:2), msg)
+  expect_error(
+    joint_expected_hits(wr, sampled_only = TRUE, sample_idx = 1:2),
+    msg
+  )
+})
+
+## Size passed to a fixed-size method demoted by non-integer stratum sums
+
+test_that("a demoted fixed-size balanced method receives a whole n", {
+  on.exit(unregister_method("strat_resid"), add = TRUE)
+  seen_n <- NULL
+  register_method(
+    "strat_resid",
+    "balanced",
+    sample_fn = function(pik, n = NULL, aux = NULL, strata = NULL, ...) {
+      seen_n <<- n
+      seq_len(n)
+    },
+    supports_strata = TRUE
+  )
+  pik <- rep(0.5, 6)
+  pik[6] <- pik[6] - 4 * .Machine$double.eps
+  expect_true(sum(pik) < 3)
+
+  expect_warning(
+    s <- balanced_wor(pik, strata = rep(1:2, each = 3), method = "strat_resid"),
+    "not close to an integer"
+  )
+  expect_false(s$fixed_size)
+  expect_identical(seen_n, 3L)
+  expect_identical(s$n, 3L)
+  expect_length(s$sample, 3L)
+})
+
+## Hint when sample_fn returns an inclusion indicator
+
+test_that("an indicator returned by sample_fn gets a hint", {
+  on.exit(
+    {
+      unregister_method("ind_vec")
+      unregister_method("ind_lgl")
+      unregister_method("ind_wr")
+      unregister_method("ind_mat")
+    },
+    add = TRUE
+  )
+  register_method(
+    "ind_vec",
+    "wor",
+    sample_fn = function(pik, ...) c(1L, 0L, 1L, 0L)
+  )
+  register_method(
+    "ind_lgl",
+    "wor",
+    sample_fn = function(pik, ...) c(TRUE, FALSE, TRUE, FALSE)
+  )
+  register_method(
+    "ind_wr",
+    "wr",
+    sample_fn = function(hits, ...) c(1L, 0L, 1L, 0L)
+  )
+  register_method(
+    "ind_mat",
+    "balanced",
+    sample_fn = function(pik, ...) matrix(c(1, 0, 1, 0), ncol = 1)
+  )
+  pik <- rep(0.5, 4)
+
+  expect_error(
+    unequal_prob_wor(pik, method = "ind_vec"),
+    "outside 1:4.*0/1 indicator"
+  )
+  expect_error(
+    unequal_prob_wor(pik, method = "ind_lgl"),
+    "not a numeric vector.*0/1 indicator"
+  )
+  expect_error(
+    unequal_prob_wr(c(1, 2, 1, 1), method = "ind_wr"),
+    "outside 1:4.*0/1 indicator"
+  )
+  expect_error(
+    balanced_wor(pik, method = "ind_mat"),
+    "not a numeric vector.*0/1 indicator"
+  )
+})
+
+test_that("a rejected sample that is not an indicator gets no hint", {
+  expect_identical(.indicator_hint(c(0L, 1L), 4L), "")
+  expect_identical(.indicator_hint(c(0L, 2L, 1L, 0L), 4L), "")
+  expect_identical(.indicator_hint(c(NA, 1, 0, 1), 4L), "")
+  expect_identical(.indicator_hint(c("1", "0", "1", "0"), 4L), "")
+})

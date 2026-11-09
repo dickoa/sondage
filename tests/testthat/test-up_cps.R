@@ -368,3 +368,27 @@ test_that("CPS samples of two or more draws are unchanged by the one-draw path",
     c(3L, 4L, 6L, 2L, 4L, 6L, 2L, 4L, 6L, 3L, 4L, 5L, 4L, 5L, 6L)
   )
 })
+
+## Empty working complement
+
+test_that("cps joints stay in bounds when the working complement is empty", {
+  cases <- list(
+    c(1 - 1e-12, 1 - 2e-12),
+    c(1 - 1e-12, 1 - 2e-12, 1 - 3e-12),
+    c(1, 0, 1 - 1e-12, 1 - 2e-12)
+  )
+  for (pik in cases) {
+    s <- unequal_prob_wor(pik, method = "cps")
+    J <- joint_inclusion_prob(s)
+    sub <- joint_inclusion_prob(s, sampled_only = TRUE)
+
+    expect_true(all(J <= outer(pik, pik, pmin)))
+    expect_true(all(J >= pmax(outer(pik, pik, "+") - 1, 0)))
+    expect_equal(unname(sub), unname(J[s$sample, s$sample]), tolerance = 1e-14)
+    expect_equal(
+      J,
+      joint_inclusion_prob(unequal_prob_wor(pik, method = "sampford")),
+      tolerance = 1e-14
+    )
+  }
+})

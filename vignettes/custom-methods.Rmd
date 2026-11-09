@@ -276,9 +276,9 @@ Note two conventions. The wrapper receives `aux` exactly as the
 caller supplied it (validated, but without the sample-size
 constraint prepended), so we `cbind(pik, aux)` ourselves because
 `samplecube()` expects the size constraint as a balancing column.
-And since the cube method produces a high-entropy design, we can
-pass `he_jip` as the `joint_fn`, which is exactly what the built-in
-method uses.
+We also pass `he_jip` as the `joint_fn`, which is exactly what the
+built-in method uses. Like the built-in, this approximation depends only
+on `pik` and ignores the balancing constraints.
 
 ```{r cube-lp, eval = requireNamespace("sampling", quietly = TRUE)}
 cube_lp_sample <- function(pik, n = NULL, aux = NULL, ...) {
@@ -358,7 +358,7 @@ the coordinate matrix that the caller passes to
 `balanced_wor(pik, spread = , method = "scps")`. Here we register
 its sibling LPM1 [@grafstrom2012], which differs only in the pair
 rule: a random undecided unit competes with its nearest undecided
-neighbour *only when the two are mutual nearest neighbours*,
+neighbor *only when the two are mutual nearest neighbors*,
 giving slightly better spread at extra cost. The in-house SCPS core uses
 the maximal-weight rule of @grafstrom2012scps with a weighted quickselect
 distance cutoff. Methods not shipped in `sondage`, such as local cube, can
@@ -366,6 +366,9 @@ still be supplied through the same registration contract.
 
 ```{r lpm1-fn}
 lpm1_sample <- function(pik, n = NULL, aux = NULL, spread = NULL, ...) {
+  if (is.null(spread)) {
+    stop("method 'lpm1' requires 'spread'", call. = FALSE)
+  }
   d <- as.matrix(dist(spread))
   diag(d) <- Inf
   p <- pik
@@ -384,7 +387,7 @@ lpm1_sample <- function(pik, n = NULL, aux = NULL, spread = NULL, ...) {
     j <- v[which.min(d[i, v])]
     w <- u[u != j]
     if (w[which.min(d[j, w])] != i) {
-      next # not mutual nearest neighbours: redraw i
+      next # not mutual nearest neighbors: redraw i
     }
     s <- p[i] + p[j]
     if (s > 1) {
@@ -424,6 +427,9 @@ on auxiliary totals, a custom method in this family is registered with
 `supports_aux = FALSE`.
 A caller who passes `aux` then gets an immediate error instead of a
 sample that silently ignored the requested balancing constraints.
+The flags state what a method can use, not what it requires, so
+`balanced_wor()` still calls `sample_fn` when `spread` is missing. A method
+that cannot work without `spread` checks for it, as `lpm1_sample()` does.
 
 ```{r lpm1-run}
 set.seed(25)
@@ -434,7 +440,7 @@ pik <- rep(0.15, N)
 s <- balanced_wor(pik, spread = coords, method = "lpm1")
 s
 
-# Spread diagnostic: mean distance to the nearest sampled neighbour
+# Spread diagnostic: mean distance to the nearest sampled neighbor
 # (larger is better spread)
 nn_dist <- function(idx) {
   d <- as.matrix(dist(coords[idx, ]))
@@ -457,7 +463,7 @@ approximation does not apply, since spreading deliberately drives
 nearby joint probabilities toward zero), so `joint_fn` is usually
 left as `NULL` and `joint_inclusion_prob()` / `sampling_cov()`
 will error for these methods. In practice, variance for spatially
-balanced samples is estimated with local-neighbourhood estimators
+balanced samples is estimated with local-neighborhood estimators
 such as the local mean estimator of @grafstrom2014, which `sondage`
 does not implement yet.
 
@@ -477,7 +483,7 @@ strategies:
 2. **`he_jip()`.** The high-entropy approximation
    [@brewer2003]. Best for maximum-entropy and high-entropy
    designs (Sampford, Tillé, and most $\pi$ps procedures). Uses
-   optimised C code internally. Pass it directly:
+   optimized C code internally. Pass it directly:
    `joint_fn = he_jip`.
 
 3. **`hajek_jip()`.** The Hajek [-@hajek1964] approximation

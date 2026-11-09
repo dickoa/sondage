@@ -122,3 +122,39 @@ test_that("registered methods continue to own their dots", {
   expect_identical(sample_token, "sample")
   expect_identical(joint_token, "joint")
 })
+
+## An argument named n is rejected instead of matching nrep
+
+test_that("dispatchers without an n formal reject an argument named n", {
+  on.exit(unregister_method("no_n_wor"), add = TRUE)
+  register_method(
+    "no_n_wor",
+    "wor",
+    sample_fn = function(pik, n = NULL, prn = NULL, ...) 1:2
+  )
+  pik <- c(0.2, 0.4, 0.6, 0.8)
+  hits <- c(0.4, 0.8, 0.5, 0.6, 0.7)
+  spread <- cbind(seq_along(pik), rev(seq_along(pik)))
+  msg_wor <- "unequal_prob_wor\\(\\) has no 'n' argument.*sum\\(pik\\)"
+  msg_wr <- "unequal_prob_wr\\(\\) has no 'n' argument.*sum\\(hits\\)"
+  msg_bal <- "balanced_wor\\(\\) has no 'n' argument.*sum\\(pik\\)"
+
+  expect_error(unequal_prob_wor(pik, n = 1), msg_wor)
+  expect_error(unequal_prob_wor(pik, nrep = 2, n = 1), msg_wor)
+  expect_error(unequal_prob_wor(pik, method = "no_n_wor", n = 1), msg_wor)
+  expect_error(do.call(unequal_prob_wor, list(pik, n = 1)), msg_wor)
+  expect_error(unequal_prob_wr(hits, n = 1), msg_wr)
+  expect_error(balanced_wor(pik, n = 1), msg_bal)
+  expect_error(
+    balanced_wor(pik, spread = spread, method = "lpm2", n = 1),
+    msg_bal
+  )
+})
+
+test_that("nrep and equal_prob_wor(n = ) are not affected", {
+  pik <- c(0.2, 0.4, 0.6, 0.8)
+
+  expect_identical(dim(unequal_prob_wor(pik, nrep = 3)$sample), c(2L, 3L))
+  expect_identical(dim(unequal_prob_wor(pik, nr = 3)$sample), c(2L, 3L))
+  expect_length(equal_prob_wor(10, n = 3)$sample, 3L)
+})

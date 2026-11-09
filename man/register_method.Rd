@@ -69,7 +69,9 @@ sampling? Set to \code{TRUE} or \code{FALSE} for \code{type = "balanced"}.
 \code{FALSE} for \code{type = "balanced"}. \code{NULL} (the default) resolves to
 \code{FALSE}. When \code{FALSE}, passing \code{spread} to \code{\link[=balanced_wor]{balanced_wor()}} with
 this method is an error, and \code{sample_fn} does not need a \code{spread}
-argument. Leave \code{NULL} for \code{"wor"} and \code{"wr"} methods.}
+argument. When \code{TRUE}, the method may use \code{spread} but is still called
+without it, so a \code{sample_fn} that cannot work without \code{spread} should
+check for it. Leave \code{NULL} for \code{"wor"} and \code{"wr"} methods.}
 
 \item{probabilities}{Where the method sits in the first-order
 probability taxonomy, for downstream packages that weight or

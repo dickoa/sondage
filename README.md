@@ -25,7 +25,10 @@ approximately equal to that target.
 ## Installation
 
 ``` r
-# From GitLab
+# From CRAN
+install.packages("sondage")
+
+# Development version from GitLab
 pak::pkg_install("gitlab::dickoa/sondage")
 ```
 
@@ -169,10 +172,10 @@ inclusion_prob(sim) # generics still work
 - `balanced_wor(pik, bounds = list(B, lower, upper))` - Cube with
   inequality constraints (Tripet & Tillé, 2026) providing controlled
   matrix rounding, minimum group sizes
-- `balanced_wor(pik, spread, method = "lpm2")` - Spatially balanced,
+- `balanced_wor(pik, spread = spread, method = "lpm2")` - Spatially balanced,
   well-spread sampling with the local pivotal method 2 (Grafström,
   Lundström & Schelin, 2012)
-- `balanced_wor(pik, spread, method = "scps")` - Spatially correlated
+- `balanced_wor(pik, spread = spread, method = "scps")` - Spatially correlated
   Poisson sampling with Grafström’s (2012) maximal-weight strategy,
   coordinated across surveys with permanent random numbers through `prn`
   (Grafström & Matei, 2018)
@@ -257,8 +260,8 @@ the stored target `pik` vector. HE = high-entropy approximation.
 - Use `lpm2` or `scps` when the study variable is spatially structured
   and a well-spread sample matters more than joint inclusion
   probabilities. LPM2 makes local pairwise competitions and SCPS
-  distributes each decision over the nearest feasible neighbours.
-  Variance is then usually estimated with local-neighbourhood
+  distributes each decision over the nearest feasible neighbors.
+  Variance is then usually estimated with local-neighborhood
   estimators.
 
 ## Custom methods

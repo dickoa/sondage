@@ -15,8 +15,8 @@
 
 * CPS calibration is about 2.5 times faster and needs O(n) workspace
   instead of O(Nn). Sampford draws that use the non-rejective fallback get
-  the same speed-up. Samples and joint inclusion probabilities are
-  unchanged, bit for bit.
+  the same speed-up. This change leaves samples and CPS joint inclusion
+  probabilities unchanged, bit for bit.
 
 * `unequal_prob_wr()` requires `sum(hits)` to be a whole number of at least
   1 to floating-point accuracy, as `unequal_prob_wor()` already does for
@@ -43,6 +43,39 @@
   variables and 1.4 times faster with 100. The direction is computed with
   different rounding, so a seed can in rare cases give a different sample.
   None of 600 seeded test draws changed.
+
+* Arguments passed through `...` now reach a registered `sample_fn` or
+  `joint_fn` unchanged. A name such as `q` or `m` could be read as one of
+  the package's internal arguments, which gave `joint_fn` a wrong value
+  without an error or stopped with a confusing message.
+
+* A balanced method registered as fixed-size now receives a whole `n` when
+  non-integer stratum sums make the draw random-size. A floating-point
+  residue in `sum(pik)` could give `n = 2.9999999999999991`, which
+  `seq_len(n)` truncates to 2.
+
+* `unequal_prob_wor()`, `unequal_prob_wr()` and `balanced_wor()` now stop
+  with an error when called with an argument named `n`. These functions take
+  the sample size from `sum(pik)` or `sum(hits)`, and R partially matched
+  `n = 2` to `nrep`, so the call silently returned two replicates of the
+  full sample size.
+
+* `joint_inclusion_prob()` and `sampling_cov()` return correct joint
+  inclusion probabilities for `method = "sampford"`. With moderate
+  populations and samples of about a third to a half of the eligible units,
+  cancellation gave wrong values inside the valid bounds, without a warning.
+  Queries in that range are also much faster, 1.5 s instead of 6 minutes for
+  `N = 1000, n = 500`.
+
+* `joint_inclusion_prob()` with `method = "cps"` no longer reads uninitialized
+  memory when every unit below certainty is so close to 1 that the
+  probabilities still sum to their count within the input tolerance. Its
+  pair values could exceed the marginal probabilities.
+
+* The high-entropy and Hajek approximations, in `he_jip()`, `hajek_jip()` and
+  `joint_inclusion_prob()`, give a pair of near-certainty units the smaller
+  of their two probabilities. The value used to depend on the unit order and
+  could exceed that bound.
 
 # sondage 0.10.0
 

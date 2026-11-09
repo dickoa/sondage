@@ -94,8 +94,15 @@
 #' constraints are also placed first.
 #'
 #' Joint inclusion probabilities are approximated via the high-entropy
-#' approximation (Brewer & Donadio, 2003), which is appropriate since
-#' the cube produces a near-maximum-entropy design.
+#' approximation (Brewer & Donadio, 2003). It uses only `pik`, so it ignores
+#' `aux`, `strata`, and `bounds`, and it returns the same matrix as for an
+#' unconstrained design. It can give a positive probability to a pair the
+#' design excludes. For example, with strata of two units and one selection
+#' in each, two units of the same stratum never occur together. The
+#' marginal-defect warning of [joint_inclusion_prob()] does not detect this.
+#' For a stratified or strongly constrained design, prefer Monte Carlo
+#' estimates of the joint probabilities or a variance method suited to
+#' balanced sampling.
 #'
 #' @section Inequality constraints:
 #'
@@ -348,6 +355,7 @@ balanced_wor <- function(
   prn = NULL,
   ...
 ) {
+  .stop_if_n_arg(sys.call(), "balanced_wor", "sum(pik)")
   if (.is_method_name(method) && is_registered_method(method)) {
     if (!is.null(bounds)) {
       stop(
@@ -364,7 +372,7 @@ balanced_wor <- function(
         method,
         nrep,
         prn,
-        ...
+        list(...)
       )
     )
   }

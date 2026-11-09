@@ -55,7 +55,9 @@
 #'   `FALSE` for `type = "balanced"`. `NULL` (the default) resolves to
 #'   `FALSE`. When `FALSE`, passing `spread` to [balanced_wor()] with
 #'   this method is an error, and `sample_fn` does not need a `spread`
-#'   argument. Leave `NULL` for `"wor"` and `"wr"` methods.
+#'   argument. When `TRUE`, the method may use `spread` but is still called
+#'   without it, so a `sample_fn` that cannot work without `spread` should
+#'   check for it. Leave `NULL` for `"wor"` and `"wr"` methods.
 #' @param probabilities Where the method sits in the first-order
 #'   probability taxonomy, for downstream packages that weight or
 #'   record per-unit selection probabilities:
@@ -513,6 +515,23 @@ unregister_method <- function(name) {
   }
 }
 
+#' Hint appended to a rejected sample that looks like an inclusion indicator.
+#'
+#' Called only once a sample has failed validation, so valid draws pay nothing.
+#'
+#' @noRd
+.indicator_hint <- function(sample, N) {
+  is_indicator <- (is.numeric(sample) || is.logical(sample)) &&
+    length(sample) == N &&
+    !anyNA(sample) &&
+    all(sample == 0 | sample == 1)
+  if (is_indicator) {
+    " (sample_fn may have returned a 0/1 indicator, which() gives the indices)"
+  } else {
+    ""
+  }
+}
+
 #' @noRd
 .check_registered_sample <- function(
   sample,
@@ -524,7 +543,12 @@ unregister_method <- function(name) {
 ) {
   prefix <- sprintf("registered method '%s' returned", method)
   if (!is.numeric(sample) || !is.null(dim(sample))) {
-    stop(prefix, " a sample that is not a numeric vector", call. = FALSE)
+    stop(
+      prefix,
+      " a sample that is not a numeric vector",
+      .indicator_hint(sample, N),
+      call. = FALSE
+    )
   }
   if (any(!is.finite(sample))) {
     stop(prefix, " non-finite sample indices", call. = FALSE)
@@ -536,6 +560,7 @@ unregister_method <- function(name) {
     stop(
       prefix,
       sprintf(" sample indices outside 1:%d", N),
+      .indicator_hint(sample, N),
       call. = FALSE
     )
   }
@@ -552,8 +577,12 @@ unregister_method <- function(name) {
   as.integer(sample)
 }
 
+# The registered dispatchers and .registered_joint_or_stop() receive the
+# caller's `...` as the list `dots`. With `...` as a formal, a name such as `m`
+# or `q` would match one of their own arguments and shift the positional ones.
+
 #' @noRd
-.dispatch_registered_wor <- function(pik, method, nrep, prn, ...) {
+.dispatch_registered_wor <- function(pik, method, nrep, prn, dots = list()) {
   reg <- .method_registry[[method]]
   .check_registered_type(reg, "wor")
   nrep <- .check_nrep_prn(
@@ -566,10 +595,11 @@ unregister_method <- function(name) {
     .check_prn(prn, N)
   }
   n <- if (reg$fixed_size) as.integer(round(sum(pik))) else sum(pik)
+  sample_args <- c(list(pik, n = n, prn = prn), dots)
 
   draw <- function() {
     .check_registered_sample(
-      reg$sample_fn(pik, n = n, prn = prn, ...),
+      do.call(reg$sample_fn, sample_args),
       N,
       n,
       method,
@@ -595,7 +625,7 @@ unregister_method <- function(name) {
 }
 
 #' @noRd
-.dispatch_registered_wr <- function(hits, method, nrep, prn, ...) {
+.dispatch_registered_wr <- function(hits, method, nrep, prn, dots = list()) {
   reg <- .method_registry[[method]]
   .check_registered_type(reg, "wr")
   nrep <- .check_nrep_prn(
@@ -608,10 +638,11 @@ unregister_method <- function(name) {
     .check_prn(prn, N)
   }
   prob <- hits / sum(hits)
+  sample_args <- c(list(hits, n = n, prn = prn), dots)
 
   draw <- function() {
     .check_registered_sample(
-      reg$sample_fn(hits, n = n, prn = prn, ...),
+      do.call(reg$sample_fn, sample_args),
       N,
       n,
       method,
@@ -663,7 +694,7 @@ unregister_method <- function(name) {
   method,
   nrep,
   prn = NULL,
-  ...
+  dots = list()
 ) {
   reg <- .method_registry[[method]]
   .check_registered_type(reg, "balanced")
@@ -731,7 +762,10 @@ unregister_method <- function(name) {
     }
   }
 
-  n <- if (fixed_size) as.integer(round(sum(pik))) else sum(pik)
+  # Keyed on the registration, not on the demoted fixed_size. .check_pik()
+  # accepted a floating-point residue in sum(pik), and seq_len(n) or
+  # sample.int(N, n) would truncate 2.9999999999999991 to 2.
+  n <- if (reg$fixed_size) as.integer(round(sum(pik))) else sum(pik)
 
   # Optional design inputs are passed only when supplied, so minimal
   # sample_fn signatures (pik, n, aux, ...) keep working.
@@ -745,7 +779,7 @@ unregister_method <- function(name) {
   if (!is.null(prn)) {
     sample_args$prn <- prn
   }
-  sample_args <- c(sample_args, list(...))
+  sample_args <- c(sample_args, dots)
 
   draw <- function() {
     .check_registered_sample(
@@ -788,7 +822,7 @@ unregister_method <- function(name) {
   sample_idx,
   quantity,
   generic_args,
-  ...
+  dots = list()
 ) {
   if (!is_registered_method(method)) {
     .stop_no_joint(method, quantity)
@@ -797,11 +831,17 @@ unregister_method <- function(name) {
   if (is.null(reg$joint_fn)) {
     .stop_no_joint(method, quantity)
   }
+  if ("sample_idx" %in% names(dots)) {
+    stop(
+      "'sample_idx' cannot be passed in '...'; use sampled_only = TRUE instead",
+      call. = FALSE
+    )
+  }
   declared <- names(formals(reg$joint_fn))
   generic_args <- generic_args[names(generic_args) %in% declared]
   joint <- do.call(
     reg$joint_fn,
-    c(list(marginals, sample_idx = sample_idx), list(...), generic_args)
+    c(list(marginals, sample_idx = sample_idx), dots, generic_args)
   )
   expected <- if (is.null(sample_idx)) length(marginals) else length(sample_idx)
   prefix <- sprintf("registered method '%s' returned", method)

@@ -23,6 +23,34 @@
   invisible(TRUE)
 }
 
+#' Reject an argument named n in a dispatcher without an n formal
+#'
+#' `nrep` sits before `...`, so R would partially match `n = 2` to it and
+#' silently return two replicates of the full sample size.
+#'
+#' @param call The dispatcher's `sys.call()`.
+#' @param fn Name of the dispatcher, for the error message.
+#' @param total Expression that gives the sample size, for the error message.
+#'
+#' @keywords internal
+#' @noRd
+.stop_if_n_arg <- function(call, fn, total) {
+  if ("n" %in% names(call)) {
+    stop(
+      sprintf(
+        paste0(
+          "%s() has no 'n' argument. The sample size is %s, ",
+          "and 'nrep' sets the number of replicates."
+        ),
+        fn,
+        total
+      ),
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
+}
+
 #' Validate inclusion probability vector
 #'
 #' Checks that pik is a valid vector of inclusion probabilities.

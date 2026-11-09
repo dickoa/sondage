@@ -36,7 +36,7 @@ A symmetric N x N matrix (or n x n if \code{sampled_only = TRUE})
 of joint inclusion probabilities. Diagonal entries are the
 first-order inclusion probabilities \eqn{\pi_i}. When the stored
 probability vector is named, those names are used as row and column
-names. An otherwise unnamed sampled-only matrix is labelled with the
+names. An otherwise unnamed sampled-only matrix is labeled with the
 sampled population indices.
 }
 \description{
@@ -61,6 +61,8 @@ diagonal, but \strong{not} the marginal identity
 \eqn{\sum_{j \neq i} \pi_{ij} = (n-1)\pi_i}{sum_(j != i) pi_ij = (n - 1) pi_i}. The defect is
 typically small but grows with skewed \eqn{\pi_k} and small
 \eqn{n}. A warning is issued when it exceeds 5\% of \eqn{n}.
+For \code{cube}, the approximation ignores strata and balancing
+constraints, see \code{\link[=balanced_wor]{balanced_wor()}}.
 Use \code{method = "cps"} when exact second-order probabilities are
 needed. For \code{sps} and \code{pareto}, the approximation uses the
 stored target \code{pik}, not the exact finite-population

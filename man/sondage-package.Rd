@@ -12,7 +12,7 @@ Fast implementations of survey sampling algorithms for single-stage probability 
 
 \itemize{
 \item \code{\link[=unequal_prob_wor]{unequal_prob_wor()}} - Without replacement: CPS (maximum entropy),
-Brewer, systematic PPS, Poisson, SPS (sequential Poisson),
+Sampford, Brewer, systematic PPS, Poisson, SPS (sequential Poisson),
 Pareto
 \item \code{\link[=unequal_prob_wr]{unequal_prob_wr()}} - With replacement: Chromy (minimum
 replacement), multinomial PPS
