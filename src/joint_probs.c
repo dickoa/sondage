@@ -51,6 +51,23 @@ static double cps_pair_finalize(double v, double pik_i, double pik_j,
     return pi_ij;
 }
 
+/*
+ * Aires' identity for one pair, with the marginals implied by the odds.
+ * The operands are put in one order, the smaller odds first, so a pair
+ * gets the same value wherever it is computed. Where the compiler fuses
+ * a * b - c * d into a fused multiply-add (arm64, for one), swapping the
+ * two units changes the rounding, and the full and sampled-only matrices
+ * differed in the twelfth digit.
+ */
+static double cps_aires(const double *w, const double *marg, int i, int j) {
+    if (w[j] < w[i] || (w[j] == w[i] && j < i)) {
+        const int t = i;
+        i = j;
+        j = t;
+    }
+    return (w[j] * marg[i] - w[i] * marg[j]) / (w[j] - w[i]);
+}
+
 /* Odds w_lo <= w_hi closer than the relative gap. */
 static int cps_odds_near(double w_lo, double w_hi, double gap) {
     return (w_hi - w_lo) <= gap * w_hi;
@@ -125,8 +142,6 @@ static void cps_working_pairs(const double *w, double *f, int N, int n,
         out[(size_t)row[ta] * ld + row[tb]] = pi_;                        \
     } while (0)
 
-#define CPS_AIRES(va, vb)                                                 \
-    ((w[vb] * marg[va] - w[va] * marg[vb]) / (w[vb] - w[va]))
 
     /* Population in odds order, its tie groups, and target positions */
     double *ws = (double *) R_alloc(N, sizeof(double));
@@ -157,7 +172,8 @@ static void cps_working_pairs(const double *w, double *f, int N, int n,
             R_CheckUserInterrupt();
             for (int b = a + 1; b < nt; b++) {
                 /* No two units are drawn together when n < 2. */
-                const double v = (n < 2) ? 0.0 : CPS_AIRES(tgt[a], tgt[b]);
+                const double v =
+                    (n < 2) ? 0.0 : cps_aires(w, marg, tgt[a], tgt[b]);
                 CPS_WRITE_PAIR(a, b, v);
             }
         }
@@ -195,7 +211,9 @@ static void cps_working_pairs(const double *w, double *f, int N, int n,
             /* One value per near group pair (g, h) */
             int hmax = g;
             memcpy(acc, pre, (size_t)S * sizeof(double));
-            if (ge - gs >= 2) val[0] = cps_sweep_pair(acc, f, m, ws, gs, gs + 1, f_n);
+            if (ge - gs >= 2) {
+                val[0] = cps_sweep_pair(acc, f, m, ws, gs, gs + 1, f_n);
+            }
             int cur = gs + 1;
             for (int h = g + 1;
                  h < G && cps_odds_near(ws[gs], ws[gstart[h]], gap); h++) {
@@ -215,7 +233,7 @@ static void cps_working_pairs(const double *w, double *f, int N, int n,
                     const int hb = grp[pos[tgt[tb]]];
                     const double v = (hb <= hmax)
                         ? val[hb - g]
-                        : CPS_AIRES(tgt[ta], tgt[tb]);
+                        : cps_aires(w, marg, tgt[ta], tgt[tb]);
                     CPS_WRITE_PAIR(ta, tb, v);
                 }
             }
@@ -226,7 +244,6 @@ static void cps_working_pairs(const double *w, double *f, int N, int n,
         }
     }
 
-#undef CPS_AIRES
 #undef CPS_WRITE_PAIR
 }
 
