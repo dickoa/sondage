@@ -86,7 +86,7 @@ probabilities differ from their exact values by up to the reported
 \code{max_diff}, see \code{\link[=unequal_prob_wor]{unequal_prob_wor()}} for context and remediation.
 }
 \examples{
-pik <- c(0.2, 0.3, 0.5)
+pik <- c(0.2, 0.4, 0.6, 0.8)
 s <- unequal_prob_wor(pik, method = "cps")
 joint_inclusion_prob(s)
 

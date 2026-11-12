@@ -98,9 +98,8 @@
 #'
 #' \enc{Tillé}{Tille}, Y. (2006). \emph{Sampling Algorithms}. Springer.
 #'
-#' @details
-#' **Near-certainty inclusion probabilities (CPS).** The CPS
-#' fixed-point calibration converges geometrically for well-spread
+#' @section Near-certainty inclusion probabilities in CPS:
+#' The CPS fixed-point calibration converges geometrically for well-spread
 #' `pik`, but asymptotes at a non-zero defect when some `pik` are
 #' within a few decimal digits of 0 or 1 (e.g. 0.9999). When this happens the
 #' function emits a "CPS calibration did not reach tolerance" warning
@@ -194,13 +193,25 @@ unequal_prob_wor <- function(
 #' @param method The sampling method:
 #'   \describe{
 #'     \item{`"chromy"`}{Chromy's (1979) sequential PPS with minimum
-#'       replacement. Default method in SAS SURVEYSELECT. Pairwise
-#'       expectations \eqn{E(n_i n_j)} are estimated by simulation.
+#'       replacement. Pairwise expectations \eqn{E(n_i n_j)} are
+#'       estimated by simulation.
 #'       See [joint_expected_hits()]. Complexity: O(N + n).}
 #'     \item{`"multinomial"`}{Multinomial PPS (independent draws).
 #'       Units can be selected any number of times. Pairwise expectations
 #'       are exact: \eqn{E(n_i n_j) = n(n-1) p_i p_j}.
 #'       Complexity: O(n).}
+#'     \item{`"systematic_mr"`}{Systematic PPS with minimum replacement
+#'       (Madow, 1949), the design of `METHOD=PPS_SYS` in SAS
+#'       SURVEYSELECT. One random start walks the cumulated expected hits in the order of
+#'       `hits`, which acts as implicit stratification. Each unit receives
+#'       the whole part of its expected hits or one more. Unlike
+#'       `unequal_prob_wor(method = "systematic")`, which takes a unit
+#'       larger than the sampling interval once, with certainty, this
+#'       method hits it once per interval it spans. When every expected
+#'       hit is below 1, both draw the same units from the same seed.
+#'       Pairwise expectations are exact, and some are zero for units
+#'       that are never selected together. See [sampling_cov()].
+#'       Complexity: O(N + n), since the sample lists each hit.}
 #'   }
 #' @param nrep Number of replicate samples (default 1).
 #' @param prn Optional vector of permanent random numbers for sample
@@ -222,6 +233,9 @@ unequal_prob_wor <- function(
 #'   estimator. \emph{Proceedings of the Survey Research Methods Section,
 #'   American Statistical Association}.
 #'
+#' Madow, W.G. (1949). On the theory of systematic sampling, II.
+#'   \emph{Annals of Mathematical Statistics}, 20(3), 333-354.
+#'
 #' @seealso [unequal_prob_wor()] for without-replacement designs,
 #'   [expected_hits()] to compute expected hits from size measures.
 #'
@@ -234,10 +248,15 @@ unequal_prob_wor <- function(
 #' s$sample
 #' s$hits
 #'
+#' # A unit larger than the sampling interval can be hit twice
+#' hits <- expected_hits(c(40, 80, 50, 60, 270), n = 3)
+#' s <- unequal_prob_wr(hits, method = "systematic_mr")
+#' s$hits
+#'
 #' @export
 unequal_prob_wr <- function(
   hits,
-  method = c("chromy", "multinomial"),
+  method = c("chromy", "multinomial", "systematic_mr"),
   nrep = 1L,
   prn = NULL,
   ...
@@ -246,7 +265,11 @@ unequal_prob_wr <- function(
   if (.is_method_name(method) && is_registered_method(method)) {
     return(.dispatch_registered_wr(hits, method, nrep, prn, list(...)))
   }
-  method <- .match_choice(method, c("chromy", "multinomial"), "method")
+  method <- .match_choice(
+    method,
+    c("chromy", "multinomial", "systematic_mr"),
+    "method"
+  )
   nrep <- .check_nrep_prn(nrep, prn, method, supports_prn = FALSE)
 
   if (nrep == 1L) {
@@ -254,6 +277,7 @@ unequal_prob_wr <- function(
       method,
       chromy = .chromy_sample(hits, ...),
       multinomial = .multinomial_sample(hits, ...),
+      systematic_mr = .systematic_mr_sample(hits, ...),
       .stop_unknown_method(method) # nocov
     )
   } else {
@@ -369,6 +393,33 @@ unequal_prob_wr <- function(
   )
 }
 
+#' Systematic PPS with minimum replacement
+#'
+#' The kernel takes `n * prob`, the vector `joint_expected_hits()` and
+#' `expected_hits()` later rebuild from the design object, so the draw and
+#' its joint expected hits split the same values into whole and fractional
+#' parts.
+#'
+#' @noRd
+.systematic_mr_sample <- function(hits) {
+  n <- .check_hits(hits)
+  N <- length(hits)
+  prob <- hits / sum(hits)
+
+  draw <- .Call(C_up_wr_systematic, as.double(n * prob), n)
+
+  .new_wr_sample(
+    sample = draw[[1L]],
+    prob = prob,
+    hits = draw[[2L]],
+    n = n,
+    N = N,
+    method = "systematic_mr",
+    fixed_size = TRUE,
+    prob_class = "unequal_prob"
+  )
+}
+
 #' @noRd
 .batch_wor <- function(pik, method, nrep, ...) {
   # prn is rejected upstream in unequal_prob_wor when nrep > 1, so batch
@@ -441,6 +492,15 @@ unequal_prob_wr <- function(
       sample_mat[, i] <- idx
       hits_mat[, i] <- tabulate(idx, nbins = N)
     }
+  } else if (method == "systematic_mr") {
+    draws <- .Call(
+      C_up_wr_systematic_batch,
+      as.double(n * prob),
+      n,
+      as.integer(nrep)
+    )
+    sample_mat <- draws[[1L]]
+    hits_mat <- draws[[2L]]
   } else {
     .stop_unknown_method(method) # nocov
   }

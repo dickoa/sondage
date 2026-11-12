@@ -428,7 +428,7 @@ test_that("optimized batch paths preserve sequential single-draw streams", {
   expect_identical(batch$hits, do.call(cbind, lapply(singles, `[[`, "hits")))
 
   hits <- c(0.2, 0.5, 0.8, 0.5)
-  for (method in c("chromy", "multinomial")) {
+  for (method in c("chromy", "multinomial", "systematic_mr")) {
     set.seed(12)
     batch <- unequal_prob_wr(hits, method, nrep = 4)
     set.seed(12)

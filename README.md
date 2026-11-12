@@ -159,9 +159,11 @@ inclusion_prob(sim) # generics still work
 
 **Unequal probability with replacement** (`unequal_prob_wr`):
 
-- `unequal_prob_wr(hits, method = "chromy")` - PPS with minimum
-  replacement
+- `unequal_prob_wr(hits, method = "chromy")` - Chromy’s sequential PPS
+  with minimum replacement
 - `unequal_prob_wr(hits, method = "multinomial")` - Multinomial PPS
+- `unequal_prob_wr(hits, method = "systematic_mr")` - Systematic PPS
+  with minimum replacement
 
 **Balanced sampling without replacement** (`balanced_wor`):
 
@@ -172,13 +174,13 @@ inclusion_prob(sim) # generics still work
 - `balanced_wor(pik, bounds = list(B, lower, upper))` - Cube with
   inequality constraints (Tripet & Tillé, 2026) providing controlled
   matrix rounding, minimum group sizes
-- `balanced_wor(pik, spread = spread, method = "lpm2")` - Spatially balanced,
-  well-spread sampling with the local pivotal method 2 (Grafström,
-  Lundström & Schelin, 2012)
-- `balanced_wor(pik, spread = spread, method = "scps")` - Spatially correlated
-  Poisson sampling with Grafström’s (2012) maximal-weight strategy,
-  coordinated across surveys with permanent random numbers through `prn`
-  (Grafström & Matei, 2018)
+- `balanced_wor(pik, spread = spread, method = "lpm2")` - Spatially
+  balanced, well-spread sampling with the local pivotal method 2
+  (Grafström, Lundström & Schelin, 2012)
+- `balanced_wor(pik, spread = spread, method = "scps")` - Spatially
+  correlated Poisson sampling with Grafström’s (2012) maximal-weight
+  strategy, coordinated across surveys with permanent random numbers
+  through `prn` (Grafström & Matei, 2018)
 
 ## Design queries
 
@@ -206,7 +208,7 @@ indices as row and column names so their units remain identifiable.
 
 ## Method comparison
 
-| Method | Dispatcher | Fixed n | Exact marginals† | Exact pi_ij | PRN |
+| Method | Dispatcher | Fixed n | Exact marginals | Exact pi_ij | PRN |
 |----|----|----|----|----|----|
 | `srs` | `equal_prob_wor` | yes | yes | yes | no |
 | `systematic` | `equal_prob_wor` | yes | yes | yes (some = 0) | no |
@@ -221,13 +223,13 @@ indices as row and column names so their units remain identifiable.
 | `pareto` | `unequal_prob_wor` | yes | target only\* | approx (HE)\*\* | yes |
 | `multinomial` | `unequal_prob_wr` | yes | yes | yes (analytic) | no |
 | `chromy` | `unequal_prob_wr` | yes | yes | simulated | no |
+| `systematic_mr` | `unequal_prob_wr` | yes | yes | yes (some = 0) | no |
 | `cube` | `balanced_wor` | yes | yes | approx (HE) | no |
 | `lpm2` | `balanced_wor` | yes | yes | not available | no |
 | `scps` | `balanced_wor` | yes | yes | not available | yes |
 
-†For WOR methods, design marginals are first-order inclusion
-probabilities `\pi_k`. For WR methods, design marginals are expected
-hits `E(N_k)`.
+For WOR methods, the design marginals are the first-order inclusion
+probabilities pi_k. For WR methods, they are the expected hits E(N_k).
 
 \*For `sps` and `pareto`, `inclusion_prob(s)` returns the stored
 design-defining target vector. The true finite-population first-order
@@ -245,12 +247,15 @@ the stored target `pik` vector. HE = high-entropy approximation.
 - Use `brewer` when you want exact first-order inclusion probabilities
   with lower computational cost than `cps`, and can work with
   approximate second-order quantities in `sondage`.
-- Use `sampford` for the SAS-familiar fixed-size PPS design with exact
-  first- and second-order inclusion probabilities. Its C kernel uses
-  complement sampling and a bounded-rejection/non-rejective hybrid.
+- Use `sampford` for a fixed-size PPS design with exact first- and
+  second-order inclusion probabilities. Its C kernel uses complement
+  sampling and a bounded-rejection/non-rejective hybrid.
 - Use `systematic` when very fast sampling and ordering or implicit
   stratification are central, and structural zeros in some joint
   inclusion probabilities are acceptable.
+- Use `systematic_mr`, through `unequal_prob_wr()`, when a unit larger
+  than the sampling interval must be able to receive several hits, for
+  instance to keep a fixed second-stage take per hit.
 - Use `poisson` when a random sample size is acceptable and independent
   selection is desirable.
 - Use `sps` or `pareto` as fast high-entropy order-sampling alternatives
@@ -261,8 +266,7 @@ the stored target `pik` vector. HE = high-entropy approximation.
   and a well-spread sample matters more than joint inclusion
   probabilities. LPM2 makes local pairwise competitions and SCPS
   distributes each decision over the nearest feasible neighbors.
-  Variance is then usually estimated with local-neighborhood
-  estimators.
+  Variance is then usually estimated with local-neighborhood estimators.
 
 ## Custom methods
 

@@ -285,7 +285,7 @@ expected_hits.wor <- function(x, ...) {
 #'   [sampling_cov()] for the covariance matrix.
 #'
 #' @examples
-#' pik <- c(0.2, 0.3, 0.5)
+#' pik <- c(0.2, 0.4, 0.6, 0.8)
 #' s <- unequal_prob_wor(pik, method = "cps")
 #' joint_inclusion_prob(s)
 #'
@@ -333,6 +333,7 @@ joint_inclusion_prob.wor <- function(x, sampled_only = FALSE, eps = 1e-6, ...) {
         call. = FALSE
       )
     }
+    sample_idx <- .check_design_units(sample_idx, length(pik))
     n_sampled <- length(sample_idx)
     if (n_sampled > 10000L) {
       stop(
@@ -508,8 +509,12 @@ joint_inclusion_prob.default <- function(x, ...) {
 #'
 #' \describe{
 #'   \item{Exact}{`multinomial`
-#'     (\eqn{E(n_i n_j) = n(n-1) p_i p_j}) and `srs`
-#'     (\eqn{E(n_i n_j) = n(n-1)/N^2}).}
+#'     (\eqn{E(n_i n_j) = n(n-1) p_i p_j}), `srs`
+#'     (\eqn{E(n_i n_j) = n(n-1)/N^2}), and `systematic_mr`, from the
+#'     whole part of each unit's expected hits and the overlap of the arcs
+#'     the units cover on the systematic walk. For `systematic_mr`, two
+#'     units below one expected hit whose arcs do not overlap are never
+#'     selected together, and their entry is exactly zero.}
 #'   \item{Simulation}{`chromy`: estimated by Monte Carlo (controlled
 #'     by `nsim`, default 10 000).}
 #' }
@@ -579,6 +584,15 @@ joint_expected_hits.wr <- function(
         call. = FALSE
       )
     }
+    if (length(x$hits) != length(prob)) {
+      stop(
+        sprintf(
+          "the design's $hits must have one count per unit, N = %d",
+          length(prob)
+        ),
+        call. = FALSE
+      )
+    }
     sample_idx <- which(x$hits > 0)
     n_sampled <- length(sample_idx)
     if (n_sampled > 10000L) {
@@ -628,6 +642,12 @@ joint_expected_hits.wr <- function(
         diag(pikl) <- n * prob_s * (1 - prob_s) + (n * prob_s)^2
         pikl
       },
+      systematic_mr = .Call(
+        C_wr_systematic_jeh_sub,
+        as.double(n * prob),
+        as.integer(n),
+        as.integer(sample_idx)
+      ),
       srs = {
         p <- 1 / N
         ns <- n_sampled
@@ -659,6 +679,11 @@ joint_expected_hits.wr <- function(
         diag(pikl) <- n * prob * (1 - prob) + (n * prob)^2
         pikl
       },
+      systematic_mr = .Call(
+        C_wr_systematic_jeh,
+        as.double(n * prob),
+        as.integer(n)
+      ),
       srs = {
         p <- 1 / N
         pikl <- matrix(n * (n - 1) * p * p, N, N)
@@ -730,15 +755,17 @@ joint_expected_hits.default <- function(x, ...) {
 #'
 #' @details
 #' Accuracy depends on the underlying joint probabilities. For `cps`,
-#' `sampford`, `systematic`, `poisson`, `srs`, and `bernoulli`, joint
-#' probabilities are exact and so is the covariance. For `brewer`, `sps`,
+#' `sampford`, `systematic`, `poisson`, `srs`, `bernoulli`, `multinomial`,
+#' and `systematic_mr`, joint probabilities or pairwise expectations are
+#' exact and so is the covariance. For `brewer`, `sps`,
 #' `pareto`, and `cube`, they use the high-entropy approximation. For
 #' `chromy`, they are simulation-based (see `nsim`). `lpm2` and `scps`
 #' expose no joint probabilities, so `sampling_cov()` stops with an error
 #' for them. See [joint_inclusion_prob()] and [joint_expected_hits()].
 #'
 #' Some designs (notably systematic PPS) produce \eqn{\pi_{ij} = 0}{pi_ij = 0} for
-#' pairs that never co-occur. When `weighted = TRUE`, the SYG quantity
+#' pairs that never co-occur, and `systematic_mr` gives such pairs zero
+#' pairwise expected hits. When `weighted = TRUE`, the SYG quantity
 #' \eqn{1 - \pi_i \pi_j / \pi_{ij}}{1 - pi_i pi_j / pi_ij} is undefined for such pairs and
 #' set to `NA` with a warning. The raw covariance (`weighted = FALSE`)
 #' is unaffected. The Sen-Yates-Grundy estimator is not applicable
@@ -763,7 +790,7 @@ joint_expected_hits.default <- function(x, ...) {
 #'   with-replacement analogue.
 #'
 #' @examples
-#' pik <- c(0.2, 0.3, 0.5)
+#' pik <- c(0.2, 0.4, 0.6, 0.8)
 #' s <- unequal_prob_wor(pik, method = "cps")
 #'
 #' # Raw covariance

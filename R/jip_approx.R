@@ -11,14 +11,17 @@
 #' @param sample_idx Unique integer vector of 1-based indices for the
 #'   sampled units, or `NULL` (default) for the full population matrix.
 #'   When non-`NULL`, returns the submatrix for those units only, without
-#'   allocating the full N x N matrix.
+#'   allocating the full N x N matrix. The returned matrix has at most
+#'   10,000 rows, as for [joint_inclusion_prob()], so a population above
+#'   that size needs `sample_idx`.
 #' @param eps Boundary tolerance (default 1e-6). Units with
 #'   \eqn{\pi_k \ge 1 - \varepsilon}{pi_k >= 1 - eps} are treated as certainty
 #'   selections, and units with \eqn{\pi_k \le \varepsilon}{pi_k <= eps}
 #'   are treated as zero.
 #' @param ... Additional arguments (ignored). Present so that the
 #'   function matches the `joint_fn` signature required by
-#'   [register_method()].
+#'   [register_method()]. `sampled_only` is refused, since it belongs to
+#'   [joint_inclusion_prob()]. Use `sample_idx` here instead.
 #'
 #' @details
 #' The high-entropy (HE) approximation is the recommended default
@@ -49,7 +52,9 @@
 #' @return A symmetric matrix of joint inclusion probabilities:
 #'   N x N when `sample_idx` is `NULL`, or
 #'   `length(sample_idx)` x `length(sample_idx)` otherwise.
-#'   Diagonal entries are \eqn{\pi_i}.
+#'   Diagonal entries are \eqn{\pi_i}. Rows and columns are named after
+#'   `names(pik)`, as in [joint_inclusion_prob()]. A submatrix of unnamed
+#'   `pik` is labeled with the indices in `sample_idx`.
 #'
 #' @references
 #' Brewer, K.R.W. and Donadio, M.E. (2003). The high entropy
@@ -78,15 +83,15 @@
 #'
 #' @export
 he_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
-  .check_pik(pik)
+  sample_idx <- .check_jip_approx_args(pik, sample_idx, ...names(), "he_jip")
   eps <- .check_eps(eps)
 
-  if (is.null(sample_idx)) {
+  pikl <- if (is.null(sample_idx)) {
     .Call(C_high_entropy_jip, as.double(pik), as.double(eps))
   } else {
-    sample_idx <- .check_sample_idx(sample_idx, length(pik))
     .he_jip_sampled(pik, sample_idx, eps)
   }
+  .label_jip_approx(pikl, pik, sample_idx)
 }
 
 
@@ -106,13 +111,14 @@ he_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
 #' than the high-entropy approximation ([he_jip()]), but generally
 #' slightly less accurate. It is derived from the asymptotic
 #' theory of rejective (conditional Poisson) sampling, where the
-#' design is obtained by conditioning independent Poisson trials
-#' on the total sample size.
+#' design is obtained by conditioning independent Bernoulli trials
+#' (Poisson sampling) on the total sample size.
 #'
 #' The formula is valid for any high-entropy design, but is most
-#' accurate when the design is close to rejective sampling. For
-#' maximum-entropy designs (CPS, Sampford), [he_jip()] tends to
-#' give tighter results. In practice, both approximations agree
+#' accurate when the design is close to rejective sampling. For CPS,
+#' the maximum-entropy design, and for other high-entropy designs such
+#' as Sampford's, [he_jip()] tends to give tighter results. Both CPS and
+#' Sampford have exact joint probabilities in [joint_inclusion_prob()]. In practice, both approximations agree
 #' closely for moderate to large populations with well-spread
 #' inclusion probabilities.
 #'
@@ -137,7 +143,9 @@ he_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
 #' @return A symmetric matrix of joint inclusion probabilities:
 #'   N x N when `sample_idx` is `NULL`, or
 #'   `length(sample_idx)` x `length(sample_idx)` otherwise.
-#'   Diagonal entries are \eqn{\pi_i}.
+#'   Diagonal entries are \eqn{\pi_i}. Rows and columns are named after
+#'   `names(pik)`, as in [joint_inclusion_prob()]. A submatrix of unnamed
+#'   `pik` is labeled with the indices in `sample_idx`.
 #'
 #' @references
 #' Hajek, J. (1964). Asymptotic theory of rejective sampling with
@@ -161,15 +169,22 @@ he_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
 #'
 #' @export
 hajek_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
-  .check_pik(pik)
+  sample_idx <- .check_jip_approx_args(pik, sample_idx, ...names(), "hajek_jip")
   eps <- .check_eps(eps)
+  .label_jip_approx(.hajek_jip_matrix(pik, sample_idx, eps), pik, sample_idx)
+}
 
+#' Hajek joint inclusion probabilities, unlabeled
+#'
+#' `sample_idx` is `NULL` or already validated.
+#'
+#' @noRd
+.hajek_jip_matrix <- function(pik, sample_idx, eps) {
   N <- length(pik)
   cert <- which(pik >= 1 - eps)
   valid <- which(pik > eps & pik < 1 - eps)
 
   if (!is.null(sample_idx)) {
-    sample_idx <- .check_sample_idx(sample_idx, N)
     ns <- length(sample_idx)
     pik_out <- pik[sample_idx]
   } else {
@@ -229,4 +244,70 @@ hajek_jip <- function(pik, sample_idx = NULL, eps = 1e-6, ...) {
 
   pikl[valid_s, valid_s] <- J
   pikl
+}
+
+#' Shared argument checks of he_jip() and hajek_jip()
+#'
+#' Validates `pik` and `sample_idx`, refuses `sampled_only` (which belongs
+#' to the design generics, not to these functions), and refuses an output
+#' matrix above the same 10,000-unit limit as [joint_inclusion_prob()].
+#' Other arguments in `...` stay accepted, as the `joint_fn` contract of
+#' [register_method()] requires. Returns the validated `sample_idx`.
+#'
+#' @noRd
+.check_jip_approx_args <- function(pik, sample_idx, dot_names, fn) {
+  .check_pik(pik)
+  if ("sampled_only" %in% dot_names) {
+    stop(
+      sprintf(
+        "'sampled_only' is not an argument of %s(); pass the sampled ",
+        fn
+      ),
+      "units as 'sample_idx' to get their submatrix",
+      call. = FALSE
+    )
+  }
+  if (is.null(sample_idx)) {
+    N <- length(pik)
+    if (N > 10000L) {
+      stop(
+        sprintf(
+          "N = %d is too large for a dense joint probability matrix (N x N = %.1f GB). ",
+          N,
+          N^2 * 8 / 1e9
+        ),
+        "Pass the sampled units as 'sample_idx' to compute their submatrix.",
+        call. = FALSE
+      )
+    }
+    return(NULL)
+  }
+  sample_idx <- .check_sample_idx(sample_idx, length(pik))
+  ns <- length(sample_idx)
+  if (ns > 10000L) {
+    stop(
+      sprintf(
+        "length(sample_idx) = %d is too large for a dense joint probability matrix (%.1f GB).",
+        ns,
+        ns^2 * 8 / 1e9
+      ),
+      call. = FALSE
+    )
+  }
+  sample_idx
+}
+
+#' Label he_jip() and hajek_jip() output as joint_inclusion_prob() does
+#'
+#' Rows and columns take `names(pik)`. A submatrix of unnamed `pik` is
+#' labeled with the population indices in `sample_idx`.
+#'
+#' @noRd
+.label_jip_approx <- function(pikl, pik, sample_idx) {
+  labels <- if (is.null(sample_idx)) {
+    .joint_labels(pik)
+  } else {
+    .joint_labels(pik, sample_idx)
+  }
+  .set_joint_dimnames(pikl, labels)
 }

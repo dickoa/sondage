@@ -82,10 +82,13 @@ steps of \code{"lpm2"} or \code{"scps"}). It never reclassifies the input.
 Supplied \code{pik} inside \verb{(0, eps]} or \verb{[1 - eps, 1)} are rejected. Only
 \code{pik} of exactly 0 or exactly 1 enter the algorithm as
 already-resolved units.}
-\item{\code{condition_aux}}{Logical. If \code{TRUE}, pre-conditions \code{aux} by
-weighted centering/scaling and QR-pivot rank pruning to improve
-numerical stability with ill-conditioned or collinear auxiliary
-variables (default \code{FALSE}).}
+\item{\code{condition_aux}}{Logical. If \code{TRUE}, pre-conditions \code{aux} to
+improve numerical stability with ill-conditioned or collinear
+auxiliary variables (default \code{FALSE}). Each column is centered and
+scaled in the space the cube balances, \code{aux / pik}, so that the
+balancing equations are unchanged, and columns that depend on
+earlier ones or on the sample size constraint are dropped. The
+other columns keep their order.}
 \item{\code{qr_tol}}{Tolerance for QR rank detection when
 \code{condition_aux = TRUE}. It must be one finite, non-negative
 number (default \code{sqrt(.Machine$double.eps)}).}
@@ -217,15 +220,17 @@ well-spread samples is usually estimated with local-neighborhood
 estimators (e.g. \enc{Grafström}{Grafstrom} & Schelin, 2014).
 
 Both methods are \emph{spread-only}: neither exactly balances the totals
-of \code{aux}. They are dispatched by \code{balanced_wor()} because “spatially
-balanced sampling” is the standard name for well-spread fixed-size
+of \code{aux}. They are dispatched by \code{balanced_wor()} because "spatially
+balanced sampling" is the standard name for well-spread fixed-size
 designs, and because the same interface accommodates local-cube methods
 that combine exact balancing with spread. Capability metadata keeps the
 distinction explicit: both report \code{supports_aux = FALSE} and
 \code{supports_spread = TRUE} through \code{\link[=method_spec]{method_spec()}}.
 
 LPM2 finds nearest neighbors with a k-d tree (Friedman et al., 1977) when \code{spread} has at most
-eight columns, so a draw costs about O(N log N) time. With more columns
+eight columns, so a draw costs about O(N log N) time. Many units at
+the same distance, as with duplicated points, make the tree visit all of
+them, and a draw then approaches O(N^2). With more columns
 a tree prunes too little and LPM2 scans the undecided units instead, at
 O(N^2 * d) per draw. SCPS uses weighted quickselect to
 find the distance at which its maximal weights sum to one, avoiding a

@@ -201,7 +201,10 @@
 #'     Requires `type = "wor"` and `fixed_size = FALSE`.}
 #'   \item{`"wr"`}{With-replacement (or minimum-replacement)
 #'     selection. Hansen-Hurwitz variance, no finite population
-#'     correction. Requires `type = "wr"`.}
+#'     correction. Requires `type = "wr"`. It is design-unbiased for
+#'     independent draws such as `"multinomial"`, and an approximation,
+#'     often conservative, for minimum-replacement methods such as
+#'     `"chromy"` and `"systematic_mr"`, whose hits are dependent.}
 #'   \item{`"unsupported"`}{No linearization treatment is valid.
 #'     Consumers should refuse to linearize and point to replicate
 #'     methods instead. The correct declaration for correlated

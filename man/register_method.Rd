@@ -234,7 +234,10 @@ selections (Poisson-type). Exact Poisson linearization.
 Requires \code{type = "wor"} and \code{fixed_size = FALSE}.}
 \item{\code{"wr"}}{With-replacement (or minimum-replacement)
 selection. Hansen-Hurwitz variance, no finite population
-correction. Requires \code{type = "wr"}.}
+correction. Requires \code{type = "wr"}. It is design-unbiased for
+independent draws such as \code{"multinomial"}, and an approximation,
+often conservative, for minimum-replacement methods such as
+\code{"chromy"} and \code{"systematic_mr"}, whose hits are dependent.}
 \item{\code{"unsupported"}}{No linearization treatment is valid.
 Consumers should refuse to linearize and point to replicate
 methods instead. The correct declaration for correlated

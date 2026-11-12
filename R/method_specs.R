@@ -62,7 +62,8 @@
 
 .wr_specs <- list(
   chromy = list(fixed_size = TRUE, prn = FALSE, variance_family = "wr"),
-  multinomial = list(fixed_size = TRUE, prn = FALSE, variance_family = "wr")
+  multinomial = list(fixed_size = TRUE, prn = FALSE, variance_family = "wr"),
+  systematic_mr = list(fixed_size = TRUE, prn = FALSE, variance_family = "wr")
 )
 
 .ep_wor_specs <- list(

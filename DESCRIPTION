@@ -1,7 +1,7 @@
 Package: sondage
 Type: Package
 Title: Survey Sampling Algorithms
-Version: 0.11.0
+Version: 0.15.0
 Authors@R: c(person(given = "Ahmadou",
                     family = "Dicko",
 	            email = "mail@ahmadoudicko.com",
@@ -21,8 +21,8 @@ Description: Fast implementations of survey sampling algorithms for
     Provides equal probability methods (simple random sampling,
     systematic, Bernoulli), unequal probability methods (conditional
     Poisson / maximum entropy, Sampford, Brewer, systematic PPS, Pareto,
-    sequential Poisson, Poisson, Chromy's minimum replacement,
-    multinomial), balanced sampling via the cube method, and
+    sequential Poisson, Poisson, Chromy's sequential and systematic PPS
+    with minimum replacement, multinomial), balanced sampling via the cube method, and
     spatially balanced sampling via the local pivotal method and
     spatially correlated Poisson sampling.
     All sampling functions return design objects carrying sample

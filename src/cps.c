@@ -287,9 +287,10 @@ SEXP C_cps_design(SEXP pik_sexp) {
     SET_STRING_ELT(names, 9, mkChar("n_work"));
 
     setAttrib(result, R_NamesSymbol, names);
-    setAttrib(result, R_ClassSymbol, mkString("cps_design"));
+    SEXP cls = PROTECT(mkString("cps_design"));
+    setAttrib(result, R_ClassSymbol, cls);
 
-    UNPROTECT(6);
+    UNPROTECT(7);
     return result;
 }
 

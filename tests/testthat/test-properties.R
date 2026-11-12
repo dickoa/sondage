@@ -75,7 +75,7 @@ test_that("Generalized HT estimator is unbiased for WR methods", {
   n <- round(sum(hits5))
   prob <- hits5 / sum(hits5)
 
-  for (method in c("chromy", "multinomial")) {
+  for (method in c("chromy", "multinomial", "systematic_mr")) {
     set.seed(42)
     sim <- unequal_prob_wr(hits5, method = method, nrep = nrep)
     ht_estimates <- apply(sim$sample, 2, function(s) {

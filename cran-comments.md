@@ -1,8 +1,7 @@
 ## Purpose of this submission
 
-This release follows 0.9.1 on CRAN and includes the changes of the unreleased
-0.10.0. It fixes defects present in 0.9.1, adds two features, and speeds up
-several samplers. The defects are listed first.
+This release follows 0.9.1 on CRAN. It fixes defects present in 0.9.1, adds
+three features, and speeds up several samplers. The defects are listed first.
 
 * `joint_inclusion_prob()` and `sampling_cov()` returned wrong joint inclusion
   probabilities for `unequal_prob_wor(method = "sampford")` with moderate
@@ -10,6 +9,23 @@ several samplers. The defects are listed first.
   Cancellation in a polynomial deletion gave values inside the valid bounds,
   so no warning was issued. The computation no longer cancels, and it agrees
   with a 500-digit evaluation of the design definition.
+* `joint_inclusion_prob()` and `sampling_cov()` returned joint inclusion
+  probabilities for `method = "cps"` that were off by up to 4e-5 when
+  inclusion probabilities were nearly equal, so rows missed the fixed-size
+  identity and the covariance had a negative eigenvalue. Aires' formula
+  divided the calibration residue by the small gap between two units' odds.
+  It now uses the probabilities the calibrated odds imply, and close pairs
+  are computed without subtraction. The result agrees with exact
+  enumeration to 2e-11.
+* `balanced_wor(method = "cube", condition_aux = TRUE)` changed the
+  balancing equations when `pik` varied, so a design that balances exactly
+  lost balance in 18% of draws. Conditioning now works in the `aux / pik`
+  space the cube balances.
+* `balanced_wor()` with `strata` took a stratum sum within 1e-4 of a whole
+  number as fixed-size, so a batch of draws could fail. It now uses the
+  floating-point tolerance of the `sum(pik)` check.
+* A sample size above `.Machine$integer.max` became `NA` with a coercion
+  warning and reached the compiled code. It is now refused.
 * `balanced_wor(method = "scps")` failed with "SCPS maximal weights are
   numerically infeasible" whenever `sum(pik)` missed an integer by a residue
   the input check accepts. `inclusion_prob()` output routinely carries such
@@ -38,8 +54,10 @@ several samplers. The defects are listed first.
   units a value that depended on the unit order and could exceed the smaller
   marginal probability.
 
-Two features are new.
+Three features are new.
 
+* `unequal_prob_wr()` gains `method = "systematic_mr"`, systematic PPS with
+  minimum replacement, with exact joint expected hits.
 * `balanced_wor()` gains `prn` for coordinating samples with permanent
   random numbers, supported by `method = "scps"`, and registered balanced
   methods may declare PRN support.
@@ -53,8 +71,7 @@ The remaining changes concern speed and output order.
 
 * CPS calibration is about 2.5 times faster and uses O(n) workspace instead
   of O(Nn). Sampford draws that use the non-rejective fallback get the same
-  speed-up. This change leaves samples and CPS joint inclusion probabilities
-  as they were.
+  speed-up. The speed-up leaves samples as they were.
 * `balanced_wor(method = "lpm2")` uses a k-d tree when `spread` has at most
   eight columns, `method = "cube"` uses Gaussian elimination and back
   substitution, and `method = "scps"` is faster when many units share a
@@ -63,11 +80,15 @@ The remaining changes concern speed and output order.
 * `unequal_prob_wor()` returns `$sample` in ascending unit order for
   `method = "brewer"`, and for `method = "cps"` when some `pik` equal 1, as
   its other built-in methods do. The selected units are unchanged.
+* `he_jip()` and `hajek_jip()` label their result as
+  `joint_inclusion_prob()` does, and refuse a result above 10,000 rows and
+  an argument named `sampled_only`.
 
 The compiled code changed in `src/cps.c`, `src/cps_core.h`, `src/cube.c`,
 `src/inclusion_prob.c`, `src/init.c`, `src/joint_probs.c`,
-`src/kdtree_core.h`, `src/lpm.c`, `src/scps.c`, `src/up_brewer.c` and
-`src/up_sampford.c`. The full test suite and a stress run of the new code
+`src/kdtree_core.h`, `src/lpm.c`, `src/scps.c`, `src/spatial_core.h`,
+`src/up_brewer.c`, `src/up_order.c` and `src/up_sampford.c`, and
+`src/systematic_core.h` is new. The full test suite and a stress run of the new code
 paths are clean under gcc `-fsanitize=undefined` and `-fsanitize=address`
 builds of the package.
 
@@ -79,6 +100,10 @@ builds of the package.
   page. `R CMD check --as-cran` heuristically suggests appending `/issues`,
   but that is not the tracker URL used by this project or by GitLab projects
   in general.
+
+Local checks on Arch Linux also note non-portable compilation flags. They
+come from that R installation's own build configuration. The package sets
+no compiler flags.
 
 ## Test environments
 

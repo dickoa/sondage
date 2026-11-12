@@ -52,22 +52,24 @@ When \code{weighted = TRUE}, returns the Sen-Yates-Grundy check quantities:
 \eqn{1 - E(n_i) E(n_j) / E(n_i n_j)} for WR.
 
 Accuracy depends on the underlying joint probabilities. For \code{cps},
-\code{sampford}, \code{systematic}, \code{poisson}, \code{srs}, and \code{bernoulli}, joint
-probabilities are exact and so is the covariance. For \code{brewer}, \code{sps},
+\code{sampford}, \code{systematic}, \code{poisson}, \code{srs}, \code{bernoulli}, \code{multinomial},
+and \code{systematic_mr}, joint probabilities or pairwise expectations are
+exact and so is the covariance. For \code{brewer}, \code{sps},
 \code{pareto}, and \code{cube}, they use the high-entropy approximation. For
 \code{chromy}, they are simulation-based (see \code{nsim}). \code{lpm2} and \code{scps}
 expose no joint probabilities, so \code{sampling_cov()} stops with an error
 for them. See \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}} and \code{\link[=joint_expected_hits]{joint_expected_hits()}}.
 
 Some designs (notably systematic PPS) produce \eqn{\pi_{ij} = 0}{pi_ij = 0} for
-pairs that never co-occur. When \code{weighted = TRUE}, the SYG quantity
+pairs that never co-occur, and \code{systematic_mr} gives such pairs zero
+pairwise expected hits. When \code{weighted = TRUE}, the SYG quantity
 \eqn{1 - \pi_i \pi_j / \pi_{ij}}{1 - pi_i pi_j / pi_ij} is undefined for such pairs and
 set to \code{NA} with a warning. The raw covariance (\code{weighted = FALSE})
 is unaffected. The Sen-Yates-Grundy estimator is not applicable
 for these designs (\enc{Tillé}{Tille}, 2006, Ch. 5).
 }
 \examples{
-pik <- c(0.2, 0.3, 0.5)
+pik <- c(0.2, 0.4, 0.6, 0.8)
 s <- unequal_prob_wor(pik, method = "cps")
 
 # Raw covariance

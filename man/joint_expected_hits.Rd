@@ -48,8 +48,12 @@ The computation depends on the method:
 
 \describe{
 \item{Exact}{\code{multinomial}
-(\eqn{E(n_i n_j) = n(n-1) p_i p_j}) and \code{srs}
-(\eqn{E(n_i n_j) = n(n-1)/N^2}).}
+(\eqn{E(n_i n_j) = n(n-1) p_i p_j}), \code{srs}
+(\eqn{E(n_i n_j) = n(n-1)/N^2}), and \code{systematic_mr}, from the
+whole part of each unit's expected hits and the overlap of the arcs
+the units cover on the systematic walk. For \code{systematic_mr}, two
+units below one expected hit whose arcs do not overlap are never
+selected together, and their entry is exactly zero.}
 \item{Simulation}{\code{chromy}: estimated by Monte Carlo (controlled
 by \code{nsim}, default 10 000).}
 }

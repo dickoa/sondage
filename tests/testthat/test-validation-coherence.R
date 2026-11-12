@@ -161,3 +161,66 @@ test_that("registry operations share one non-empty name contract", {
     }
   }
 })
+
+## Sizes beyond the integer range
+
+test_that("a sample size above the integer range is refused before C", {
+  big <- .Machine$integer.max + 1
+  for (m in c("chromy", "multinomial", "systematic_mr")) {
+    expect_no_warning(expect_error(
+      unequal_prob_wr(c(big, 0), method = m),
+      "exceeds the largest supported sample size"
+    ))
+  }
+  for (m in c("srs", "systematic", "bernoulli")) {
+    expect_no_warning(expect_error(
+      equal_prob_wor(big, 2, method = m),
+      "'N' = 2.14748e\\+09 exceeds the largest supported integer"
+    ))
+  }
+  expect_no_warning(expect_error(
+    equal_prob_wr(10, big),
+    "exceeds the largest supported integer"
+  ))
+})
+
+## Edited design objects before a sampled-only query
+
+test_that("sampled-only queries refuse units the compiled code cannot index", {
+  # The submatrix code indexes the population by $sample. An index out of
+  # range read outside pik, and a duplicate left a CPS pair uncomputed.
+  p <- c(0.3, 0.3 + 1e-9, 0.4, 0.5, 0.5)
+  p <- p * 2 / sum(p)
+  for (m in c("cps", "sampford", "systematic", "brewer", "poisson")) {
+    s <- unequal_prob_wor(p, method = m)
+    for (bad in list(c(1L, 1L), c(0L, 2L), c(2L, 7L), c(1, NA))) {
+      s$sample <- bad
+      expect_error(
+        joint_inclusion_prob(s, sampled_only = TRUE),
+        "distinct unit indices between 1 and N = 5",
+        info = paste(m, deparse(bad))
+      )
+    }
+  }
+  s <- unequal_prob_wor(p, method = "cps")
+  s$sample <- integer(0)
+  expect_identical(dim(joint_inclusion_prob(s, sampled_only = TRUE)), c(0L, 0L))
+
+  w <- unequal_prob_wr(c(0.5, 1.5, 1), method = "systematic_mr")
+  w$hits <- c(w$hits, 1L, 1L)
+  expect_error(
+    joint_expected_hits(w, sampled_only = TRUE),
+    "one count per unit, N = 3"
+  )
+})
+
+test_that("the systematic_mr kernel refuses expected hits it cannot split", {
+  # The R entry points refuse these first. Called directly, the kernel
+  # used to cast them to int, which is undefined.
+  expect_error(
+    .Call(C_up_wr_systematic, c(2147483648, 0), 1L),
+    "do not add up"
+  )
+  expect_error(.Call(C_up_wr_systematic, c(NaN, 1), 1L), "do not add up")
+  expect_error(.Call(C_wr_systematic_jeh, c(Inf, 1), 1L), "do not add up")
+})

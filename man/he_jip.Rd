@@ -13,7 +13,9 @@ he_jip(pik, sample_idx = NULL, eps = 1e-06, ...)
 \item{sample_idx}{Unique integer vector of 1-based indices for the
 sampled units, or \code{NULL} (default) for the full population matrix.
 When non-\code{NULL}, returns the submatrix for those units only, without
-allocating the full N x N matrix.}
+allocating the full N x N matrix. The returned matrix has at most
+10,000 rows, as for \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}, so a population above
+that size needs \code{sample_idx}.}
 
 \item{eps}{Boundary tolerance (default 1e-6). Units with
 \eqn{\pi_k \ge 1 - \varepsilon}{pi_k >= 1 - eps} are treated as certainty
@@ -22,13 +24,16 @@ are treated as zero.}
 
 \item{...}{Additional arguments (ignored). Present so that the
 function matches the \code{joint_fn} signature required by
-\code{\link[=register_method]{register_method()}}.}
+\code{\link[=register_method]{register_method()}}. \code{sampled_only} is refused, since it belongs to
+\code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}. Use \code{sample_idx} here instead.}
 }
 \value{
 A symmetric matrix of joint inclusion probabilities:
 N x N when \code{sample_idx} is \code{NULL}, or
 \code{length(sample_idx)} x \code{length(sample_idx)} otherwise.
-Diagonal entries are \eqn{\pi_i}.
+Diagonal entries are \eqn{\pi_i}. Rows and columns are named after
+\code{names(pik)}, as in \code{\link[=joint_inclusion_prob]{joint_inclusion_prob()}}. A submatrix of unnamed
+\code{pik} is labeled with the indices in \code{sample_idx}.
 }
 \description{
 Computes the joint inclusion probability matrix using the

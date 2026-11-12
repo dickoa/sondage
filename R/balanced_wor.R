@@ -67,10 +67,13 @@
 #'       Supplied `pik` inside `(0, eps]` or `[1 - eps, 1)` are rejected. Only
 #'       `pik` of exactly 0 or exactly 1 enter the algorithm as
 #'       already-resolved units.}
-#'     \item{`condition_aux`}{Logical. If `TRUE`, pre-conditions `aux` by
-#'       weighted centering/scaling and QR-pivot rank pruning to improve
-#'       numerical stability with ill-conditioned or collinear auxiliary
-#'       variables (default `FALSE`).}
+#'     \item{`condition_aux`}{Logical. If `TRUE`, pre-conditions `aux` to
+#'       improve numerical stability with ill-conditioned or collinear
+#'       auxiliary variables (default `FALSE`). Each column is centered and
+#'       scaled in the space the cube balances, `aux / pik`, so that the
+#'       balancing equations are unchanged, and columns that depend on
+#'       earlier ones or on the sample size constraint are dropped. The
+#'       other columns keep their order.}
 #'     \item{`qr_tol`}{Tolerance for QR rank detection when
 #'       `condition_aux = TRUE`. It must be one finite, non-negative
 #'       number (default `sqrt(.Machine$double.eps)`).}
@@ -180,15 +183,17 @@
 #' estimators (e.g. \enc{Grafström}{Grafstrom} & Schelin, 2014).
 #'
 #' Both methods are \emph{spread-only}: neither exactly balances the totals
-#' of `aux`. They are dispatched by `balanced_wor()` because “spatially
-#' balanced sampling” is the standard name for well-spread fixed-size
+#' of `aux`. They are dispatched by `balanced_wor()` because "spatially
+#' balanced sampling" is the standard name for well-spread fixed-size
 #' designs, and because the same interface accommodates local-cube methods
 #' that combine exact balancing with spread. Capability metadata keeps the
 #' distinction explicit: both report `supports_aux = FALSE` and
 #' `supports_spread = TRUE` through [method_spec()].
 #'
 #' LPM2 finds nearest neighbors with a k-d tree (Friedman et al., 1977) when `spread` has at most
-#' eight columns, so a draw costs about O(N log N) time. With more columns
+#' eight columns, so a draw costs about O(N log N) time. Many units at
+#' the same distance, as with duplicated points, make the tree visit all of
+#' them, and a draw then approaches O(N^2). With more columns
 #' a tree prunes too little and LPM2 scans the undecided units instead, at
 #' O(N^2 * d) per draw. SCPS uses weighted quickselect to
 #' find the distance at which its maximal weights sum to one, avoiding a
@@ -573,7 +578,8 @@ balanced_wor <- function(
       N,
       prepend_pik = FALSE,
       condition_aux = condition_aux,
-      qr_tol = qr_tol
+      qr_tol = qr_tol,
+      strata = strata_int
     )
     idx <- .Call(
       C_cube_stratified,
@@ -673,7 +679,8 @@ balanced_wor <- function(
   N,
   prepend_pik,
   condition_aux = FALSE,
-  qr_tol = sqrt(.Machine$double.eps)
+  qr_tol = sqrt(.Machine$double.eps),
+  strata = NULL
 ) {
   pik_d <- as.double(pik)
 
@@ -687,7 +694,7 @@ balanced_wor <- function(
   aux <- .check_cube_aux(aux, N)
 
   if (isTRUE(condition_aux) && ncol(aux) > 0L) {
-    aux <- .condition_cube_aux(aux, pik_d, qr_tol = qr_tol)
+    aux <- .condition_cube_aux(aux, pik_d, qr_tol = qr_tol, strata = strata)
   }
 
   if (prepend_pik) {
@@ -864,46 +871,87 @@ balanced_wor <- function(
 
 #' Condition auxiliary matrix for numerical stability in cube updates.
 #'
-#' Applies weighted centering/scaling (weights proportional to pik), then
-#' QR with column pivoting to drop near-dependent columns while preserving
-#' the effective constraint span.
+#' The cube balances `aux / pik`, with `pik / pik = 1` as the size
+#' constraint, or the stratum indicators with `strata`. Subtracting `c * pik`
+#' from a raw column, within one stratum, subtracts `c` from its `aux / pik`
+#' there, a multiple of a size constraint, so the balancing equations are
+#' unchanged. The columns are centered that way, within each stratum when
+#' `strata` is given, so a column constant within strata in `aux / pik`
+#' (such as a region dummy under equal `pik`) is recognized as redundant.
+#' They are then scaled and pruned of dependent columns in
+#' `aux / pik` space on the units the flight moves (`0 < pik < 1`). The
+#' kept columns stay in their original order, which the landing phase
+#' relaxes from last to first. A column is dropped as constant when its
+#' spread is at most `qr_tol` times its size in that space, so the result
+#' does not depend on the scale of a column.
+#'
+#' Centering the raw columns instead added `-mu / pik` to each constraint,
+#' which is outside the size constraint when `pik` varies, and dropped a
+#' constant raw column that is not constant after division by `pik`.
 #'
 #' @param aux Numeric matrix (N x p).
 #' @param pik Numeric vector of inclusion probabilities (length N).
 #' @param qr_tol Tolerance for QR rank detection.
+#' @param strata Dense integer stratum labels, or `NULL`.
 #' @return Conditioned matrix, possibly with fewer columns.
 #' @noRd
-.condition_cube_aux <- function(aux, pik, qr_tol = sqrt(.Machine$double.eps)) {
+.condition_cube_aux <- function(aux, pik, qr_tol = sqrt(.Machine$double.eps),
+                                strata = NULL) {
   N <- nrow(aux)
   if (N == 0L || ncol(aux) == 0L) {
     return(aux)
   }
+  active <- pik > 0 & pik < 1
+  if (!any(active)) {
+    return(matrix(0, nrow = N, ncol = 0))
+  }
 
-  w <- pik / sum(pik)
-  mu <- as.numeric(crossprod(w, aux))
-  aux_cs <- sweep(aux, 2, mu, "-", check.margin = FALSE)
-
-  sdw <- sqrt(pmax(as.numeric(crossprod(w, aux_cs^2)), 0))
-  keep_scale <- sdw > qr_tol
+  # The constant comes from the units the flight moves, so a column that
+  # is constant there has no spread left after centering.
+  flight <- function(x) x[active, , drop = FALSE] / pik[active]
+  w <- pik[active] / sum(pik[active])
+  rms <- sqrt(colSums(w * flight(aux)^2))
+  if (is.null(strata)) {
+    aux_c <- aux - outer(pik, colSums(aux[active, , drop = FALSE]) /
+      sum(pik[active]))
+  } else {
+    # One multiple of pik per stratum, from its moving units. A stratum
+    # with none keeps its values, which the flight never reads.
+    g <- factor(strata)
+    num <- rowsum(aux[active, , drop = FALSE], g[active])
+    den <- as.numeric(rowsum(pik[active], g[active]))
+    ratio <- matrix(0, nlevels(g), ncol(aux))
+    ratio[match(rownames(num), levels(g)), ] <- num / den
+    aux_c <- aux - pik * ratio[as.integer(g), , drop = FALSE]
+  }
+  sdw <- sqrt(pmax(colSums(w * flight(aux_c)^2), 0))
+  # Relative to the column's own size, so rescaling a column cannot drop
+  # it: an absolute cutoff dropped 1e-8 * aux, an independent constraint.
+  keep_scale <- sdw > qr_tol * rms
   if (!any(keep_scale)) {
     return(matrix(0, nrow = N, ncol = 0))
   }
-  aux_cs <- aux_cs[, keep_scale, drop = FALSE]
-  sdw <- sdw[keep_scale]
-  aux_cs <- sweep(aux_cs, 2, sdw, "/", check.margin = FALSE)
+  aux_c <- sweep(
+    aux_c[, keep_scale, drop = FALSE],
+    2,
+    sdw[keep_scale],
+    "/",
+    check.margin = FALSE
+  )
 
-  if (ncol(aux_cs) <= 1L) {
-    return(aux_cs)
+  if (ncol(aux_c) <= 1L) {
+    return(aux_c)
   }
-  # LINPACK path: rank-revealing pivoted QR that honors `tol`. The LAPACK
-  # path ignores `tol` and always reports full column rank, so it cannot
-  # detect dependent balancing constraints.
-  q <- qr(aux_cs, tol = qr_tol)
+  # LINPACK path: rank-revealing QR that honors `tol` and moves only
+  # near-dependent columns to the end. The LAPACK path ignores `tol` and
+  # always reports full column rank, so it cannot detect dependent
+  # balancing constraints.
+  q <- qr(flight(aux_c), tol = qr_tol)
   r <- q$rank
   if (r <= 0L) {
     return(matrix(0, nrow = N, ncol = 0))
   }
-  aux_cs[, q$pivot[seq_len(r)], drop = FALSE]
+  aux_c[, sort(q$pivot[seq_len(r)]), drop = FALSE]
 }
 
 #' @noRd
@@ -937,10 +985,20 @@ balanced_wor <- function(
 }
 
 #' Check per-stratum sum(pik). Warns and returns FALSE if any is non-integer.
+#'
+#' A stratum sum counts as whole within the tolerance `.check_whole_sum()`
+#' applies to the whole of `pik`, scaled by the stratum's own count and
+#' sum. A fixed `1e-4` took a stratum summing to 5e-5 as whole, and the
+#' stratified batch kernel then failed on a draw of the wrong size.
+#'
 #' @return TRUE if all per-stratum sums are close to an integer, FALSE otherwise.
 #' @noRd
-.check_stratum_sizes <- function(pik, strata, tol = 1e-4) {
+.check_stratum_sizes <- function(pik, strata, tol = NULL) {
   stratum_sums <- tapply(pik, strata, sum)
+  if (is.null(tol)) {
+    counts <- tapply(pik, strata, length)
+    tol <- pmax(1e-10, 64 * .Machine$double.eps * (counts + abs(stratum_sums)))
+  }
   not_int <- abs(stratum_sums - round(stratum_sums)) > tol
   if (any(not_int)) {
     bad <- names(stratum_sums)[not_int]
@@ -1001,7 +1059,8 @@ balanced_wor <- function(
       N,
       prepend_pik = FALSE,
       condition_aux = condition_aux,
-      qr_tol = qr_tol
+      qr_tol = qr_tol,
+      strata = strata_int
     )
 
     if (fixed_size) {

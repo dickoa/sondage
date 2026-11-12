@@ -94,9 +94,9 @@ double for random-size methods (expected size, \code{sum(pik)}). See
 \description{
 Draws a sample with unequal inclusion probabilities, without replacement.
 }
-\details{
-\strong{Near-certainty inclusion probabilities (CPS).} The CPS
-fixed-point calibration converges geometrically for well-spread
+\section{Near-certainty inclusion probabilities in CPS}{
+
+The CPS fixed-point calibration converges geometrically for well-spread
 \code{pik}, but asymptotes at a non-zero defect when some \code{pik} are
 within a few decimal digits of 0 or 1 (e.g. 0.9999). When this happens the
 function emits a "CPS calibration did not reach tolerance" warning
@@ -106,6 +106,7 @@ typically 1e-5 or smaller for inputs in the 0.999-range, well within
 Monte Carlo error for most estimators. If the warning is unwanted,
 clip \code{pik} away from 0/1 before calling.
 }
+
 \examples{
 pik <- c(0.2, 0.4, 0.6, 0.8)
 

@@ -15,6 +15,8 @@
 #include <Rmath.h>
 #include <math.h>
 
+#include "systematic_core.h"
+
 /* helpers for order sampling (SPS / Pareto) */
 
 static void swap_pair(double *keys, int *orig, int a, int b) {
@@ -115,73 +117,206 @@ static void partial_sort_paired(double *keys, int *orig, int len,
  * Single-pass systematic PPS: accumulate pik, select unit k when
  * the cumulative sum crosses an integer boundary (shifted by u).
  * Returns sorted 1-based indices.
+ *
+ * Units with pik >= 1 are certain. The others are scaled so that their
+ * walk ends at exactly n_select: callers guarantee |n_valid - n_select|
+ * is at floating-point scale, and without the scaling the walk could
+ * cross one more (or one fewer) boundary than there are slots. A unit
+ * that the scaling pushes to 1 becomes certain too, and the last unit's
+ * arc ends at exactly n_select (see systematic_core.h).
  */
 SEXP C_up_systematic(SEXP pik) {
   const int N = LENGTH(pik);
   const double *pk = REAL(pik);
 
+  double *v = (double *)R_alloc(N > 0 ? N : 1, sizeof(double));
+  int *bump = (int *)R_alloc(N > 0 ? N : 1, sizeof(int));
+  int *sel = (int *)R_alloc(N > 0 ? N : 1, sizeof(int));
+
   /* Count certainty units and compute n */
   int n_certain = 0;
   double n_valid = 0.0;
   for (int i = 0; i < N; i++) {
-    if (pk[i] >= 1.0)
+    bump[i] = 0;
+    v[i] = 0.0;
+    if (pk[i] >= 1.0) {
       n_certain++;
-    else if (pk[i] > 0.0)
+    } else if (pk[i] > 0.0) {
+      v[i] = pk[i];
       n_valid += pk[i];
+    }
   }
-  int n_select = (int)(n_valid + 0.5);
-  int total = n_select + n_certain;
+  const int n_select = (int)(n_valid + 0.5);
+  const int total = n_select + n_certain;
+
+  int n_walk = 0;
+  if (n_select > 0) {
+    n_walk = sys_rescale(v, N, n_select, bump);
+    if (n_walk < 0)
+      error("systematic sampling found no units to carry %d selections",
+            n_select);
+  }
 
   SEXP result = PROTECT(allocVector(INTSXP, total));
   int *res = INTEGER(result);
   int j = 0;
 
-  /* Certainty units first */
+  int n_walked = 0;
+  if (n_walk > 0) {
+    const int last = sys_last_active(v, N);
+    GetRNGstate();
+    const double u = unif_rand();
+    PutRNGstate();
+    n_walked = sys_walk(v, N, n_walk, last, u, sel);
+  }
+
+  if (n_certain + (n_select - n_walk) + n_walked != total) {
+    UNPROTECT(1);
+    error("systematic sampling produced %d selections, expected %d",
+          n_certain + (n_select - n_walk) + n_walked, total);
+  }
+
   for (int i = 0; i < N; i++) {
-    if (pk[i] >= 1.0)
+    if (pk[i] >= 1.0 || bump[i] > 0 || (n_walk > 0 && sel[i]))
       res[j++] = i + 1;
   }
 
-  if (n_select > 0) {
-    /*
-     * Normalize the cumulative walk so it ends at exactly n_select:
-     * callers guarantee |n_valid - n_select| is at floating-point scale,
-     * and without this the walk could cross one extra (or one fewer)
-     * integer boundary than there are slots.
-     */
-    const double scale = (double)n_select / n_valid;
+  UNPROTECT(1);
+  return result;
+}
 
+/* Systematic PPS with minimum replacement */
+
+/*
+ * Write the draw of one walk: hits[k] = m[k] + sel[k], and the sample
+ * as unit indices in ascending order, unit k repeated hits[k] times.
+ * Returns the number of hits written, or -1 when it would exceed n.
+ */
+static int wr_sys_write(const int *m, const int *sel, int N, int n,
+                        int *hits, int *sample) {
+  int pos = 0;
+  for (int k = 0; k < N; k++) {
+    const int h = m[k] + sel[k];
+    hits[k] = h;
+    if (h > n - pos) return -1;
+    for (int r = 0; r < h; r++) sample[pos++] = k + 1;
+  }
+  return pos;
+}
+
+/*
+ * C_up_wr_systematic(e, n)
+ *
+ * Systematic PPS with minimum replacement (Madow's walk without the cap
+ * at 1, as in SAS SURVEYSELECT METHOD=PPS_SYS). e holds the expected
+ * hits, n * prob, summing to n. With m = floor(e) and f = e - m, unit k
+ * receives m[k] hits plus one more when the walk over the fractional
+ * parts selects it, so its hits are floor(e[k]) or ceiling(e[k]) and
+ * they sum to n. When every e[k] < 1 this is the walk of
+ * C_up_systematic.
+ *
+ * Returns list(sample, hits): 1-based indices in ascending order (with
+ * repeats) and the hit count of every unit.
+ */
+SEXP C_up_wr_systematic(SEXP r_e, SEXP r_n) {
+  const int N = LENGTH(r_e);
+  const double *e = REAL(r_e);
+  const int n = asInteger(r_n);
+
+  int *m = (int *)R_alloc(N, sizeof(int));
+  double *f = (double *)R_alloc(N, sizeof(double));
+  int *sel = (int *)R_alloc(N, sizeof(int));
+
+  const int n_frac = sys_split_hits(e, N, n, m, f);
+  if (n_frac < 0)
+    error("systematic_mr: expected hits do not add up to %d", n);
+
+  for (int k = 0; k < N; k++) sel[k] = 0;
+  if (n_frac > 0) {
+    const int last = sys_last_active(f, N);
     GetRNGstate();
-    double u = unif_rand();
+    const double u = unif_rand();
     PutRNGstate();
+    const int got = sys_walk(f, N, n_frac, last, u, sel);
+    if (got != n_frac)
+      error("systematic_mr walk selected %d units, expected %d", got,
+            n_frac);
+  }
 
-    double cs = 0.0;
-    for (int i = 0; i < N; i++) {
-      if (pk[i] <= 0.0 || pk[i] >= 1.0)
-        continue;
-      double prev = cs;
-      cs += pk[i] * scale;
-      if (floor(cs - u) > floor(prev - u)) {
-        if (j >= total) {
-          UNPROTECT(1);
-          error(
-            "systematic sampling produced more than the expected %d selections",
-            total
-          );
-        }
-        res[j++] = i + 1;
+  SEXP sample = PROTECT(allocVector(INTSXP, n));
+  SEXP hits = PROTECT(allocVector(INTSXP, N));
+  const int total = wr_sys_write(m, sel, N, n, INTEGER(hits),
+                                 INTEGER(sample));
+  if (total != n) {
+    UNPROTECT(2);
+    error("systematic_mr produced %d hits, expected %d", total, n);
+  }
+
+  SEXP result = PROTECT(allocVector(VECSXP, 2));
+  SET_VECTOR_ELT(result, 0, sample);
+  SET_VECTOR_ELT(result, 1, hits);
+  UNPROTECT(3);
+  return result;
+}
+
+/*
+ * C_up_wr_systematic_batch(e, n, nrep)
+ *
+ * nrep independent draws of C_up_wr_systematic. The split into whole and
+ * fractional parts is computed once, and each replicate takes one
+ * uniform start, so the random number stream matches nrep single draws.
+ * Returns list(sample, hits) with an n x nrep and an N x nrep matrix.
+ */
+SEXP C_up_wr_systematic_batch(SEXP r_e, SEXP r_n, SEXP r_nrep) {
+  const int N = LENGTH(r_e);
+  const double *e = REAL(r_e);
+  const int n = asInteger(r_n);
+  const int nrep = asInteger(r_nrep);
+
+  int *m = (int *)R_alloc(N, sizeof(int));
+  double *f = (double *)R_alloc(N, sizeof(double));
+  int *sel = (int *)R_alloc(N, sizeof(int));
+
+  const int n_frac = sys_split_hits(e, N, n, m, f);
+  if (n_frac < 0)
+    error("systematic_mr: expected hits do not add up to %d", n);
+  const int last = sys_last_active(f, N);
+  for (int k = 0; k < N; k++) sel[k] = 0;
+
+  SEXP samples = PROTECT(allocMatrix(INTSXP, n, nrep));
+  SEXP hits = PROTECT(allocMatrix(INTSXP, N, nrep));
+
+  if (n_frac > 0) GetRNGstate();
+  for (int draw = 0; draw < nrep; draw++) {
+    if ((draw & 127) == 0) R_CheckUserInterrupt();
+    if (n_frac > 0) {
+      const double u = unif_rand();
+      const int got = sys_walk(f, N, n_frac, last, u, sel);
+      if (got != n_frac) {
+        PutRNGstate();
+        UNPROTECT(2);
+        error("systematic_mr batch draw %d selected %d units, expected %d",
+              draw + 1, got, n_frac);
       }
     }
+    const int total = wr_sys_write(
+      m, sel, N, n,
+      INTEGER(hits) + (R_xlen_t)draw * N,
+      INTEGER(samples) + (R_xlen_t)draw * n
+    );
+    if (total != n) {
+      if (n_frac > 0) PutRNGstate();
+      UNPROTECT(2);
+      error("systematic_mr batch draw %d produced %d hits, expected %d",
+            draw + 1, total, n);
+    }
   }
+  if (n_frac > 0) PutRNGstate();
 
-  if (j != total) {
-    UNPROTECT(1);
-    error("systematic sampling produced %d selections, expected %d", j, total);
-  }
-
-  R_isort(res, total);
-
-  UNPROTECT(1);
+  SEXP result = PROTECT(allocVector(VECSXP, 2));
+  SET_VECTOR_ELT(result, 0, samples);
+  SET_VECTOR_ELT(result, 1, hits);
+  UNPROTECT(3);
   return result;
 }
 

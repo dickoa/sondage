@@ -37,7 +37,7 @@
  * probability ratios of ESFs can be computed from f directly without
  * ever forming the (overflowing) ESFs themselves.
  */
-static void cps_compute_f(const double *w, int N, int n, double *f) {
+static inline void cps_compute_f(const double *w, int N, int n, double *f) {
     const int S = n + 1; /* row stride */
     memset(f, 0, CPS_TABLE_SIZE(N, n) * sizeof(double));
 
@@ -89,8 +89,8 @@ static inline double cps_compute_q(const double *w, const double *f,
  * unit i, and are skipped. Each sum keeps the order and terms of the
  * full N x n recurrence, so the result is the same to the last bit.
  */
-static void cps_compute_pik(const double *w, const double *f,
-                             int N, int n, double *pik, double *pro) {
+static inline void cps_compute_pik(const double *w, const double *f,
+                                    int N, int n, double *pik, double *pro) {
     double *qrow = pro + n;
     memset(pro, 0, (size_t)n * sizeof(double));
     pro[n - 1] = 1.0;
@@ -134,10 +134,10 @@ static void cps_compute_pik(const double *w, const double *f,
  * the final_max_diff / worst_idx outputs let callers emit an informative
  * warning when the target tolerance isn't reached.
  */
-static int cps_calibrate(const double *pik_target, int N, int n,
-                          double *w, double *f,
-                          double eps, int max_iter,
-                          double *final_max_diff, int *worst_idx) {
+static inline int cps_calibrate(const double *pik_target, int N, int n,
+                                 double *w, double *f,
+                                 double eps, int max_iter,
+                                 double *final_max_diff, int *worst_idx) {
     if (final_max_diff) *final_max_diff = 0.0;
     if (worst_idx) *worst_idx = -1;
 
@@ -253,10 +253,11 @@ static int cps_calibrate(const double *pik_target, int N, int n,
  * idx_map maps the valid-subset index to the 0-based population index;
  * N_valid is the size of pik_valid.
  */
-static void cps_warn_nonconverge(const char *ctx,
-                                 int max_iter, double tol, double max_diff,
-                                 const double *pik_valid, int N_valid,
-                                 const int *idx_map) {
+static inline void cps_warn_nonconverge(const char *ctx,
+                                        int max_iter, double tol,
+                                        double max_diff,
+                                        const double *pik_valid, int N_valid,
+                                        const int *idx_map) {
     const double boundary_thresh = 1e-3;
     int near_boundary = 0;
     int first_boundary = -1;
@@ -296,8 +297,8 @@ static void cps_warn_nonconverge(const char *ctx,
  * Draw one CPS sample.
  * Returns number of selected indices written to sample_idx.
  */
-static int cps_sample(const double *w, const double *f,
-                       int N, int n, int *sample_idx) {
+static inline int cps_sample(const double *w, const double *f,
+                              int N, int n, int *sample_idx) {
     int remaining = n;
     int count = 0;
 

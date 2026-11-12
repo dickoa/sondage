@@ -132,6 +132,18 @@
       call. = FALSE
     )
   }
+  # as.integer() would turn a larger sum into NA, which then reaches C.
+  if (round(s) > .Machine$integer.max) {
+    stop(
+      sprintf(
+        "sum(%s) = %.6g exceeds the largest supported sample size, %d",
+        name,
+        s,
+        .Machine$integer.max
+      ),
+      call. = FALSE
+    )
+  }
   as.integer(round(s))
 }
 
@@ -265,7 +277,43 @@
       call. = FALSE
     )
   }
+  # as.integer() would turn a larger value into NA, which then reaches C.
+  if (abs(r) > .Machine$integer.max) {
+    stop(
+      sprintf(
+        "'%s' = %.6g exceeds the largest supported integer, %d",
+        name,
+        x,
+        .Machine$integer.max
+      ),
+      call. = FALSE
+    )
+  }
   as.integer(r)
+}
+
+#' Validate the units of a design object before a sampled-only query
+#'
+#' The compiled submatrix code indexes the population by these values, so
+#' an edited `$sample` with an index out of range, or with a duplicate,
+#' would read outside the input or leave a pair uncomputed.
+#'
+#' @keywords internal
+#' @noRd
+.check_design_units <- function(idx, N) {
+  ok <- is.numeric(idx) && is.null(dim(idx)) && !anyNA(idx) &&
+    all(is.finite(idx)) && all(idx == floor(idx)) &&
+    all(idx >= 1 & idx <= N) && !anyDuplicated(idx)
+  if (!ok) {
+    stop(
+      sprintf(
+        "the design's $sample must hold distinct unit indices between 1 and N = %d",
+        N
+      ),
+      call. = FALSE
+    )
+  }
+  as.integer(idx)
 }
 
 #' Validate indices used for a sampled joint-probability submatrix

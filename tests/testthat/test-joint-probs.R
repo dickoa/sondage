@@ -297,7 +297,7 @@ test_that("equal-prob systematic JIP differs from SRS", {
 })
 
 test_that("high-entropy JIP warns on large marginal defect", {
-  # Skewed pik with n=2 → defect/n ≈ 6.9%, should warn
+  # Skewed pik with n = 2 gives defect/n of about 6.9%, which warns
   pik_skewed <- c(
     0.190194,
     0.702073,
@@ -313,7 +313,7 @@ test_that("high-entropy JIP warns on large marginal defect", {
 })
 
 test_that("high-entropy JIP does not warn for well-spread pik", {
-  # Tille pik → defect/n ≈ 1.7%, should not warn
+  # Tille pik gives defect/n of about 1.7%, which does not warn
   pik_tille <- c(0.07, 0.17, 0.41, 0.61, 0.83, 0.91)
   s <- unequal_prob_wor(pik_tille, method = "brewer")
   expect_no_warning(joint_inclusion_prob(s))
@@ -840,4 +840,85 @@ test_that("sampling_cov.wr with weighted=TRUE returns NA on diagonal for zero-hi
   expect_true(is.na(cv[4, 4]))
   expect_false(is.na(cv[2, 2]))
   expect_false(is.na(cv[3, 3]))
+})
+
+## CPS joint probabilities with near-equal odds
+
+# Exact CPS on the working odds w by enumeration of all samples.
+cps_enum <- function(w, n) {
+  S <- utils::combn(length(w), n)
+  lw <- apply(S, 2, function(s) sum(log(w[s])))
+  pr <- exp(lw - max(lw))
+  pr <- pr / sum(pr)
+  J <- matrix(0, length(w), length(w))
+  for (k in seq_len(ncol(S))) {
+    s <- S[, k]
+    J[s, s] <- J[s, s] + pr[k]
+  }
+  J
+}
+
+# Exact joint probabilities of pik from the calibrated odds the package uses.
+cps_exact_jip <- function(pik) {
+  d <- .Call(C_cps_design, as.double(pik))
+  v <- pik > 0 & pik < 1
+  pv <- pik[v]
+  Jw <- cps_enum(d$w, d$n_work)
+  J <- outer(pik, pik)
+  J[v, v] <- if (d$use_complement) outer(pv, pv, "+") - 1 + Jw else Jw
+  diag(J) <- pik
+  J
+}
+
+test_that("CPS joint probabilities are exact for near-equal odds", {
+  # Aires' identity with the target pik divided the calibration residue by
+  # the gap between the odds: 4e-5 at a spread of 1e-7.
+  for (base in c(0.4, 0.7)) {
+    for (sp in 10^c(-12, -9, -7, -6, -5, -3)) {
+      p <- base + sp * seq(-4.5, 4.5)
+      s <- unequal_prob_wor(p, method = "cps")
+      J <- joint_inclusion_prob(s)
+      expect_lt(max(abs(J - cps_exact_jip(p))), 1e-10)
+      s$sample <- c(2L, 5L, 9L)
+      expect_identical(
+        unname(joint_inclusion_prob(s, sampled_only = TRUE)),
+        unname(J[c(2, 5, 9), c(2, 5, 9)])
+      )
+    }
+  }
+})
+
+test_that("the review's near-equal CPS example satisfies the fixed-size identities", {
+  p <- 0.4 + 1e-7 * seq(-4.5, 4.5)
+  s <- unequal_prob_wor(p, method = "cps")
+  J <- joint_inclusion_prob(s)
+  expect_lt(max(abs(rowSums(J) - 4 * p)), 1e-9)
+  D <- sampling_cov(s)
+  expect_lt(abs(sum(D)), 1e-12)
+  expect_gt(min(eigen(D, symmetric = TRUE, only.values = TRUE)$values), -1e-12)
+})
+
+test_that("CPS joint probabilities mix exact ties, near ties and fixed units", {
+  p <- c(rep(0.3, 4), rep(0.3 + 1e-7, 3), 0.3 + 2e-6, 0.5, 0.1 + 1e-9, 0.1,
+         1, 0)
+  p[9] <- p[9] + (round(sum(p)) - sum(p))
+  J <- joint_inclusion_prob(unequal_prob_wor(p, method = "cps"))
+  Jex <- cps_exact_jip(p)
+  Jex[13, ] <- 0
+  Jex[, 13] <- 0
+  Jex[13, 13] <- 0
+  expect_lt(max(abs(J - Jex)), 1e-10)
+})
+
+test_that("near-equal CPS joint probabilities stay fast", {
+  # One exact recurrence per near pair took 12.5 s here.
+  skip_on_cran()
+  set.seed(1)
+  N <- 800
+  p <- rep(0.4, N) + 1e-7 * (runif(N) - 0.5)
+  p <- p * 320 / sum(p)
+  s <- unequal_prob_wor(p, method = "cps")
+  elapsed <- system.time(J <- joint_inclusion_prob(s))[["elapsed"]]
+  expect_lt(elapsed, 2)
+  expect_lt(max(abs(rowSums(J) - 320 * p)), 1e-8)
 })

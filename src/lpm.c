@@ -24,11 +24,13 @@
  * search uses the static k-d tree of kdtree_core.h, so a draw costs
  * about O(N log N). Above that the tree prunes too little and a linear
  * scan over undecided units is used, O(N^2 * d) per draw. Both searches
- * find the same set of nearest units. The tree replays its ties in pool
- * order, so with no exact distance ties both consume the same random
- * numbers. The scan also draws for transient ties at a distance that a
- * later unit beats, so with exact ties a seed can select differently,
- * always uniformly among the nearest units.
+ * find the same set of nearest units, and with no exact distance ties
+ * neither draws a random number. With ties, the tree picks one of the
+ * tied units with a single uniform draw, and the scan keeps a reservoir
+ * in pool order, so a seed can select differently on the two paths,
+ * always uniformly among the nearest units. Heavily tied layouts, such
+ * as duplicated points, make the tree visit every tied unit, so a draw
+ * there approaches O(N^2).
  */
 
 #include "sampling_core.h"
@@ -71,9 +73,11 @@ static int lpm_nearest(const SpatialPool *pool, const double *z, int N, int d,
   return best;
 }
 
-/* Nearest undecided neighbor of id1 through the k-d tree. The tied
- * units are ordered by pool position and resolved with the reservoir of
- * lpm_nearest(), one uniform draw per tie after the first. */
+/* Nearest undecided neighbor of id1 through the k-d tree. Tied units
+ * are resolved with one uniform draw over the tied set. Any order of the
+ * ties gives the same uniform choice, so they are not sorted: sorting
+ * them by pool position was quadratic in the number of ties at each
+ * pivotal step, which duplicated points make close to N. */
 static int lpm_nearest_tree(KdTree *tree, const SpatialPool *pool, int id1) {
   int n_ties = kd_nearest(tree, id1);
   int *ties = tree->ties;
@@ -109,25 +113,15 @@ static int lpm_nearest_tree(KdTree *tree, const SpatialPool *pool, int id1) {
   }
 #endif
 
+  (void)pool; /* read only by the debug check above */
+
   if (n_ties == 1)
     return ties[0];
 
-  for (int i = 1; i < n_ties; i++) {
-    int id = ties[i];
-    int pos = pool->reverse[id];
-    int j = i - 1;
-    while (j >= 0 && pool->reverse[ties[j]] > pos) {
-      ties[j + 1] = ties[j];
-      j--;
-    }
-    ties[j + 1] = id;
-  }
-  int best = ties[0];
-  for (int i = 1; i < n_ties; i++) {
-    if (unif_rand() * (i + 1) < 1.0)
-      best = ties[i];
-  }
-  return best;
+  int k = (int)(unif_rand() * n_ties);
+  if (k >= n_ties)
+    k = n_ties - 1;
+  return ties[k];
 }
 
 /* Move prob[id] out of the pool once it has numerically reached a

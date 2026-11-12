@@ -7,8 +7,8 @@
 #'   \item [unequal_prob_wor()] - Without replacement: CPS (maximum entropy),
 #'     Sampford, Brewer, systematic PPS, Poisson, SPS (sequential Poisson),
 #'     Pareto
-#'   \item [unequal_prob_wr()] - With replacement: Chromy (minimum
-#'     replacement), multinomial PPS
+#'   \item [unequal_prob_wr()] - With replacement: Chromy and systematic
+#'     PPS (both with minimum replacement), multinomial PPS
 #' }
 #'
 #' @section Equal Probability Sampling:

@@ -21,6 +21,10 @@ extern SEXP C_up_systematic_jip(SEXP pik);
 extern SEXP C_up_systematic_jip_sub(SEXP pik, SEXP idx);
 extern SEXP C_high_entropy_jip(SEXP pik, SEXP eps);
 extern SEXP C_up_systematic(SEXP pik);
+extern SEXP C_up_wr_systematic(SEXP e, SEXP n);
+extern SEXP C_up_wr_systematic_batch(SEXP e, SEXP n, SEXP nrep);
+extern SEXP C_wr_systematic_jeh(SEXP e, SEXP n);
+extern SEXP C_wr_systematic_jeh_sub(SEXP e, SEXP n, SEXP idx);
 extern SEXP C_up_poisson(SEXP pik, SEXP prn);
 extern SEXP C_up_sps(SEXP pik, SEXP prn);
 extern SEXP C_up_pareto(SEXP pik, SEXP prn);
@@ -52,6 +56,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"C_up_systematic_jip_sub", (DL_FUNC) &C_up_systematic_jip_sub, 2},
     {"C_high_entropy_jip",      (DL_FUNC) &C_high_entropy_jip,      2},
     {"C_up_systematic",         (DL_FUNC) &C_up_systematic,         1},
+    {"C_up_wr_systematic",      (DL_FUNC) &C_up_wr_systematic,      2},
+    {"C_up_wr_systematic_batch", (DL_FUNC) &C_up_wr_systematic_batch, 3},
+    {"C_wr_systematic_jeh",     (DL_FUNC) &C_wr_systematic_jeh,     2},
+    {"C_wr_systematic_jeh_sub", (DL_FUNC) &C_wr_systematic_jeh_sub, 3},
     {"C_up_poisson",            (DL_FUNC) &C_up_poisson,            2},
     {"C_up_sps",                (DL_FUNC) &C_up_sps,                2},
     {"C_up_pareto",             (DL_FUNC) &C_up_pareto,             2},

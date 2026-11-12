@@ -1525,7 +1525,7 @@ test_that("built-in methods report their probabilities tier", {
     unequal_prob_wor = c(
       "cps", "sampford", "brewer", "systematic", "poisson"
     ),
-    unequal_prob_wr = c("chromy", "multinomial"),
+    unequal_prob_wr = c("chromy", "multinomial", "systematic_mr"),
     balanced_wor = c("cube", "lpm2", "scps")
   )
   for (dispatcher in names(exact)) {

@@ -361,3 +361,36 @@ test_that("lpm2 handles non-uniform pik summing to 1", {
   emp <- tabulate(as.integer(s$sample), nbins = 4) / nrep
   expect_true(max(abs(emp - pik)) < 0.03)
 })
+
+## Heavily tied layouts on the tree path
+
+test_that("lpm2 on duplicated points draws an exchangeable sample", {
+  # Every unit is at distance 0 from every other, so the design is
+  # exchangeable and its pair frequencies are those of SRS.
+  skip_on_cran()
+  N <- 6
+  B <- 20000
+  set.seed(5)
+  S <- balanced_wor(rep(0.5, N), spread = matrix(0, N, 2), method = "lpm2",
+                    nrep = B)$sample
+  H <- apply(S, 2, function(s) tabulate(s, N))
+  se1 <- sqrt(0.25 / B)
+  expect_true(all(abs(rowMeans(H) - 0.5) < 5 * se1))
+  P <- tcrossprod(H) / B
+  srs <- 3 * 2 / (6 * 5)
+  se2 <- sqrt(srs * (1 - srs) / B)
+  expect_true(all(abs(P[row(P) != col(P)] - srs) < 5 * se2))
+})
+
+test_that("lpm2 handles thousands of duplicated points on the tree path", {
+  # Sorting the tied neighbors made this take about 2 s at N = 4000.
+  skip_on_cran()
+  N <- 4000
+  set.seed(1)
+  elapsed <- system.time(
+    s <- balanced_wor(rep(0.25, N), spread = matrix(0, N, 1), method = "lpm2")
+  )[["elapsed"]]
+  expect_length(s$sample, 1000L)
+  expect_false(anyDuplicated(s$sample) > 0)
+  expect_lt(elapsed, 1)
+})

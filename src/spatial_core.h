@@ -12,20 +12,21 @@ typedef struct {
     int capacity;
 } SpatialPool;
 
-static void spatial_pool_init(SpatialPool *pool, int capacity) {
+static inline void spatial_pool_init(SpatialPool *pool, int capacity) {
     pool->list = (int *)R_alloc(capacity, sizeof(int));
     pool->reverse = (int *)R_alloc(capacity, sizeof(int));
     pool->len = 0;
     pool->capacity = capacity;
 }
 
-static SpatialPool *spatial_pool_alloc(int capacity) {
+static inline SpatialPool *spatial_pool_alloc(int capacity) {
     SpatialPool *pool = (SpatialPool *)R_alloc(1, sizeof(SpatialPool));
     spatial_pool_init(pool, capacity);
     return pool;
 }
 
-static void spatial_pool_fill(SpatialPool *pool, const double *prob, int N) {
+static inline void spatial_pool_fill(SpatialPool *pool, const double *prob,
+                                     int N) {
     pool->len = 0;
     for (int i = 0; i < N; i++) {
         if (prob[i] > 0.0 && prob[i] < 1.0) {
@@ -38,7 +39,7 @@ static void spatial_pool_fill(SpatialPool *pool, const double *prob, int N) {
     }
 }
 
-static void spatial_pool_remove(SpatialPool *pool, int id) {
+static inline void spatial_pool_remove(SpatialPool *pool, int id) {
     int position = pool->reverse[id];
     if (position >= pool->len) return;
 
@@ -51,7 +52,7 @@ static void spatial_pool_remove(SpatialPool *pool, int id) {
     }
 }
 
-static int spatial_check_spread(SEXP spread, int N) {
+static inline int spatial_check_spread(SEXP spread, int N) {
     if (!isMatrix(spread) || !isReal(spread)) {
         error("'spread' must be a numeric matrix");
     }

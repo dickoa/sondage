@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 ## Overview
 
-`sondage` ships with 16 built-in sampling methods, but researchers and agencies often need algorithms that are not included. The registration API lets you plug a custom unequal probability or balanced sampling method into the existing dispatchers and generics without modifying the package source.
+`sondage` ships with 17 built-in sampling methods across its five dispatchers, but researchers and agencies often need algorithms that are not included. The registration API lets you plug a custom unequal probability or balanced sampling method into the existing dispatchers and generics without modifying the package source.
 
 After registering a method, it participates in the same dispatcher and sample-object API as built-in methods. Joint-probability and covariance queries are available when the registration supplies a `joint_fn`.
 
@@ -477,33 +477,33 @@ A `joint_fn` is optional but enables `joint_inclusion_prob()`,
 `joint_expected_hits()`, and `sampling_cov()`. Five common
 strategies:
 
-1. **Exact formula.** When the design has a known closed form
+1. An exact formula, when the design has a known closed form
    (e.g., `UPtillepi2` above).
 
-2. **`he_jip()`.** The high-entropy approximation
+2. `he_jip()`, the high-entropy approximation
    [@brewer2003]. Best for maximum-entropy and high-entropy
    designs (Sampford, Tillé, and most $\pi$ps procedures). Uses
    optimized C code internally. Pass it directly:
    `joint_fn = he_jip`.
 
-3. **`hajek_jip()`.** The Hajek [-@hajek1964] approximation
+3. `hajek_jip()`, the Hajek [-@hajek1964] approximation
    based on conditional Poisson (rejective) sampling theory.
    Simpler formula and slightly cheaper, but generally a bit
    less accurate than `he_jip()`. Best when the design is
    obtained by conditioning independent Poisson trials on the
    sample size. Pass it directly: `joint_fn = hajek_jip`.
 
-4. **Other approximations**. Other methods exist in the literature and can be
-   implemented as custom `joint_fn` functions. @tille1996 reviews
+4. Another approximation from the literature, written as a custom
+   `joint_fn`. @tille1996 reviews
    several alternatives, including approximations based on
    Poisson, rejective, and successive sampling theory, each with
-   different accuracy--computation trade-offs. Any function that
+   different accuracy and computation trade-offs. Any function that
    accepts `(pik, sample_idx = NULL, ...)` and returns a symmetric
    matrix is a valid `joint_fn`.
 
-5. **Monte Carlo estimation.** Resample $B$ times and estimate
+5. Monte Carlo estimation, which resamples $B$ times and estimates
    $\hat{\pi}_{ij} = B^{-1} \sum_{b=1}^B I(i \in S_b)\, I(j \in S_b)$.
-   Slow but universal:
+   It is slow but works for any design.
 
 ```{r mc-joint, eval = FALSE}
 mc_joint <- function(pik, sample_idx = NULL, ..., B = 5000) {
@@ -514,10 +514,9 @@ mc_joint <- function(pik, sample_idx = NULL, ..., B = 5000) {
     s <- my_sampler(pik, n = n)
     co[s, s] <- co[s, s] + 1
   }
+  # The diagonal of co / B estimates pik from the same draws. When the
+  # design gives pik exactly, diag(pikl) <- pik replaces the estimate.
   pikl <- co / B
-  diag(pikl) <- tabulate(unlist(
-    replicate(B, my_sampler(pik, n = n), simplify = FALSE)
-  ), nbins = N) / B
   if (!is.null(sample_idx)) {
     pikl <- pikl[sample_idx, sample_idx, drop = FALSE]
   }

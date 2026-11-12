@@ -379,7 +379,13 @@ test_that("near-certainty pairs take the smaller probability in any order", {
     J <- f(pik)
     expect_true(all(J <= outer(pik, pik, pmin)))
     expect_identical(J[1, 2], min(pik[1:2]))
-    expect_equal(f(pik, sample_idx = 3:1), J[3:1, 3:1], tolerance = 1e-12)
+    # A submatrix of unnamed pik is labeled with its population indices,
+    # as joint_inclusion_prob() labels it, so compare the values only.
+    expect_equal(
+      unname(f(pik, sample_idx = 3:1)),
+      J[3:1, 3:1],
+      tolerance = 1e-12
+    )
     expect_equal(f(pik[perm]), J[perm, perm], tolerance = 1e-12)
 
     wide <- f(c(0.99, 0.91, 0.1), eps = 0.1)
@@ -396,4 +402,49 @@ test_that("near-certainty pairs are bounded through joint_inclusion_prob", {
   s$sample <- 2:1
   sub <- suppressWarnings(joint_inclusion_prob(s, sampled_only = TRUE))
   expect_identical(sub[1, 2], min(pik[1:2]))
+})
+
+## Labels, size limit and sampled_only
+
+test_that("he_jip and hajek_jip label rows as joint_inclusion_prob does", {
+  pik <- c(a = 0.2, b = 0.3, c = 0.5, d = 0.6, e = 0.4)
+  for (f in list(he_jip, hajek_jip)) {
+    J <- f(pik)
+    expect_identical(dimnames(J), list(names(pik), names(pik)))
+    sub <- f(pik, sample_idx = c(4, 2))
+    expect_identical(dimnames(sub), list(c("d", "b"), c("d", "b")))
+    expect_equal(sub, J[c(4, 2), c(4, 2)])
+
+    unnamed <- unname(pik)
+    expect_null(dimnames(f(unnamed)))
+    expect_identical(
+      dimnames(f(unnamed, sample_idx = c(4, 2))),
+      list(c("4", "2"), c("4", "2"))
+    )
+  }
+
+  s <- unequal_prob_wor(unname(pik), method = "brewer")
+  s$sample <- c(2L, 4L)
+  expect_identical(
+    he_jip(unname(pik), sample_idx = c(2L, 4L)),
+    joint_inclusion_prob(s, sampled_only = TRUE)
+  )
+})
+
+test_that("he_jip and hajek_jip refuse sampled_only and keep other dots", {
+  pik <- c(0.2, 0.3, 0.5, 0.6, 0.4)
+  for (f in list(he_jip, hajek_jip)) {
+    expect_error(f(pik, sampled_only = TRUE), "not an argument of")
+    expect_no_error(f(pik, custom_arg = 1))
+  }
+})
+
+test_that("he_jip and hajek_jip refuse a dense matrix above 10,000 units", {
+  pik <- rep(0.5, 10002)
+  for (f in list(he_jip, hajek_jip)) {
+    expect_error(f(pik), "N = 10002 is too large")
+    expect_error(f(pik), "sample_idx")
+    expect_error(f(pik, sample_idx = 1:10001), "length\\(sample_idx\\) = 10001")
+    expect_identical(dim(f(pik, sample_idx = 1:3)), c(3L, 3L))
+  }
 })

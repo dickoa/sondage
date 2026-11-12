@@ -463,6 +463,31 @@ test_that("stratified cube does not warn when per-stratum sums are integer", {
   expect_no_warning(balanced_wor(pik, strata = strata))
 })
 
+test_that("a stratum sum a small distance from a whole number is random-size", {
+  # The old absolute tolerance, 1e-4, took these stratum sums as whole, and
+  # the batch kernel failed on the first draw of two units.
+  pik <- c(5e-5, 1 - 5e-5)
+  expect_warning(
+    s <- balanced_wor(pik, strata = 1:2),
+    "per-stratum sum\\(pik\\) is not close to an integer"
+  )
+  expect_false(s$fixed_size)
+  set.seed(1)
+  suppressWarnings(b <- balanced_wor(pik, strata = 1:2, nrep = 20000))
+  expect_false(b$fixed_size)
+  expect_true(is.list(b$sample))
+  expect_true(any(lengths(b$sample) == 2L))
+})
+
+test_that("inclusion_prob() residues per stratum stay fixed-size", {
+  set.seed(3)
+  pik <- c(inclusion_prob(runif(50), 7), inclusion_prob(runif(50), 9), 0, 0)
+  strata <- c(rep(1:2, each = 50), 3, 3)
+  expect_no_warning(s <- balanced_wor(pik, strata = strata))
+  expect_true(s$fixed_size)
+  expect_length(s$sample, 16L)
+})
+
 test_that("stratified cube handles sparse stratum labels", {
   set.seed(42)
   N <- 80
@@ -544,6 +569,96 @@ test_that("condition_aux works with stratified cube", {
   expect_length(s$sample, 16)
   tab <- tabulate(strata[s$sample], nbins = 4)
   expect_equal(tab, rep(4L, 4))
+})
+
+test_that("condition_aux keeps the Horvitz-Thompson balancing equations", {
+  # Balance requires one unit from each group. Centering the raw columns
+  # changed the equation and lost it in about 18% of draws.
+  pik <- rep(c(0.2, 0.3, 0.5), 2)
+  aux <- cbind(pik * rep(0:1, each = 3))
+  for (cond in c(FALSE, TRUE)) {
+    set.seed(1)
+    S <- balanced_wor(pik, aux = aux, condition_aux = cond, nrep = 2000)$sample
+    ht <- apply(S, 2, function(s) sum(aux[s] / pik[s]))
+    expect_equal(ht, rep(sum(aux), 2000), tolerance = 1e-10, info = cond)
+  }
+
+  strata <- rep(1:2, each = 6)
+  pik2 <- rep(pik, 2)
+  aux2 <- cbind(pik2 * rep(rep(0:1, each = 3), 2))
+  set.seed(2)
+  S <- balanced_wor(pik2, aux = aux2, strata = strata, condition_aux = TRUE,
+                    nrep = 1000)$sample
+  ht <- apply(S, 2, function(s) sum(aux2[s] / pik2[s]))
+  expect_equal(ht, rep(sum(aux2), 1000), tolerance = 1e-10)
+})
+
+test_that("condition_aux does not depend on the scale of a column", {
+  # An absolute cutoff on the spread dropped 1e-8 * aux, an independent
+  # constraint, and 37% of draws then lost balance.
+  pik <- rep(c(0.2, 0.3, 0.5), 2)
+  group <- rep(0:1, each = 3)
+  X <- cbind(pik * group, runif(6))
+  ref <- .condition_cube_aux(X, pik)
+  for (sc in c(1e-12, 1e-8, 1e8)) {
+    expect_equal(.condition_cube_aux(sc * X, pik), ref, tolerance = 1e-10,
+                 info = paste("scale", sc))
+    set.seed(2)
+    S <- balanced_wor(pik, aux = sc * pik * group, condition_aux = TRUE,
+                      nrep = 2000)$sample
+    expect_true(all(colSums(matrix(group[S], nrow = 2)) == 1),
+                info = paste("scale", sc))
+  }
+  # A column constant in aux / pik is the size constraint at any scale.
+  expect_identical(ncol(.condition_cube_aux(cbind(1e-9 * pik), pik)), 0L)
+})
+
+test_that("stratified condition_aux drops columns constant within strata", {
+  # Region dummies are redundant with the stratum size constraints. Global
+  # centering kept them, and the extra constraints cost the exact balance
+  # of the real variable.
+  ht_error <- function(S, aux, pik) {
+    max(apply(S, 2, function(s) {
+      max(abs(colSums(aux[s, , drop = FALSE] / pik[s]) - colSums(aux)))
+    }))
+  }
+  strata <- rep(1:3, each = 4)
+  pik <- rep(0.5, 12)
+  real_z <- rep(c(1, 1, 0, 0), 3) * pik
+  aux <- cbind(strata == 1, strata == 2, strata == 3, real_z) * 1
+  expect_identical(ncol(.condition_cube_aux(aux, pik, strata = strata)), 1L)
+  set.seed(1)
+  S <- balanced_wor(pik, aux = aux, strata = strata, condition_aux = TRUE,
+                    nrep = 500)$sample
+  expect_lt(ht_error(S, aux, pik), 1e-10)
+
+  # Unequal pik within strata: the redundant direction is pik times the
+  # stratum indicator.
+  pik2 <- rep(c(0.2, 0.3, 0.5, 0.4, 0.6), 2)
+  st2 <- rep(1:2, each = 5)
+  # The group's pik sum to 1 in each stratum, so exact balance is feasible.
+  z <- pik2 * rep(c(1, 1, 1, 0, 0), 2)
+  aux2 <- cbind(pik2 * (st2 == 1), z)
+  expect_identical(ncol(.condition_cube_aux(aux2, pik2, strata = st2)), 1L)
+  set.seed(2)
+  S <- balanced_wor(pik2, aux = aux2, strata = st2, condition_aux = TRUE,
+                    nrep = 500)$sample
+  expect_lt(ht_error(S, aux2, pik2), 1e-10)
+})
+
+test_that("condition_aux keeps a constant column under unequal pik", {
+  # A raw constant is not constant after division by pik, so it is a real
+  # constraint (the count of units, or a Hajek denominator).
+  # It used to be dropped, which left only the size constraint.
+  pik <- inclusion_prob(1:20, 6)
+  one <- matrix(1, 20, 1)
+  hajek <- function(S) var(apply(S, 2, function(s) sum(1 / pik[s])))
+  set.seed(3)
+  cond <- hajek(balanced_wor(pik, aux = one, condition_aux = TRUE,
+                             nrep = 2000)$sample)
+  set.seed(3)
+  size_only <- hajek(balanced_wor(pik, nrep = 2000)$sample)
+  expect_lt(cond, 0.85 * size_only)
 })
 
 test_that("condition_aux with all-constant aux produces valid sample", {
