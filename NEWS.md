@@ -16,9 +16,7 @@ Changes since 0.9.1, the previous CRAN release.
   random numbers, supported by `method = "scps"` (Grafström & Matei, 2018).
   Units are then visited in row order, so the sample depends only on `pik`,
   `spread`, `prn` and the row order. Drawing a second survey with `1 - prn`
-  coordinates the two negatively. Spreading on a measure of response burden
-  instead of coordinates gives the adapted SCP sampling of Matei, Smith,
-  Smeets & Klingwort (2023).
+  coordinates the two negatively.
 
 * `register_method()` accepts `supports_prn = TRUE` for `type = "balanced"`.
   Such methods receive `prn` when the caller supplies it.
