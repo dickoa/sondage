@@ -1,7 +1,5 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-^NEWS\.md$
-^NEWS$
 ^cran-comments\.md$
 ^README\.Rmd$
 ^\.appveyor\.yml$
